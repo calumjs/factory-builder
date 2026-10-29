@@ -30,11 +30,26 @@
       "rejected_items": "Record reason and stop; no automatic resubmission"
     },
     "review": {"required_approvals": 0, "independent": false, "distinct_providers": false},
-    "visual_checks": {"required": false, "reference": "Not applicable or unconfirmed", "method": "Rendered comparison and human review when relevant"}
+    "visual_checks": {"required": false, "reference": "Not applicable or unconfirmed", "method": "Rendered comparison and human review when relevant"},
+    "issue_intake": {
+      "mode": "one_shot",
+      "github_scope": "Not applicable until continuous pickup is chosen",
+      "status": "disabled",
+      "evidence": "No preference recorded; factory runs only on explicit kickoff"
+    },
+    "done_videos": {
+      "enabled": false,
+      "scope": "Not configured",
+      "evidence": "No preference recorded"
+    }
   }
 }
 ```
 
 Each identity and recipe record uses exactly the shown fields, with nonempty strings. Use `unverified` rather than inventing an account, flag or probe result. Keep credential values out. Autonomous `mode: bounded` requires a positive integer rate limit and named permitted submitters; concurrency and repair limits come from `budget`. Required reviewer approvals are a non-negative integer. Review and visual booleans must be actual JSON booleans.
 
+`issue_intake.mode` is `one_shot` (default) or `continuous`. Continuous mode is a design intent only until a watcher or scheduled routine is implemented with bounded `autonomy`, verified GitHub read scope and an authorized scheduler; record `github_scope` and `status` as unconfirmed/disabled until then. `done_videos.enabled` defaults to false; when true, record which ship events trigger narration, where artifacts may be stored and whether publication is authorized.
+
 Intake should verify existing Git author and authenticated platform account/scope when relevant before the first authorized commit or release. Report mismatches; do not silently change Git config, history, credentials, teams or security settings. A PATH binary alone is not available authentication. An authorized, harmless read-only probe is preferred; paid or mutating calls require their own authority. Recipes are unavailable for autonomous use until reviewed against the installed CLI version and observed authentication, cost, isolation and structured-output behavior.
+
+When `issue_intake.mode` is `continuous`, wire pickup only after autonomy controls, issue filters and scheduler authority are confirmed; the scaffold does not start a watcher. When `done_videos.enabled` is true, treat narrated demos as release evidence in Verify/Release and keep storage or upload within approved data boundaries.

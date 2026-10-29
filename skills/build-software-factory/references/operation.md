@@ -29,5 +29,13 @@ Prefer architectures that keep platform security controls intact. Do not disable
 
 Record task status and revision-bound evidence together with the status helper. Contract integrity and mutable operating evidence have distinct checks; a valid manifest does not prove truth, tool authorization or a passing application. Stage explicit reviewed paths. Inspect optional ignore fragments before adopting them, preserve existing policy and keep caches, backups, secrets and downstream factory outputs out of published plugin changes.
 
+## Continuous issue pickup
+
+When intake records `operations.issue_intake.mode: continuous`, the factory is intended to watch a configured GitHub repository (scope in `github_scope`) for new eligible issues and enqueue work without a manual kickoff each time. Implement this as an authorized watcher or scheduled routine outside the default scaffold: bounded `autonomy` (submitters, rate limits, kill switch), read-only issue listing within verified scope, deterministic eligibility filters and explicit scheduler authority. One-shot mode (`one_shot`, the default) runs only when a human or an approved orchestrator starts a pass; do not imply a background watcher exists from the scaffold alone.
+
+## Done videos
+
+When intake records `operations.done_videos.enabled: true`, Verify and Release should include a short narrated screen demo of the shipped fix or release (`scope` names triggers such as issue closed or tag published). Capture within approved data boundaries; storage, editing and external publication each need separate authority. When disabled (default), skip video production and record other acceptance evidence only.
+
 ## Release and learn
 Release requires accepted scope, final-revision verification, reviewer decision where required, migration/rollback plan and a named authorizer. Prepare the handoff even when publication is not authorized. If publication is authorized, confirm exact artifact/revision and target, then verify the deployed outcome; retain rollback evidence and stop at the requested condition. Learn records observed outcomes and proposes small improvements; changing policy, prompts, permissions or integrations requires review, not automatic self-modification.

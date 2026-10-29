@@ -7,7 +7,9 @@ def operations(config):
         'autonomy': {'mode':'manual','kill_switch':'Human stop request; stop scheduling and cancel pending work safely',
                      'max_items_per_hour':0,'allowed_submitters':[],'rejected_items':'Record reason and stop; do not retry without a new authorized decision'},
         'review': {'required_approvals':0,'independent':False,'distinct_providers':False},
-        'visual_checks': {'required':False,'reference':'Unconfirmed or not applicable','method':'Rendered comparison and human review when relevant'}
+        'visual_checks': {'required':False,'reference':'Unconfirmed or not applicable','method':'Rendered comparison and human review when relevant'},
+        'issue_intake': {'mode':'one_shot','github_scope':'Not applicable until continuous pickup is chosen','status':'disabled','evidence':'No preference recorded; factory runs only on explicit kickoff'},
+        'done_videos': {'enabled':False,'scope':'Not configured','evidence':'No preference recorded'}
     }
     supplied = config.get('operations',{})
     if not isinstance(supplied,dict) or not set(supplied) <= set(defaults):
@@ -44,4 +46,10 @@ def operations(config):
     v = result['visual_checks']
     if type(v['required']) is not bool or any(not isinstance(v[k],str) or not v[k].strip() for k in ('reference','method')):
         raise ValueError('Invalid visual-check policy')
+    i = result['issue_intake']
+    if i['mode'] not in ('one_shot','continuous') or any(not isinstance(i[k],str) or not i[k].strip() for k in ('github_scope','status','evidence')):
+        raise ValueError('Invalid issue intake policy')
+    d = result['done_videos']
+    if type(d['enabled']) is not bool or any(not isinstance(d[k],str) or not d[k].strip() for k in ('scope','evidence')):
+        raise ValueError('Invalid done-video policy')
     return result
