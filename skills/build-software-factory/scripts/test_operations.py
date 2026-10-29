@@ -84,6 +84,16 @@ class OperatingTests(unittest.TestCase):
     def test_invalid_autonomy_controls_refused(self):
         self.config['operations']={'autonomy':{'mode':'bounded','max_items_per_hour':5,'allowed_submitters':[]}}
         with self.assertRaises(ValueError):validate(self.config)
+    def test_issue_intake_and_done_video_defaults_in_policy(self):
+        files=render(self.config,self.research)
+        self.assertIn('"issue_intake"',files['policy.md'])
+        marker='## Proposed autonomy and review controls'
+        controls=json.loads(files['policy.md'].split(marker,1)[1].split('```json\n',1)[1].split('\n```',1)[0])
+        self.assertEqual(controls['issue_intake']['mode'],'one_shot')
+        self.assertFalse(controls['done_videos']['enabled'])
+    def test_invalid_issue_intake_mode_refused(self):
+        self.config['operations']={'issue_intake':{'mode':'polling'}}
+        with self.assertRaises(ValueError):validate(self.config)
     def test_headless_recipes_are_data_not_execution(self):
         marker=self.base/'executed'
         self.config['providers']=['Example provider']

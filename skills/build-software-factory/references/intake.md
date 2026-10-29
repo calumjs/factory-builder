@@ -13,7 +13,8 @@ Begin with what is known. For each answer record **confirmed / inferred / unknow
 - **Context:** architecture, business rules, authoritative docs, environments and existing repo instructions.
 - **Tooling:** installed tools, provider choices and available connectors; verify actual availability. Keep an unverified tool disabled. Ask credential *location/owner*, never credential value.
 - **Quality:** existing test commands and CI, acceptance evidence, review needs, performance/accessibility/security requirements. For a new project, propose a minimal test strategy rather than inventing passing tests.
-- **Delivery:** deployment target, staging, rollback strategy and who authorizes publication. No deployment target is required for a local scaffold.
+- **Delivery:** deployment target, staging, rollback strategy and who authorizes publication. No deployment target is required for a local scaffold. When work ships (issue fixed or release), should the factory produce a short narrated **done video** (demo of the fix)? Record preference as confirmed/inferred/unknown, scope (which milestones trigger a video) and whether tooling or publication of the video is authorized.
+- **Autonomy:** besides kill switch, submitters and rate limits (below), should the factory **continuously scan** a GitHub repository for new issues and auto-pick eligible work (watcher or scheduled routine), or run **one-shot** only when a human or an explicit kickoff starts a pass? Record mode, repository/org scope, eligibility filters and status (confirmed/inferred/unknown). Continuous pickup requires bounded autonomy controls and explicit scheduling authority; default to one-shot when unknown.
 - **Data/risk:** real vs fictional data, sensitivity, allowed processing locations, external data-sharing permissions, destructive operations, regulated/high-impact use.
 - **Capacity:** monetary ceiling, time ceiling, concurrency, maximum repair attempts, escalation contact and stopping condition. A proposed safe starting policy is no paid execution, one worker and two repair attempts; get project-specific limits confirmed before live use.
 
@@ -21,7 +22,7 @@ Begin with what is known. For each answer record **confirmed / inferred / unknow
 
 When relevant, record Git author and authenticated platform account, team/org/repository scope before the first authorized commit. Report mismatches rather than silently changing Git configuration, history or credentials. A binary on PATH is not authentication. Prefer authorized read-only account probes; paid calls and mutations require separate authority.
 
-For autonomous use, record each installed-version headless command, structured-output flag/schema, sandbox/tool restrictions and auth probe/evidence. Establish the kill switch, permitted submitters, rate/concurrency limits and rejection handling. Missing controls block live scheduling. Use [operations-config.md](operations-config.md) for optional structured fields.
+For autonomous use, record each installed-version headless command, structured-output flag/schema, sandbox/tool restrictions and auth probe/evidence. Establish the kill switch, permitted submitters, rate/concurrency limits and rejection handling. Missing controls block live scheduling. Record issue-intake mode (one-shot vs continuous GitHub scanning) and done-video preference when relevant. Use [operations-config.md](operations-config.md) for optional structured fields.
 
 Resolve ambiguous "latest" inputs by comparing version numbers, source revision and modification times. For conversions, identify the source export and visual acceptance tolerances. Add independent reviewers only when the task warrants their budget and data exposure.
 
