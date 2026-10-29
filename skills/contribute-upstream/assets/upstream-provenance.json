@@ -1,0 +1,8 @@
+{
+  "schema_version": 1,
+  "component": {"name": null, "version": null, "source_revision": null},
+  "upstream": {"repository_url": null, "host": null, "component_scope": null, "contribution_guidance_url": null},
+  "verification": {"status": "unverified", "checked_on": null, "public_evidence": []},
+  "publication_authority": "none",
+  "privacy_note": "Populate only verified non-secret metadata. Keep private source identities in an approved private location, not in shared provenance."
+}

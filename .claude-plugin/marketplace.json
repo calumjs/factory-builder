@@ -1,0 +1,12 @@
+{
+  "name": "software-factory-plugins",
+  "description": "A private distribution catalog for the Software Factory plugin.",
+  "owner": {"name": "calumjs"},
+  "plugins": [
+    {
+      "name": "software-factory",
+      "source": "./",
+      "description": "Build a researched six-phase factory and propose reusable improvements upstream."
+    }
+  ]
+}

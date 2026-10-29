@@ -1,0 +1,34 @@
+{
+  "status": "blocked",
+  "summary": "Online research has not been performed. This is an unresearched draft.",
+  "questions": [],
+  "queries": [],
+  "sources": [],
+  "coverage": {
+    "intake": {
+      "status": "unassessed",
+      "reason": "Assess relevance during intake and research."
+    },
+    "plan": {
+      "status": "unassessed",
+      "reason": "Assess relevance during intake and research."
+    },
+    "build": {
+      "status": "unassessed",
+      "reason": "Assess relevance during intake and research."
+    },
+    "verify": {
+      "status": "unassessed",
+      "reason": "Assess relevance during intake and research."
+    },
+    "release": {
+      "status": "unassessed",
+      "reason": "Assess relevance during intake and research."
+    },
+    "learn": {
+      "status": "unassessed",
+      "reason": "Assess relevance during intake and research."
+    }
+  },
+  "practices": []
+}

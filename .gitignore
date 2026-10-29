@@ -1,0 +1,17 @@
+.env*
+!.env.example
+!.env.*.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+node_modules/
+dist/
+build/
+test-results/
+.software-factory/
+.claude/skill-backups/
+factory-feedback/
+*.log
