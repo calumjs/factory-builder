@@ -43,7 +43,7 @@ is already active, pause it only through its authorized control; otherwise ask t
 owner to pause it. Do not start intake/fallback work to test around the barrier.
 Record pending path/owner decision without sending messages outside authorized
 scope. After the owner confirms the normal trust decision, recheck task permissions,
-exact helper command and six-phase discovery below. A denied action remains denied.
+exact helper command and skill discovery below. A denied action remains denied.
 Record worker/run identity, actual revision and outcome in the final handoff.
 
 ## Session-only phase loading
@@ -62,7 +62,7 @@ For an authorized headless read-only discovery pass, append:
 ```
 
 Check available commands/runtime skill metadata for factory-intake, factory-plan,
-factory-build, factory-verify, factory-release and factory-learn at the intended directory. Before delivery,
+factory-build, factory-verify, factory-release, factory-learn and factory-run at the intended directory. Before delivery,
 verify an actual scoped phase Skill invocation succeeds; prose imitating a phase
 does not establish discovery. A loaded builder plugin alone proves no phase load.
 

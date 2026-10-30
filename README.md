@@ -2,7 +2,7 @@
 
 A Claude Code plugin with two reusable skills:
 
-- `/software-factory:build-software-factory` asks adaptive questions, researches current task-specific practices, and scaffolds six phase skills: Intake, Plan, Build, Verify, Release and Learn.
+- `/software-factory:build-software-factory` asks adaptive questions, researches current task-specific practices, and scaffolds six phase skills: Intake, Plan, Build, Verify, Release and Learn, plus `/factory-run` for an advisory pass plan.
 - `/software-factory:contribute-upstream` captures reusable improvements, resolves the component's original repository, checks contribution policies and duplicates, and prepares issues or focused tested PRs within explicit publication authority.
 
 The builder applies selected research practices as concrete instructions and planned checks in generated skills. It preserves source observations, compatibility and trade-offs. Blocked, stale or incomplete research remains an explicitly unresearched draft.
@@ -30,9 +30,9 @@ claude --plugin-dir /path/to/software-factory-plugin
 
 Start with `/software-factory:build-software-factory` and describe the goal and intended local project. Intake reuses known answers and asks about scope, tools, identities, evidence, budget and autonomy only where relevant. Before generation, the skill researches relevant current primary sources using the host's available browsing tools.
 
-After authorized local writes, the offline Python helper creates only `<project>/.software-factory/`. It creates six skills and operating artifacts; it does not implement the product, run workers or tests, enable providers, publish issues or deploy. It refuses existing output rather than overwriting it.
+After authorized local writes, the offline Python helper creates only `<project>/.software-factory/`. It creates seven skills (six phases and the run engine) and operating artifacts; it does not implement the product, run workers or tests, enable providers, publish issues or deploy. It refuses existing output rather than overwriting it.
 
-Start Claude from the project root with `claude --add-dir .software-factory`, then use `/factory-intake`, `/factory-plan`, `/factory-build`, `/factory-verify`, `/factory-release` and `/factory-learn`. Confirm additional-directory skill discovery under the installed version and organization policy. See the builder's [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for helper commands and Windows interpreter selection.
+Start Claude from the project root with `claude --add-dir .software-factory`, then use `/factory-run` to drive a pass, or the phases individually: `/factory-intake`, `/factory-plan`, `/factory-build`, `/factory-verify`, `/factory-release` and `/factory-learn`. Confirm additional-directory skill discovery under the installed version and organization policy. See the builder's [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for helper commands and Windows interpreter selection.
 
 For isolated/headless phase discovery, keep `--setting-sources project` and follow the generated launch-guide.md preflight; an empty source list can hide phases. Risk-focused Verify guidance adapts independent review and identifier/persistence fault cases to the project's actual promises, preserving discovered failures and exact repair-revision evidence.
 
@@ -67,6 +67,15 @@ New factories receive an inactive [portable CI evidence job](skills/build-softwa
 Its trusted helper distinguishes tested S from storage E, constrains evidence-only
 changes and checks required recorded gates/tasks. It executes no application tests
 and installs no workflow; adopting it into project CI requires separate scope.
+
+## Run a factory
+
+`/factory-run` can propose a pass using recorded task status and controls. Selection
+is advisory: it creates no reservation or execution authority. Before dispatch,
+verify a project-specific exclusive dispatcher, paths, budget and stop controls.
+`run.py schedule` emits a non-executable design proposal; no scheduler is installed
+or ready to activate. Issue snapshots require an explicit project-specific label
+and repository policy and are treated as untrusted data. See the [running guide](skills/build-software-factory/references/running.md).
 
 ## Improve reusable components
 
