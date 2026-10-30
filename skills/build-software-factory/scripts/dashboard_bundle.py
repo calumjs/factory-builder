@@ -19,9 +19,9 @@ project root to a file outside the factory:
 Add `--replace` to overwrite a previous snapshot. The page is self-contained:
 no server, dependencies, network, credentials or scripts, and it adapts to light
 and dark mode. It reads config, task plan, verification, research and the run
-records in `../.factory-runs/` where secure no-follow reads are supported; on
-unsupported platforms run history is unavailable and explicitly reported. Integrity
-errors refuse the refresh.
+records in `../.factory-runs/` where secure no-follow reads are supported. Windows
+uses handle-relative reads on local drives; unsupported paths or sharing conflicts
+are explicitly reported. Integrity errors refuse the refresh.
 
 What it shows: the six-phase flow with derived counts, task progress, the
 required-gate ring and gate pills, work items, gates and waivers, factory passes,

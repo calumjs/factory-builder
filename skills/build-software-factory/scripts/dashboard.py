@@ -152,9 +152,169 @@ def parse_run_record(data, name, now, minutes):
     return validate_run_record(item,name,now,minutes)
 
 
+def windows_run_records(path, now, minutes):
+    """Bounded Windows history read with handle-relative, no-reparse traversal.
+
+    Only local drive paths are supported. Each component is opened relative to a
+    retained directory handle with delete sharing denied; files deny write sharing
+    as well. Unsupported filesystem/API behavior is reported, never followed.
+    """
+    import ctypes as c
+    from ctypes import wintypes as w
+    import ntpath
+    kernel = c.WinDLL('kernel32', use_last_error=True)
+    nt = c.WinDLL('ntdll')
+    H = w.HANDLE; U = w.ULONG; P = c.c_void_p
+
+    class UnicodeString(c.Structure):
+        _fields_ = [('Length', w.USHORT), ('MaximumLength', w.USHORT), ('Buffer', w.LPWSTR)]
+    class Attributes(c.Structure):
+        _fields_ = [('Length', U), ('RootDirectory', H), ('ObjectName', c.POINTER(UnicodeString)),
+                    ('Attributes', U), ('SecurityDescriptor', P), ('SecurityQualityOfService', P)]
+    class IoStatus(c.Structure):
+        _fields_ = [('Status', P), ('Information', c.c_size_t)]
+    class FileTime(c.Structure):
+        _fields_ = [('low', w.DWORD), ('high', w.DWORD)]
+    class FileInfo(c.Structure):
+        _fields_ = [('attributes', w.DWORD), ('created', FileTime), ('accessed', FileTime),
+                    ('written', FileTime), ('volume', w.DWORD), ('size_high', w.DWORD),
+                    ('size_low', w.DWORD), ('links', w.DWORD), ('index_high', w.DWORD), ('index_low', w.DWORD)]
+    class StandardInfo(c.Structure):
+        _fields_ = [('allocation', c.c_longlong), ('size', c.c_longlong), ('links', w.DWORD),
+                    ('delete_pending', c.c_ubyte), ('directory', c.c_ubyte)]
+    class BasicInfo(c.Structure):
+        _fields_ = [('created', c.c_longlong), ('accessed', c.c_longlong),
+                    ('written', c.c_longlong), ('changed', c.c_longlong), ('attributes', w.DWORD)]
+    class DirInfo(c.Structure):
+        _fields_ = [('next', w.DWORD), ('index', w.DWORD), ('created', c.c_longlong),
+                    ('accessed', c.c_longlong), ('written', c.c_longlong), ('changed', c.c_longlong),
+                    ('end', c.c_longlong), ('allocated', c.c_longlong), ('attributes', w.DWORD),
+                    ('name_length', w.DWORD), ('ea', w.DWORD), ('short_length', c.c_byte),
+                    ('short_name', w.WCHAR * 12), ('file_id', c.c_longlong), ('name', w.WCHAR * 1)]
+
+    kernel.GetDriveTypeW.argtypes = [w.LPCWSTR]; kernel.GetDriveTypeW.restype = w.UINT
+    kernel.CreateFileW.argtypes = [w.LPCWSTR, w.DWORD, w.DWORD, P, w.DWORD, w.DWORD, H]
+    kernel.CreateFileW.restype = H
+    kernel.CloseHandle.argtypes = [H]; kernel.CloseHandle.restype = w.BOOL
+    kernel.GetFileInformationByHandle.argtypes = [H, c.POINTER(FileInfo)]; kernel.GetFileInformationByHandle.restype = w.BOOL
+    kernel.GetFileType.argtypes = [H]; kernel.GetFileType.restype = w.DWORD
+    kernel.GetFileInformationByHandleEx.argtypes = [H, c.c_int, P, w.DWORD]; kernel.GetFileInformationByHandleEx.restype = w.BOOL
+    kernel.ReadFile.argtypes = [H, P, w.DWORD, c.POINTER(w.DWORD), P]; kernel.ReadFile.restype = w.BOOL
+    nt.NtCreateFile.argtypes = [c.POINTER(H), U, c.POINTER(Attributes), c.POINTER(IoStatus), P, U, U, U, U, P, U]
+    nt.NtCreateFile.restype = c.c_long
+    invalid = c.c_void_p(-1).value
+    handles = []; errors = []; records = []
+    class MissingRunDirectory(OSError): pass
+    # Do not use device paths, UNC shares, drive-relative names, ADS, or dot aliases.
+    raw = str(path)
+    drive, tail = ntpath.splitdrive(raw)
+    if not re.fullmatch(r'[A-Za-z]:', drive) or not tail.startswith('\\'):
+        return [], ['Run-record directory unavailable or unsafe']
+    parts = tail.split('\\')[1:]
+    if not parts or any(not x or x in ('.', '..') or ':' in x or x.endswith(('.', ' ')) for x in parts):
+        return [], ['Run-record directory unavailable or unsafe']
+
+    def info(handle):
+        item = FileInfo()
+        if not kernel.GetFileInformationByHandle(handle, c.byref(item)) or kernel.GetFileType(handle) != 1:
+            raise OSError('unsupported handle')
+        return item
+
+    def metadata(handle, directory):
+        standard = StandardInfo(); basic = BasicInfo()
+        if not kernel.GetFileInformationByHandleEx(handle, 1, c.byref(standard), c.sizeof(standard)):
+            raise OSError('standard metadata unavailable')
+        if not kernel.GetFileInformationByHandleEx(handle, 0, c.byref(basic), c.sizeof(basic)):
+            raise OSError('basic metadata unavailable')
+        if standard.delete_pending or bool(standard.directory) != directory or basic.attributes & 0x400:
+            raise ValueError('pending deletion, reparse or unexpected type')
+        return standard, basic
+
+    def open_child(parent, name, directory, enumerate_dir=False):
+        if not name or name in ('.','..') or any(x in name for x in ('\\','/',':','\x00')):
+            raise ValueError('unsafe component')
+        encoded = name.encode('utf-16-le')
+        if len(encoded) > 65532: raise ValueError('name too long')
+        buf = c.create_unicode_buffer(name)
+        value = UnicodeString(len(encoded), len(encoded)+2, c.cast(buf,w.LPWSTR))
+        attrs = Attributes(c.sizeof(Attributes), parent, c.pointer(value), 0x40, None, None)
+        result = H(); ios = IoStatus()
+        # FILE_TRAVERSE / FILE_LIST_DIRECTORY or FILE_READ_DATA, plus attributes
+        # and SYNCHRONIZE. Hold no delete sharing; record files also deny writes.
+        access = 0x100000 | 0x80 | ((0x20 | (0x01 if enumerate_dir else 0)) if directory else 0x01)
+        share = 0x03 if directory else 0x01
+        options = 0x00200000 | 0x20 | (0x01 if directory else 0x40)
+        status = nt.NtCreateFile(c.byref(result), access, c.byref(attrs), c.byref(ios),
+                                 None, 0, share, 1, options, None, 0)
+        if status < 0:
+            if directory and enumerate_dir and (status & 0xffffffff) == 0xc0000034: raise MissingRunDirectory()
+            raise OSError('relative open failed')
+        handles.append(result)
+        meta = info(result); metadata(result, directory)
+        if meta.attributes & 0x400 or bool(meta.attributes & 0x10) != directory:
+            raise ValueError('reparse or unexpected file type')
+        return result, meta
+
+    try:
+        if kernel.GetDriveTypeW(drive+'\\') not in (2,3,6): raise OSError('unsupported drive')
+        root = kernel.CreateFileW(drive+'\\', 0x100000 | 0x80 | 0x20, 0x03, None, 3, 0x02200000, None)
+        if root == invalid: raise OSError('drive root unavailable')
+        handles.append(root)
+        root_info=info(root)
+        if root_info.attributes & 0x400 or not root_info.attributes & 0x10:raise ValueError('unsafe drive root')
+        directory = root
+        for index, part in enumerate(parts):
+            directory, _ = open_child(directory, part, True, index == len(parts)-1)
+        names = []; buffer = c.create_string_buffer(65536); first = True
+        while True:
+            c.memset(buffer, 0, c.sizeof(buffer))
+            if not kernel.GetFileInformationByHandleEx(directory, 11 if first else 10, buffer, c.sizeof(buffer)):
+                if c.get_last_error() == 18: break  # ERROR_NO_MORE_FILES
+                raise OSError('directory enumeration failed')
+            first = False; offset = 0
+            while True:
+                if offset + DirInfo.name.offset > c.sizeof(buffer):raise ValueError('invalid enumeration')
+                entry = DirInfo.from_buffer(buffer, offset); length = entry.name_length
+                if length % 2 or offset + DirInfo.name.offset + length > c.sizeof(buffer):raise ValueError('invalid enumeration name')
+                name = bytes(buffer[offset+DirInfo.name.offset:offset+DirInfo.name.offset+length]).decode('utf-16-le')
+                if name not in ('.','..'): names.append(name)
+                if len(names) > MAX_RUN_ENTRIES:return [], ['Run records unavailable: directory entry limit exceeded']
+                if not entry.next:break
+                if entry.next < DirInfo.name.offset + length or entry.next % 8 or offset+entry.next >= c.sizeof(buffer):raise ValueError('invalid enumeration offset')
+                offset += entry.next
+        for name in names:
+            if not re.fullmatch(r'run-[A-Za-z0-9T\-]+\.json', name):continue
+            handle = None
+            try:
+                handle, before = open_child(directory, name, False)
+                standard, basic = metadata(handle, False)
+                size = (before.size_high << 32) | before.size_low
+                if before.links != 1 or standard.links != 1 or size != standard.size or size > MAX_RUN_BYTES:raise ValueError('unsafe record')
+                chunks=[]; remaining=size
+                while remaining:
+                    buf=c.create_string_buffer(remaining); count=w.DWORD()
+                    if not kernel.ReadFile(handle,buf,remaining,c.byref(count),None):raise OSError('record read failed')
+                    if not count.value:raise OSError('short record read')
+                    chunks.append(buf.raw[:count.value]);remaining-=count.value
+                after=info(handle); final_standard, final_basic = metadata(handle, False)
+                if (before.volume,before.index_high,before.index_low,before.size_high,before.size_low,basic.written,basic.changed)!=(after.volume,after.index_high,after.index_low,after.size_high,after.size_low,final_basic.written,final_basic.changed) or final_standard.size != size or final_standard.links != 1:
+                    raise ValueError('changed record')
+                records.append(parse_run_record(b''.join(chunks),name,now,minutes))
+            except (OSError,ValueError,KeyError,TypeError,UnicodeError,OverflowError):errors.append('A run record is malformed, unsafe, changed or unreadable')
+            finally:
+                if handle is not None:
+                    kernel.CloseHandle(handle);handles.remove(handle)
+    except MissingRunDirectory:pass
+    except (OSError,ValueError,UnicodeError,OverflowError):errors.append('Run-record directory unavailable or unsafe')
+    finally:
+        for handle in reversed(handles):kernel.CloseHandle(handle)
+    records.sort(key=lambda r:iso(r['started']).astimezone(timezone.utc),reverse=True)
+    return records[:20], sorted(set(errors))
+
 def run_records(path, now, minutes):
     """Bounded no-follow read of recorded claims; private notes are never exported."""
-    if not path.exists() and not path.is_symlink():return [], []
+    if os.name == 'nt':return windows_run_records(path,now,minutes)
+    if not path.exists() and not path.is_symlink() and not (hasattr(path,'is_junction') and path.is_junction()):return [], []
     if not hasattr(os,'O_NOFOLLOW') or not hasattr(os,'O_DIRECTORY') or os.open not in os.supports_dir_fd:
         return [], ['Run records unavailable: secure no-follow directory reads are unsupported on this platform']
     errors=[]; records=[]; directory=None

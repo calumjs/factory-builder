@@ -77,10 +77,67 @@ class DashboardTests(unittest.TestCase):
         (runs/'run-test.json').write_text(json.dumps({'run_id':'run-test','outcome':'failed','started':self.now.isoformat(),'finished':self.now.isoformat(),'dispatched':['T1'],'notes':'PRIVATE-SECRET-SENTINEL'}))
         records,errors=run_records(runs,self.now,60)
         self.assertNotIn('PRIVATE-SECRET-SENTINEL',json.dumps([records,errors]))
-        if not hasattr(os,'O_NOFOLLOW') or os.open not in os.supports_dir_fd:
+        if os.name != 'nt' and (not hasattr(os,'O_NOFOLLOW') or os.open not in os.supports_dir_fd):
             self.assertEqual(records,[]);self.assertIn('unsupported',errors[0])
         else:
             self.assertEqual(records[0]['outcome'],'failed');self.assertNotIn('notes',records[0])
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_valid_malformed_oversized_and_hardlink(self):
+        runs=self.base/'.factory-runs';runs.mkdir()
+        stamp=(self.now-timedelta(days=2)).isoformat()
+        record={'run_id':'run-good','outcome':'failed','started':stamp,'finished':stamp,'dispatched':['T1'],'notes':'PRIVATE'}
+        (runs/'run-good.json').write_text(json.dumps(record),encoding='utf-8')
+        (runs/'run-bad.json').write_text('{malformed',encoding='utf-8')
+        (runs/'run-large.json').write_bytes(b'x'*65537)
+        outside=self.base/'hard-source';outside.write_text('PRIVATE',encoding='utf-8')
+        os.link(outside,runs/'run-hard.json')
+        records,errors=run_records(runs,self.now,60)
+        self.assertEqual(len(records),1);self.assertEqual(records[0]['freshness'],'stale')
+        self.assertEqual(records[0]['outcome'],'failed');self.assertTrue(errors)
+        self.assertNotIn('PRIVATE',json.dumps([records,errors]))
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_absent_empty_and_reparse_entry(self):
+        runs=self.base/'.factory-runs'
+        self.assertEqual(run_records(runs,self.now,60),([],[]))
+        runs.mkdir();self.assertEqual(run_records(runs,self.now,60),([],[]))
+        target=self.base/'target';target.mkdir();link=runs/'run-link.json'
+        result=subprocess.run(['cmd','/c','mklink','/J',str(link),str(target)],capture_output=True,text=True)
+        if result.returncode:self.skipTest('Junction creation unavailable')
+        try:
+            records,errors=run_records(runs,self.now,60)
+            self.assertEqual(records,[]);self.assertTrue(errors)
+        finally:
+            os.rmdir(link)
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_directory_limit_fails_closed(self):
+        runs=self.base/'.factory-runs';runs.mkdir()
+        for index in range(201):(runs/f'run-{index}.json').write_text('{}')
+        records,errors=run_records(runs,self.now,60)
+        self.assertEqual(records,[]);self.assertIn('limit exceeded',errors[0])
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_rejects_existing_write_handle(self):
+        runs=self.base/'.factory-runs';runs.mkdir()
+        name=runs/'run-busy.json';name.write_text('{}',encoding='utf-8')
+        with name.open('w',encoding='utf-8') as open_writer:
+            open_writer.write('unchanged private value');open_writer.flush()
+            records,errors=run_records(runs,self.now,60)
+            self.assertEqual(records,[]);self.assertTrue(errors)
+        self.assertEqual(name.read_text(encoding='utf-8'),'unchanged private value')
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_rejects_directory_junction(self):
+        runs=self.base/'.factory-runs';target=self.base/'outside';target.mkdir()
+        result=subprocess.run(['cmd','/c','mklink','/J',str(runs),str(target)],capture_output=True,text=True)
+        if result.returncode: self.skipTest('Junction creation unavailable')
+        try:
+            records,errors=run_records(runs,self.now,60)
+            self.assertEqual(records,[]);self.assertTrue(errors)
+        finally:
+            os.rmdir(runs)
 
     def test_run_record_rejects_nonstring_and_naive_timestamps(self):
         valid={'run_id':'run-test','outcome':'failed','started':self.now.isoformat(),'finished':self.now.isoformat(),'dispatched':[]}
