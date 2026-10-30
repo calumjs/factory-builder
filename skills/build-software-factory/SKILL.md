@@ -68,6 +68,11 @@ Preflight generated phase discovery with the scoped launcher guidance in
 confirm required helpers first. A loaded plugin alone is insufficient. Required
 workspace trust is the human owner's normal decision, separate from execution
 authority; keep affected work blocked rather than changing permission modes.
+For a requested CI adoption design, use the inactive
+[portable evidence-job template](assets/templates/ci/README.md) and scripts/ci_evidence.py.
+Keep tested subject and evidence-storage commit distinct, select identity from the
+actual job, and use trusted pinned helper code outside the change checkout. No
+workflow, required-check protection, permissions or deployment is enabled by scaffolding.
 For promises such as retry idempotency or durable persistence, read
 [risk-focused-verification.md](references/risk-focused-verification.md) and fit
 independent review/edge-case/fault checks to the actual task, stack and budget.

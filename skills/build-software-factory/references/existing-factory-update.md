@@ -4,6 +4,11 @@ Do not rerun the scaffolder over an existing factory. Do not directly edit hashe
 
 ## Preview and review
 
+The optional portable CI/evidence template is not copied into existing factories
+automatically. Read it from the installed builder, or review selective ci/ artifact
+and manifest additions. Use the trusted installed helper outside the change checkout;
+adopting any workflow/required-check policy remains separately authorized work.
+
 For optional structured smoke checks and explicit video triggers, read
 [structured-gates.md](structured-gates.md). --gate-runtime is a separate reviewed
 opt-in for known original dashboard operations.py/recipes.py/gates.py sources;

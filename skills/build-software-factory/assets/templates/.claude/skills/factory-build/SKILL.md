@@ -22,6 +22,12 @@ Update task progress and checks actually run for the tested subject revision. Pr
 
 Implement owned tests/fixtures and, when in scope, CI/test-map changes at the existing project's actual paths. A plan or factory template is not runnable application coverage. Record commands actually run and their results; missing authority or unimplemented checks remain blocked. Keep operational runtime notes outside the manifest-checked factory directory and preserve existing project CI/ignore policy.
 
+ci/README.md and ci/job.example.py, when present, are inactive CI adoption proposals.
+Only within CI integration scope, adapt them into trusted job configuration using
+a pinned builder helper outside the change checkout. Keep actual tested S separate
+from evidence-storage E; preserve real logs and task updates for S. Do not activate
+jobs, branch protection, secrets or deployments as an implementation side effect.
+
 A reviewable change and handoff containing exact revision and evidence. No approval, publication or deployment is implied.
 
 Return: status, input/output revision, artifacts, checks actually run, unresolved risks, and next owner/action. Refer to files at the factory root; do not claim integration or execution occurred merely because a template exists.

@@ -22,6 +22,11 @@ Use done-video-recipe.md when present or the installed builder recipe: composed 
 
 Release owns G3 and applicable post-action rows in verification.md and corresponding task/handoff updates. Preserve durable non-secret artifacts outside the factory. Record the deployed/installed subject SHA separately from any evidence-storage commit; an evidence-only follow-up retains the original subject rather than renaming it. If that follow-up redeploys, identify and separately confirm the newly deployed revision. Existing living files are the sanctioned record; do not add an unregistered evidence directory or fabricate PASS when records/logs are missing.
 
+If an authorized CI adapter is used, its post-merge subject must be the actual
+released revision, with the actual target and separately stored observations. A
+green pre-merge record assessment is no deployment confirmation. See ci/README.md
+or the installed builder's template; it enables no CI/deploy action itself.
+
 Read the actual done_videos preference/triggers in policy/config. Omitted triggers retain release-only V1; explicit pre_merge_preview creates V2 at Verify, while post_g3_release selects V1 here. Only selected V1 uses this release handoff: if G3 remains required it must pass first; if optional, record its waiver. If V1 remains required, perform authorized recording and record the shipped revision, actual target, artifact and time. Recording, storage and publication are distinct scopes. A blocked required demo stays blocked, an optional V1 is WAIVED, and preview V2 never substitutes. Disabled video requests none; preview-only creates no release-video requirement.
 
 ## Exit gate

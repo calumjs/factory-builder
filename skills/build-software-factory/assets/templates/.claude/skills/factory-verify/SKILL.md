@@ -16,6 +16,12 @@ When video work is enabled/requested and has not been waived, read its structure
 
 Verify owns current pre-merge observations in verification.md; task owners update task-plan.json atomically using status.py within scope. Store durable logs/artifacts in reviewed project evidence storage outside this factory and record stable references/access owner; a temporary worker transcript is insufficient retention. The gate Revision is the exact tested subject, while a later evidence-only storage commit is a distinct identity recorded in handoff metadata. Do not relabel old checks to the storage SHA. Review any evidence-only diff; if it changes the tested subject or triggers a new deployment, obtain separate verification for that actual subject. No CI enforcement is enabled automatically.
 
+For a separately authorized CI adapter, use ci/README.md or the installed builder's
+portable evidence-job template. It assesses records at storage E against explicit
+tested S and rejects source/config changes masquerading as evidence-only updates.
+Select S from the real test job, never by searching for a passing row. Optional
+checks stay WAIVED; default task diagnostics do not invent stage assignments.
+
 Identify required post-merge A/R checks and G3's actual web/artifact target. Future post-action evidence does not block pre-action readiness. For an enabled release trigger, put the scoped V1 plan, owner, permitted data, recording/storage/publication boundaries and effective G3 prerequisite in release-handoff.md. Preview-only V2 does not require a future release. Do not record a shipped demo before the action or claim a planned artifact exists. Release owns G3 then selected V1; blocked tooling or authority must be reported explicitly.
 
 For configured structured smoke recipes, record the canonical argv design shown in
