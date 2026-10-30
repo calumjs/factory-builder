@@ -30,6 +30,17 @@ If automatic promotion can expose incompatible code first, a later G3 observatio
 cannot prevent that exposure: block the release handoff and escalate the ordering
 problem. Do not run migrations or change promotion settings without scoped authority.
 
+If an authorized project uses Neon and Drizzle and proposes a different migration
+transport, inspect the project's actual driver, migration implementation and current
+provider documentation first. Neon HTTP supports single queries and non-interactive
+transactions; session or interactive transactions need a different supported path
+([Neon](https://neon.com/docs/connect/choose-connection),
+[Drizzle](https://orm.drizzle.team/docs/connect-neon)). Verify migration ledger,
+transaction atomicity, locking, retries and rollback against a disposable environment
+before recommending a project-specific recipe. A connectivity failure does not
+authorize a network-policy bypass, credential disclosure, installation or migration.
+No generic transport fallback is activated by this skill.
+
 ## Post-action
 4. Only after a separately authorized merge, deploy, install or publish: run G3, if still required, against the actual target and merged revision — the real URL for web targets, the installed or published artifact for everything else — plus required post-action A/R checks. Record result, target, revision, command or observation, time, exit status and evidence, then run `gates.py --factory <root> --stage post-merge --revision <merged-rev> --target <target>`. An optional G3 is reported WAIVED.
 5. If a required post-action check fails or cannot run, report UNCONFIRMED/FAILED at once to the release owner with evidence, target, revision and the diagnosis or rollback decision needed. Roll back only within existing authority. An unknown target stays blocked; only accepted no-release scope records G3 NOT APPLICABLE with rationale.

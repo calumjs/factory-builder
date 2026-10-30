@@ -12,7 +12,8 @@ class ReleaseOwnershipGuidanceTests(unittest.TestCase):
         release=' '.join(files['.claude/skills/factory-release/SKILL.md'].split())
         for term in ('one release owner','atomic admission mechanism','non-owner waits',
                      'migration-before-promotion','expand/contract','later G3 observation',
-                     'without scoped authority'):
+                     'without scoped authority', 'non-interactive transactions', 'migration ledger',
+                     'network-policy bypass', 'No generic transport fallback'):
             self.assertIn(term,release)
         handoff=files['release-handoff.md']
         self.assertIn('Release owner, subject/target',handoff)
