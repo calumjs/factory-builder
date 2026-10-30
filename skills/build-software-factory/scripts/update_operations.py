@@ -81,6 +81,10 @@ LEGACY_DELIVERY_ADDENDUM = {
     'intake':'222e1a4da39797890d2da2f7279d2f3492f678daca322823f0ceafc30c915573',
     'verify':'fea10626d5030ace9cf8a36f8d8246ea0a0d086b4abbb894fd10dfa5d875ea47',
     'release':'08f80342cb4be98daf090c833e0cc209971ec959acff24512d7dd06a9c0e5a87'}
+V19_DELIVERY_ADDENDUM = {
+    'intake': ('f48fc8e0956c99003f8c46bfaae76c9847cd086332cc99bf25cb74b134742b5d','c179a72f3b39cb7d181a9e04fa0cb2143747f4b7b1039bf0347d042d17900bc3'),
+    'verify': ('2599dd944575f04c6a8a25916c7f63037d3168bbb5140f3c885b6d1b13e33a4c',),
+    'release': ('8333d61b055b15996b37b8d8c4aec4740e05ec31be6daef27836214c6563bfcb',)}
 PRIOR_GATE_RUNTIME = {
     'operations.py':'0a964032c4680520b945f8103185a0cb04fa265a147c1b0bb7f547f5302b8d00',
     'recipes.py':'0290d43d98da9529dd20452c93c5d0bb037a794c3e9a8e68526a546391cd8d27',
@@ -223,7 +227,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             if current.count('<!-- factory-delivery-update:start -->')>1 or current.count('<!-- factory-delivery-update:start -->')!=current.count('<!-- factory-delivery-update:end -->'):
                 raise ValueError('Ambiguous prior delivery addendum')
             previous=re.search(pattern,current,flags=re.S)
-            if previous and digest(previous.group(0)) not in (LEGACY_DELIVERY_ADDENDUM[phase],digest(build_addon(source)),digest(build_addon(source_six))):
+            if previous and digest(previous.group(0)) not in (LEGACY_DELIVERY_ADDENDUM[phase],*V19_DELIVERY_ADDENDUM[phase],digest(build_addon(source)),digest(build_addon(source_six))):
                 raise ValueError('Customized or unsupported delivery addendum preserved; review migration manually: '+phase)
             current=re.sub(pattern,lambda _:addon,current,flags=re.S) if re.search(pattern,current,flags=re.S) else current.rstrip()+'\n\n'+addon+'\n'
             replacement[name]=current.encode('utf-8')

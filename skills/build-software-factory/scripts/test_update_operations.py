@@ -27,6 +27,30 @@ class UpdateTests(unittest.TestCase):
         (self.factory/'manifest.json').write_text(json.dumps(manifest))
     def snapshot(self):
         return {p.relative_to(self.base).as_posix():p.read_bytes() for p in self.base.rglob('*') if p.is_file()}
+    def test_pristine_v19_delivery_addenda_are_selectively_upgraded(self):
+        from update_operations import V19_DELIVERY_ADDENDUM
+        paths={phase:self.factory/f'.claude/skills/factory-{phase}/SKILL.md' for phase in ('intake','verify','release')}
+        originals={phase:path.read_text(encoding='utf-8') for phase,path in paths.items()}
+        for variant in ('six','seven'):
+            manifest=json.loads((self.factory/'manifest.json').read_text())
+            for phase,path in paths.items():
+                name=f'.claude/skills/factory-{phase}/SKILL.md'
+                fixture=ROOT/f'scripts/fixtures/v1_9_addendum_{phase}_{variant if phase=="intake" else "normal"}.txt'
+                addon=fixture.read_text(encoding='utf-8')
+                self.assertIn(digest(addon),V19_DELIVERY_ADDENDUM[phase])
+                path.write_text(originals[phase].rstrip()+'\n\n'+addon+'\n',encoding='utf-8')
+                manifest['contracts'][name]=digest(path.read_bytes())
+            (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+            root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+            for phase in paths:
+                self.assertEqual(new[f'.claude/skills/factory-{phase}/SKILL.md'].decode().count('<!-- factory-delivery-update:start -->'),1)
+            intake=paths['intake'];intake.write_text(intake.read_text(encoding='utf-8').replace('Reviewed delivery-gate addendum','Customized delivery-gate addendum'),encoding='utf-8')
+            manifest['contracts']['.claude/skills/factory-intake/SKILL.md']=digest(intake.read_bytes())
+            (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+            with self.assertRaisesRegex(ValueError,'Customized or unsupported delivery addendum'):
+                prepare(self.factory,{},delivery_update=True)
+
+
     def test_preview_and_wrong_approval_write_nothing(self):
         before=self.snapshot();root,old,new,plan=prepare(self.factory,{'done_videos':{'enabled':True}})
         self.assertEqual(self.snapshot(),before)

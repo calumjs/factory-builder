@@ -43,6 +43,7 @@ Preflight with the generated launch-guide.md: pin the loaded builder, confirm th
 ## Other situations
 
 - Existing factory or changed preferences: [existing-factory-update.md](references/existing-factory-update.md) — preview-first synchronized update, never a direct edit of hashed files.
+- Incremental work against existing configured acceptance: [incremental-workflow.md](references/incremental-workflow.md). Scoped assessment is separate from whole-project readiness; use living-record previews within existing write authority.
 - Integrity already failing, or a worker stuck: [recovery.md](references/recovery.md).
 - Evidence ownership, tested-subject vs storage commits, first release of a new target: [operation.md](references/operation.md); the inactive CI job is `assets/templates/ci/README.md`.
 - Enabled done videos: [done-videos.md](references/done-videos.md).

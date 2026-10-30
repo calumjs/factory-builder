@@ -14,4 +14,6 @@ description: Perform the Plan phase of this project's local software factory usi
 7. Fit the activity overview to the operators: read dashboard/README.md, choose evidence and freshness, reuse existing UI where useful, plan authorized adapters as owned tasks. Missing metrics stay unavailable; the overview is not a control surface.
 
 ## Exit
+For incremental work against existing acceptance, the installed builder's incremental-workflow.md describes preview-first task and scoped-record work. A scoped verdict is separate from whole-project readiness. New criteria require separately reviewed synchronized contract changes; do not silently add them.
+
 A dependency-valid plan, mapped acceptance criteria, feasible budgets and explicit human approval points. Planning launches no workers.

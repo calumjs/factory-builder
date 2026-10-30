@@ -24,4 +24,6 @@ description: Perform revision-bound pre-merge application verification and prepa
 12. Carry unresolved assumption labels, provenance and blockers into the handoff.
 
 ## Exit
+When using the installed incremental-workflow.md, report explicitly selected scope and excluded rows. Scoped eligibility is not whole-project readiness or release authority; obtain fresh evidence for a new subject.
+
 A ready recommendation only when all still-required pre-merge checks and reviews pass for this revision, optional checks reported WAIVED; otherwise a BLOCKED diagnostic handoff. Verification never merges or deploys.
