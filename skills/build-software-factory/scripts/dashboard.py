@@ -162,8 +162,9 @@ def windows_directory_entries(data, name_offset, length_offset):
         if offset+name_offset>len(data):raise ValueError('invalid enumeration')
         next_offset=struct.unpack_from('<I',data,offset)[0]
         length=struct.unpack_from('<I',data,offset+length_offset)[0]
-        if length % 2 or offset+name_offset+length>len(data):raise ValueError('invalid enumeration name')
+        if not length or length % 2 or offset+name_offset+length>len(data):raise ValueError('invalid enumeration name')
         name=data[offset+name_offset:offset+name_offset+length].decode('utf-16-le')
+        if '\x00' in name:raise ValueError('invalid enumeration name')
         if name not in ('.','..'):names.append(name)
         if len(names)>MAX_RUN_ENTRIES:raise OverflowError('directory entry limit exceeded')
         if not next_offset:return names

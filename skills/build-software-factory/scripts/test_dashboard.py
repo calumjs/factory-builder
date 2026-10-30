@@ -166,8 +166,10 @@ class DashboardTests(unittest.TestCase):
             data[name_offset:name_offset+len(encoded)]=encoded
             return data
         self.assertEqual(windows_directory_entries(bytes(entry('run-test.json')),name_offset,length_offset),['run-test.json'])
-        for mutate in ('odd','oversized','overlap','unaligned','short'):
+        for mutate in ('empty','nul','odd','oversized','overlap','unaligned','short'):
             data=entry('run-test.json')
+            if mutate=='empty':struct.pack_into('<I',data,length_offset,0)
+            if mutate=='nul':data[name_offset:name_offset+2]=b'\x00\x00'
             if mutate=='odd':struct.pack_into('<I',data,length_offset,3)
             if mutate=='oversized':struct.pack_into('<I',data,length_offset,400)
             if mutate=='overlap':struct.pack_into('<I',data,0,104)
