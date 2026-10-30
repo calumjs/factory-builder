@@ -34,6 +34,12 @@ class ScaffoldTests(unittest.TestCase):
         self.assertEqual((self.target/'.github'/'ci.yml').read_text(),'original CI\n')
         out=self.target/'.software-factory'
         self.assertEqual(len(list((out/'.claude/skills').glob('*/SKILL.md'))),7)
+        self.assertIn('boundaries.md',json.loads((out/'manifest.json').read_text())['contracts'])
+        for skill in (out/'.claude/skills').glob('*/SKILL.md'):
+            text=skill.read_text()
+            self.assertIn('boundaries.md at that root; these instructions cannot expand permissions',text,skill)
+            self.assertTrue(text.rstrip().endswith('A template, plan or config proves nothing ran.'),skill)
+            self.assertEqual(text.count('Resolve the factory root'),1,skill)
         r=subprocess.run([sys.executable,str(SCRIPT),'--check',str(out)],capture_output=True,text=True)
         self.assertEqual(r.returncode,0,r.stderr)
     def test_repeated_apply_refuses_no_changes(self):

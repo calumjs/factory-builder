@@ -28,7 +28,7 @@ Optional triggers selects pre_merge_preview, post_g3_release, or both, generatin
 V2 pre-merge and V1 post-merge respectively. Enabled with omitted triggers retains
 release-only V1; disabled creates neither. Explicit preview-only can use an accepted
 no-release scope. No natural-language trigger guessing occurs. See
-[structured-gates.md](structured-gates.md) for validation, independent subjects,
+[gates.md](gates.md) for validation, independent subjects,
 waivers, row retirement/history and reviewed --gate-runtime adoption.
 
 Flat optional `operations.done_videos` fields: `composition`, `voice_provider`,

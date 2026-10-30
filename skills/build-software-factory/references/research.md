@@ -11,7 +11,7 @@ For the dedicated overview, assess project operators, existing UI/stack compatib
 
 When acceptance promises retries, persistence or recovery, inspect the actual
 identifier/storage APIs and failure guarantees, then select task-fitted edge/fault
-checks from [risk-focused-verification.md](risk-focused-verification.md). Research
+checks from [gates.md](gates.md). Research
 version-compatible contracts rather than copying a sample's implementation or
 assuming successful smoke covers interrupted/partial writes and restart semantics.
 

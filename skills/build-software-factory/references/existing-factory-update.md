@@ -4,13 +4,22 @@ Do not rerun the scaffolder over an existing factory. Do not directly edit hashe
 
 ## Preview and review
 
+Ambiguous duplicate policy keys and policy/config disagreement block the update;
+preserve and reconcile both records through a reviewed synchronized recovery.
+Known pristine v1.7 copied gate helpers remain unchanged by default; the installed
+helper rejects duplicate policy keys, while a copied older helper needs an explicit
+reviewed `--gate-runtime` upgrade to receive that diagnostic. A delivery migration
+adds the shared boundaries contract when absent, checks only the six installed
+phases unless Run was separately adopted, and refuses unknown customized delivery
+addenda rather than replacing them. Resolve such content through manual review.
+
 The optional portable CI/evidence template is not copied into existing factories
 automatically. Read it from the installed builder, or review selective ci/ artifact
 and manifest additions. Use the trusted installed helper outside the change checkout;
 adopting any workflow/required-check policy remains separately authorized work.
 
 For optional structured smoke checks and explicit video triggers, read
-[structured-gates.md](structured-gates.md). --gate-runtime is a separate reviewed
+[gates.md](gates.md). --gate-runtime is a separate reviewed
 opt-in for known original dashboard operations.py/recipes.py/gates.py sources;
 new fields are refused against incompatible copied runtimes without it. Existing
 legacy-field recipe changes preserve known compatible helpers unless a runtime
@@ -31,13 +40,13 @@ diagnostics, with original bytes backed up and its selective manifest entry revi
 Customized/unknown code is still preserved and refused for a separate manual review.
 
 For the optional structured assumptions replacement and advisory dashboard context,
-read [context-status.md](context-status.md). --assumptions accepts a private array;
+read [operations-config.md](operations-config.md). --assumptions accepts a private array;
 --context-runtime explicitly migrates known older dashboard code/dependencies,
 including recipe compatibility. Custom content/runtimes are preserved/refused.
 
 When step 1 fails because contracts were hand-edited or files were added, follow
-[reviewed integrity recovery](integrity-recovery.md) first. The optional
-[staged recovery helper](recovery-automation.md) creates a reviewed recovered copy;
+[reviewed integrity recovery](recovery.md) first. The optional
+[staged recovery helper](recovery.md) creates a reviewed recovered copy;
 activation remains separate. `update_operations.py` cannot preview or approve an
 invalid source; detailed path diagnostics do not change that boundary. No force switch exists.
 

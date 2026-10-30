@@ -13,11 +13,25 @@ from gates import policy_controls, initial_table, requirements, gate_rows, ROW
 from integrity import check, digest, safe_path
 from operations import controls, operations, DELIVERY_POLICY
 from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS
-from scaffold import validate, ROOT
+from scaffold import validate, ROOT, phase_skill, RETURN
 from assumptions import refresh as refresh_assumptions
 
 def dumps(value):
     return json.dumps(value,indent=2,ensure_ascii=False)+'\n'
+
+def control_differences(left, right, path='controls'):
+    if type(left) is not type(right):return [path]
+    if isinstance(left,dict):
+        result=[]
+        for key in sorted(left.keys() | right.keys()):
+            child=path+'.'+str(key)
+            if key not in left or key not in right:result.append(child)
+            else:result.extend(control_differences(left[key],right[key],child))
+        return result
+    if isinstance(left,list):
+        if len(left)!=len(right):return [path]
+        return [item for index,(a,b) in enumerate(zip(left,right)) for item in control_differences(a,b,path+'['+str(index)+']')]
+    return [] if left==right else [path]
 
 def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None):
     expected=requirements(config,research)
@@ -62,10 +76,17 @@ LEGACY_CONTEXT = {'dashboard.py':'9e785051fe9cc6a7dba5c4022992878066c264711fca14
 # Exact assumption-aware integrity.py published through v1.5.1: compatible without
 # the newer path diagnostics. Preserve it unless a reviewed runtime update is opted in.
 COMPATIBLE_CONTEXT = {'integrity.py':'c036ba6ce7bae45e7679ecc111fd33cc7dd65c323d13f1ce651856de6b291f94'}
+LEGACY_DELIVERY_ADDENDUM = {
+    'intake':'222e1a4da39797890d2da2f7279d2f3492f678daca322823f0ceafc30c915573',
+    'verify':'fea10626d5030ace9cf8a36f8d8246ea0a0d086b4abbb894fd10dfa5d875ea47',
+    'release':'08f80342cb4be98daf090c833e0cc209971ec959acff24512d7dd06a9c0e5a87'}
 PRIOR_GATE_RUNTIME = {
     'operations.py':'0a964032c4680520b945f8103185a0cb04fa265a147c1b0bb7f547f5302b8d00',
     'recipes.py':'0290d43d98da9529dd20452c93c5d0bb037a794c3e9a8e68526a546391cd8d27',
     'gates.py':'7303b291fc504d60ede7c8e0f5ada8f6957f71738606b1284e63b440d5f0db01'}
+# Exact published v1.7 gate code supports existing recipes. Preserve it unless
+# the operator explicitly reviews the newer duplicate-policy diagnostic.
+COMPATIBLE_GATE_RUNTIME = {'gates.py':'4e998f0f9a1a013fc06fc9c391ea255d6d7ab57e436ab0abbfd6367b9721be7a'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -74,8 +95,10 @@ def gate_runtime_plan(root, original, replacement, opted_in):
         wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
+        compatible=current is not None and digest(current)==COMPATIBLE_GATE_RUNTIME.get(filename)
+        if compatible and not opted_in:continue
         known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
-        if not known and not (current is None and filename=='recipes.py'):
+        if not known and not compatible and not (current is None and filename=='recipes.py'):
             raise ValueError('Customized/unsupported dashboard gate runtime preserved; review manually')
         if not opted_in:raise ValueError('Structured gates need a reviewed dashboard migration; preview with --gate-runtime')
         original[name]=current;replacement[name]=wanted
@@ -121,7 +144,10 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
     if assumptions_update is not None:config['assumptions']=copy.deepcopy(assumptions_update)
     validate(config)
     policy=original['policy.md'].decode('utf-8-sig').replace('\r\n','\n')
-    policy_controls(policy)  # Refuse a missing/ambiguous/malformed source section.
+    existing_controls=policy_controls(policy)
+    drift=control_differences(existing_controls,controls(before_config))
+    if drift:
+        raise ValueError('Policy/config controls disagree at '+', '.join(drift)+'; preserve and reconcile with a reviewed synchronized recovery before updating')
     header='## Proposed autonomy and review controls (not execution authority)'
     pattern=re.escape(header)+r'(\s*```json\n)(.*?)(\n```)'
     policy=re.sub(pattern,lambda m:header+m[1]+dumps(controls(config)).rstrip('\n')+m[3],policy,count=1,flags=re.S)
@@ -173,15 +199,31 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
         reset_defaults=isinstance(changes.get('smoke_gates'),dict) and 'required' in changes['smoke_gates']
         replacement['verification.md']=refreshed_verification(original['verification.md'].decode('utf-8-sig'),config,research,reset_defaults,before_config).encode('utf-8')
     if delivery_update:
+        boundary='boundaries.md'
+        boundary_source=(ROOT/'assets/templates'/boundary).read_bytes()
+        existing=(root/boundary).read_bytes() if (root/boundary).is_file() else None
+        if existing is not None and digest(existing)!=digest(boundary_source):
+            raise ValueError('Customized boundaries preserved; review their compatibility before a delivery migration')
+        if existing is None:
+            original[boundary]=None;replacement[boundary]=boundary_source
         for phase in ('intake','verify','release'):
             name=f'.claude/skills/factory-{phase}/SKILL.md'
             original[name]=(root/name).read_bytes()
             current=original[name].decode('utf-8-sig')
-            source=(ROOT/'assets/templates'/name).read_text(encoding='utf-8').split('---',2)[2].strip()
-            addon='<!-- factory-delivery-update:start -->\n## Reviewed delivery-gate addendum\nThis reviewed addendum supersedes conflicting older delivery/intake instructions; other custom project instructions remain in force.\n\n'+source+'\n<!-- factory-delivery-update:end -->'
+            source=phase_skill((ROOT/'assets/templates'/name).read_text(encoding='utf-8')).split('---',2)[2].strip()+'\n\n'+RETURN
+            seven='Confirm all seven skills (six phases plus factory-run) are discovered'
+            six='Confirm the six existing phase skills are discovered; if factory-run was separately adopted, confirm it too'
+            if phase=='intake' and seven not in source:raise ValueError('Unexpected intake discovery instructions; review migration manually')
+            source_six=source.replace(seven,six) if phase=='intake' else source
+            def build_addon(body):
+                return '<!-- factory-delivery-update:start -->\n## Reviewed delivery-gate addendum\nThis reviewed addendum supersedes conflicting older delivery/intake instructions; other custom project instructions remain in force.\n\n'+body+'\n<!-- factory-delivery-update:end -->'
+            addon=build_addon(source_six if phase=='intake' and not (root/'.claude/skills/factory-run/SKILL.md').is_file() else source)
             pattern=r'<!-- factory-delivery-update:start -->.*?<!-- factory-delivery-update:end -->'
             if current.count('<!-- factory-delivery-update:start -->')>1 or current.count('<!-- factory-delivery-update:start -->')!=current.count('<!-- factory-delivery-update:end -->'):
                 raise ValueError('Ambiguous prior delivery addendum')
+            previous=re.search(pattern,current,flags=re.S)
+            if previous and digest(previous.group(0)) not in (LEGACY_DELIVERY_ADDENDUM[phase],digest(build_addon(source)),digest(build_addon(source_six))):
+                raise ValueError('Customized or unsupported delivery addendum preserved; review migration manually: '+phase)
             current=re.sub(pattern,lambda _:addon,current,flags=re.S) if re.search(pattern,current,flags=re.S) else current.rstrip()+'\n\n'+addon+'\n'
             replacement[name]=current.encode('utf-8')
     tools=json.loads(original['tools.json'].decode('utf-8-sig'))
@@ -191,7 +233,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             replacement['tools.json']=dumps(tools).encode('utf-8')
     manifest=json.loads(original['manifest.json'].decode('utf-8-sig'))
     for name,data in replacement.items():
-        if name in manifest['contracts'] or name.startswith('dashboard/'):
+        if name in manifest['contracts'] or name.startswith('dashboard/') or name=='boundaries.md':
             manifest['contracts'][name]=digest(data)
     replacement['manifest.json']=dumps(manifest).encode('utf-8')
     replacement={k:v for k,v in replacement.items() if v!=original[k]}

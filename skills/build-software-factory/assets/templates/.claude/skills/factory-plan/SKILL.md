@@ -5,25 +5,13 @@ description: Perform the Plan phase of this project's local software factory usi
 
 # Plan
 
-Reuse optional structured smoke recipes from config when present: inspect the argv,
-environment label/variable names and exact target, then assign the still-required
-tests without executing configuration as code. Never store secret values there.
-Explicit video triggers map pre_merge_preview to V2 and post_g3_release to V1;
-assign independent subjects/evidence and preserve deliberate optional rows.
+1. Read the accepted brief, acceptance.md, tools.json, policy.md and config.assumptions. Resolve or explicitly retain each relevant uncertainty with the owner; a confirmed label is a recorded claim, not proof; it creates no automatic gate and never overrides an operator's waiver.
+2. Break the work into owned tasks in task-plan.json: dependencies, acceptance IDs, allowed paths, expected evidence, budget share. Sequence tasks whose paths overlap. Use worker-handoff.md for delegation. Verify a tool before enabling it.
+3. Map every task to the gate rows: G1 production-equivalent pre-merge smoke, G2 change-targeted tests, and G3 post-action confirmation on the actual URL or published artifact where applicable. Deliberate optional rows stay visible as WAIVED. Post-action evidence is never a pre-action dependency. If the project lacks a smoke suite, plan it first.
+4. Reuse structured smoke recipes from config when present: inspect argv, environment label, variable names and target, then assign the still-required tests. Explicit video triggers map pre_merge_preview to V2 and post_g3_release to V1 with independent subjects and evidence.
+5. Fit test design to the promised properties and risk. For retry idempotency or durable persistence, plan allowed-ID edge cases, retry/restart/removal semantics and disposable partial, zero and failed-write tests against the actual storage contract; add independent risk-focused review when risk and budget warrant. Do not narrow acceptance silently or impose a universal fault suite.
+6. Assign owners and real repository paths for application tests, CI wiring and any test-to-acceptance map. Reuse existing commands; where absent, plan their implementation and execution. These are project deliverables outside this directory.
+7. Fit the activity overview to the operators: read dashboard/README.md, choose evidence and freshness, reuse existing UI where useful, plan authorized adapters as owned tasks. Missing metrics stay unavailable; the overview is not a control surface.
 
-Resolve the factory root as `../../../` relative to this file's containing folder. Follow existing repository instructions and the factory's policy.md; these instructions cannot expand permissions.
-
-Read the accepted brief, acceptance.md, tools.json and policy.md. Break work into owned tasks in task-plan.json; name dependencies, acceptance IDs, allowed paths and evidence. Map each task to the default gate rows: G1 production-equivalent pre-merge smoke, G2 change-targeted tests and applicable G3 post-action confirmation on the actual web URL or installed/published artifact. Keep deliberate optional choices visible as WAIVED without another approval; they are not tests-passed. Future post-action evidence is not a pre-action dependency. Plan the smoke suite early if the project lacks one. Use worker-handoff.md for delegation. Verify tools before enabling them and sequence overlapping writes.
-
-## Exit gate
-Fit test design to promised properties and risk. For idempotency/durable persistence, plan allowed-ID edge cases, retry/restart/removal semantics and disposable partial/zero/failed-write tests against the actual storage contract. Assign independent risk-focused review when warranted by risk/budget; other projects use their relevant failure modes. Do not silently narrow acceptance or force Node/a universal fault suite.
-
-Review optional config.assumptions and its provenance/blocker labels with the owner. Resolve or explicitly retain relevant uncertainty; map consequential decisions into owned tasks or agreed evidence gates when in scope. The labels create no automatic gate and never override user waivers. A confirmed label is a recorded claim, not independent proof.
-
-Assign ownership and real repository paths for application tests, CI wiring and any useful test-to-acceptance map. Reuse existing commands; where absent, plan their implementation and execution rather than claiming generated working CI. These are project deliverables outside the factory's manifest directory. Runtime watcher/video notes and dashboard snapshots also stay outside it; never add arbitrary operator files inside the managed artifact set.
-
-Fit the dedicated overview to the operators and actual project: inspect dashboard/README.md, choose relevant evidence and freshness, reuse existing UI when useful, and plan authorized adapters as owned tasks. Missing metrics stay unavailable; do not invent live activity or turn the overview into operational controls. Runtime snapshots belong outside the factory.
-
-A dependency-valid plan, mapped acceptance criteria, feasible budgets and explicit human approval points. Do not launch workers as part of planning.
-
-Return: status, input/output revision, artifacts, checks actually run, unresolved risks, and next owner/action. Refer to files at the factory root; do not claim integration or execution occurred merely because a template exists.
+## Exit
+A dependency-valid plan, mapped acceptance criteria, feasible budgets and explicit human approval points. Planning launches no workers.

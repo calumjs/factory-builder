@@ -145,7 +145,13 @@ def policy_controls(policy):
     match = re.match(r'\s*\x60\x60\x60json\n(.*?)\n\x60\x60\x60',suffix,re.S)
     if match is None:
         raise ValueError('Malformed policy control JSON')
-    return json.loads(match.group(1))
+    def unique_object(pairs):
+        result={}
+        for key,value in pairs:
+            if key in result:raise ValueError('Duplicate key in policy controls')
+            result[key]=value
+        return result
+    return json.loads(match.group(1),object_pairs_hook=unique_object)
 
 def waivers(text,stage):
     return [gate+' WAIVED (recorded '+row['result']+')' for gate,row in gate_rows(text).items() if row['stage']==stage and row['required']=='no']
