@@ -27,6 +27,22 @@ class UpdateTests(unittest.TestCase):
         (self.factory/'manifest.json').write_text(json.dumps(manifest))
     def snapshot(self):
         return {p.relative_to(self.base).as_posix():p.read_bytes() for p in self.base.rglob('*') if p.is_file()}
+    def test_published_v19_gate_code_is_preserved_or_reviewedly_upgraded(self):
+        from update_operations import COMPATIBLE_GATE_V19
+        data=(ROOT/'scripts/fixtures/v1_9_gates.txt').read_bytes()
+        self.assertEqual(digest(data),COMPATIBLE_GATE_V19['gates.py'])
+        path=self.factory/'dashboard/gates.py';path.write_bytes(data)
+        manifest=json.loads((self.factory/'manifest.json').read_text());manifest['contracts']['dashboard/gates.py']=digest(data)
+        (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+        changes={'done_videos':{'enabled':True,'triggers':['post_g3_release']}}
+        root,old,new,plan=prepare(self.factory,changes,gate_runtime=False)
+        self.assertNotIn('dashboard/gates.py',new)
+        root,old,new,plan=prepare(self.factory,changes,gate_runtime=True)
+        backup=apply(root,old,new,plan,plan)
+        self.assertEqual((backup/'dashboard/gates.py').read_bytes(),data)
+        self.assertEqual(path.read_bytes(),(ROOT/'scripts/gates.py').read_bytes());check(root,quiet=True)
+
+
     def test_pristine_v19_delivery_addenda_are_selectively_upgraded(self):
         from update_operations import V19_DELIVERY_ADDENDUM
         paths={phase:self.factory/f'.claude/skills/factory-{phase}/SKILL.md' for phase in ('intake','verify','release')}
@@ -281,6 +297,17 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(config.read_bytes(),before['.software-factory/config.json'])
         self.assertEqual((self.factory/'policy.md').read_bytes(),before['.software-factory/policy.md'])
         self.assertEqual(gate.read_bytes(),(ROOT/'scripts/gates.py').read_bytes());check(self.factory,quiet=True)
+        command_tail=['--factory',str(self.factory),'--plan']
+        installed=subprocess.run([sys.executable,str(ROOT/'scripts/gates.py'),*command_tail],capture_output=True,text=True)
+        copied=subprocess.run([sys.executable,str(gate),*command_tail],capture_output=True,text=True)
+        self.assertEqual((installed.returncode,installed.stdout),(copied.returncode,copied.stdout))
+        self.assertEqual(copied.returncode,0,copied.stderr)
+        self.assertFalse((self.factory/'dashboard/__pycache__').exists())
+        output=self.base/'post-migration-overview.json'
+        dashboard=subprocess.run([sys.executable,str(self.factory/'dashboard/dashboard.py'),'--output',str(output),'--format','json'],capture_output=True,text=True)
+        self.assertEqual(dashboard.returncode,0,dashboard.stderr)
+        self.assertTrue(json.loads(output.read_text(encoding='utf-8'))['gates'])
+        check(self.factory,quiet=True)
 
     def test_runtime_only_custom_code_is_refused_and_noop_preserves_manifest(self):
         import subprocess, sys

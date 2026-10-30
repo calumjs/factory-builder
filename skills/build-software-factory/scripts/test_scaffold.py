@@ -2,6 +2,7 @@
 import copy
 import importlib.util
 import json
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -24,6 +25,23 @@ class ScaffoldTests(unittest.TestCase):
     def run_cli(self,*args):
         self.cfg.write_text(json.dumps(self.config))
         return subprocess.run([sys.executable,str(SCRIPT),'--config',str(self.cfg),'--target',str(self.target),*args],capture_output=True,text=True)
+    def test_copied_entrypoints_never_create_bytecode_in_clean_factory(self):
+        self.assertEqual(self.run_cli('--apply').returncode,0)
+        factory=self.target/'.software-factory';dashboard=factory/'dashboard'
+        env=dict(os.environ);env.pop('PYTHONDONTWRITEBYTECODE',None);env.pop('PYTHONPYCACHEPREFIX',None)
+        gate=[sys.executable,str(dashboard/'gates.py'),'--factory',str(factory),'--plan']
+        for _ in range(2):
+            result=subprocess.run(gate,capture_output=True,text=True,env=env)
+            self.assertEqual(result.returncode,0,result.stderr)
+            self.assertFalse((dashboard/'__pycache__').exists())
+        for name in ('integrity.py','readiness.py'):
+            result=subprocess.run([sys.executable,str(dashboard/name)],capture_output=True,text=True,env=env)
+            self.assertNotEqual(result.returncode,0);self.assertIn('no check ran',result.stderr)
+            self.assertFalse((dashboard/'__pycache__').exists())
+        checked=subprocess.run([sys.executable,str(SCRIPT),'--check',str(factory)],capture_output=True,text=True,env=env)
+        self.assertEqual(checked.returncode,0,checked.stderr)
+
+
     def test_release_identity_and_generated_provenance_do_not_invent_source(self):
         from scaffold import render
         plugin=json.loads((ROOT.parents[1]/'.claude-plugin/plugin.json').read_text(encoding='utf-8'))

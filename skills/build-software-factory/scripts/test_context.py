@@ -42,6 +42,25 @@ class ContextTests(unittest.TestCase):
 
     def run_check(self):return subprocess.run([sys.executable,str(ROOT/'scripts/scaffold.py'),'--check',str(self.root)],capture_output=True,text=True)
 
+    def test_pre65_copied_runtime_preserved_or_explicitly_upgraded(self):
+        from update_operations import COMPATIBLE_CONTEXT_PRE65, COMPATIBLE_GATE_PRE65
+        originals={}
+        for name in ('gates','integrity','readiness'):
+            data=(ROOT/('scripts/fixtures/pre65_'+name+'.txt')).read_bytes()
+            expected=COMPATIBLE_GATE_PRE65 if name=='gates' else COMPATIBLE_CONTEXT_PRE65
+            self.assertEqual(digest(data),expected[name+'.py'])
+            path=self.root/('dashboard/'+name+'.py');path.write_bytes(data);self.rehash('dashboard/'+name+'.py');originals[name]=data
+        root,old,new,plan=prepare(self.root,{},assumptions_update=self.rows)
+        for name in originals:self.assertNotIn('dashboard/'+name+'.py',new)
+        apply(root,old,new,plan,plan)
+        root,old,new,plan=prepare(self.root,{},context_runtime=True,gate_runtime=True)
+        backup=apply(root,old,new,plan,plan)
+        for name,data in originals.items():
+            self.assertEqual((backup/('dashboard/'+name+'.py')).read_bytes(),data)
+            self.assertEqual((root/('dashboard/'+name+'.py')).read_bytes(),(ROOT/('scripts/'+name+'.py')).read_bytes())
+        check(root,quiet=True)
+
+
     def test_v19_dashboard_is_preserved_or_reviewedly_upgraded(self):
         from update_operations import COMPATIBLE_CONTEXT
         original=(ROOT/'scripts/fixtures/v1_9_dashboard.txt').read_bytes()

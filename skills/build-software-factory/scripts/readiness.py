@@ -1,4 +1,6 @@
 """Advisory design diagnostics only. No probe, scheduling or permission inference."""
+import sys
+if __name__ == '__main__':sys.dont_write_bytecode = True
 import json
 import re
 from operations import operations, unresolved
@@ -41,3 +43,6 @@ def emit(config):
     if result['assumptions']:
         print('RECORDED ASSUMPTIONS (claims only; no sources executed): '+json.dumps(result['assumptions'],sort_keys=True))
     return result
+
+if __name__ == '__main__':
+    raise SystemExit('ERROR: readiness.py is an import-only module; no check ran. Use the installed builder scripts/scaffold.py --check <factory>.')

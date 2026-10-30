@@ -1,4 +1,6 @@
 """Contract integrity and basic living-record validation; no external execution."""
+import sys
+if __name__ == '__main__':sys.dont_write_bytecode = True
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
@@ -77,3 +79,6 @@ def check(path, *, quiet=False):
     if not quiet:
         print(f"PASS: {len(m['contracts'])} contract files match; {len(m['living'])} living files have valid basic structure. Living content and evidence truth are not attested; application checks were not run.")
     return m
+
+if __name__ == '__main__':
+    raise SystemExit('ERROR: integrity.py is an import-only module; no check ran. Use the installed builder scripts/scaffold.py --check <factory>.')
