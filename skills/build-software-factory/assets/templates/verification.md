@@ -16,6 +16,15 @@ After the separately authorized action, a still-required G3 confirms the actual 
 
 ## Recording rules
 
+Optional structured smoke_gates.checks plans supply canonical JSON argv, an
+environment label, variable names (never values) and a web/artifact target. Required
+PASSED rows must match that command/environment/target; a match is still a supplied
+claim, not execution or proof those variables were set. New observations retain the
+actual subject. Use reviewed synchronized updates before changing configured plans.
+Explicit video triggers create pre-merge V2 for pre_merge_preview and post-merge V1
+for post_g3_release. Omitted triggers preserve release-only V1; disabled video adds
+neither. Missing/wrong-stage expected rows remain errors even when optional.
+
 Use the generated rows below. A1... tracks acceptance; R1... tracks selected research checks; V1 defaults required when done videos are enabled; users may explicitly waive it, and a required V1 follows G3 unless G3 was explicitly waived. Required extra checks may use X1...; promote permanent requirements into reviewed config/research so removal is detectable. Stage overrides for A/R require an operations check_stages rationale; post-action-only criteria must not be required before their action exists.
 
 Replace a proposed design with the actual inspected command or explicit manual observation procedure. A PASSED record needs concrete environment, exact revision, evidence/artifact reference, actual target, ISO timestamp with timezone and exit status 0 (or manual for a genuinely manual observation). FAILED, BLOCKED or NOT RUN on a still-required check blocks its stage. Missing, malformed and duplicate rows remain errors even for optional defaults; stale or wrong-target evidence cannot satisfy a required check. Re-run after relevant revision/target changes; never fabricate evidence or treat a recorded claim as independently verified.

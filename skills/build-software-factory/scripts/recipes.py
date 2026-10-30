@@ -1,7 +1,14 @@
 """Validate optional design metadata. Nothing here schedules, records or narrates."""
 import json
 INTAKE_FIELDS = frozenset(('coverage','mechanism','cadence','timezone','window','window_evidence'))
-VIDEO_FIELDS = frozenset(('composition','voice_provider','delivery_channel','branding','duration_seconds','captions','media_format'))
+VIDEO_FIELDS = frozenset(('composition','voice_provider','delivery_channel','branding','duration_seconds','captions','media_format','triggers'))
+
+
+def video_triggers(video):
+    selected=video.get('triggers',['post_g3_release'])
+    if not isinstance(selected,list) or any(not isinstance(v,str) or v not in ('pre_merge_preview','post_g3_release') for v in selected) or len(set(selected))!=len(selected) or (video['enabled'] and not selected):
+        raise ValueError('Video triggers must be unique pre_merge_preview/post_g3_release values; enabled video needs a trigger')
+    return selected if video['enabled'] else []
 
 
 def text_fields(value, fields):
@@ -34,7 +41,8 @@ def video_design(video):
               'branding':'project name, actual subject revision or PR, date; adapt to approved project branding',
               'duration_seconds':60, 'captions':True, 'media_format':'mp4',
               **{key:video[key] for key in VIDEO_FIELDS if key in video}}
-    text_fields(result, VIDEO_FIELDS-{'duration_seconds','captions'})
+    text_fields(result, VIDEO_FIELDS-{'duration_seconds','captions','triggers'})
+    video_triggers(video)
     if type(result['duration_seconds']) is not int or not 1<=result['duration_seconds']<=600:
         raise ValueError('Video duration must be an integer 1..600 seconds; 30..90 is the normal single-change target')
     if type(result['captions']) is not bool or result['media_format'] not in ('mp4','webm'):

@@ -19,8 +19,9 @@ from assumptions import refresh as refresh_assumptions
 def dumps(value):
     return json.dumps(value,indent=2,ensure_ascii=False)+'\n'
 
-def refreshed_verification(text, config, research, reset_smoke_defaults=False):
+def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None):
     expected=requirements(config,research)
+    previous=requirements(prior_config,research) if prior_config is not None else {}
     preserved=[];history=[];extra=[];flags={}
     for line in text.splitlines():
         if not ROW.match(line):
@@ -35,7 +36,7 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False):
             raise ValueError('Malformed source requiredness requires review')
         flags[cells[0]]='yes' if flag in ('yes','y','true') else 'no'
         history.append('> '+line)
-        if cells[0]=='V1' and 'V1' not in expected:
+        if cells[0] not in expected and (cells[0]=='V1' or cells[0]=='V2' and cells[0] in previous):
             continue  # Reserved video gate is retired by the reviewed disabled preference.
         if cells[0] not in expected:
             cells=(cells+['','',''])[:11]
@@ -61,6 +62,23 @@ LEGACY_CONTEXT = {'dashboard.py':'9e785051fe9cc6a7dba5c4022992878066c264711fca14
 # Exact assumption-aware integrity.py published through v1.5.1: compatible without
 # the newer path diagnostics. Preserve it unless a reviewed runtime update is opted in.
 COMPATIBLE_CONTEXT = {'integrity.py':'c036ba6ce7bae45e7679ecc111fd33cc7dd65c323d13f1ce651856de6b291f94'}
+PRIOR_GATE_RUNTIME = {
+    'operations.py':'0a964032c4680520b945f8103185a0cb04fa265a147c1b0bb7f547f5302b8d00',
+    'recipes.py':'0290d43d98da9529dd20452c93c5d0bb037a794c3e9a8e68526a546391cd8d27',
+    'gates.py':'7303b291fc504d60ede7c8e0f5ada8f6957f71738606b1284e63b440d5f0db01'}
+
+
+def gate_runtime_plan(root, original, replacement, opted_in):
+    for filename in ('operations.py','recipes.py','gates.py'):
+        name='dashboard/'+filename;path=root/name
+        wanted=(ROOT/'scripts'/filename).read_bytes()
+        current=path.read_bytes() if path.exists() else None
+        if current is not None and digest(current)==digest(wanted):continue
+        known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
+        if not known and not (current is None and filename=='recipes.py'):
+            raise ValueError('Customized/unsupported dashboard gate runtime preserved; review manually')
+        if not opted_in:raise ValueError('Structured gates need a reviewed dashboard migration; preview with --gate-runtime')
+        original[name]=current;replacement[name]=wanted
 
 
 def context_runtime_plan(root, original, replacement, opted_in):
@@ -83,7 +101,7 @@ def unchanged(root, name, expected):
     return not path.exists() if expected is None else path.is_file() and path.read_bytes()==expected
 
 
-def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False):
+def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False):
     root=safe_path(factory);check(root,quiet=True)
     if not isinstance(changes,dict):
         raise ValueError('Operations changes must be an object')
@@ -99,7 +117,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             updated[section].update(value)
         else:
             updated[section]=value
-    if changes or (assumptions_update is None and not context_runtime):config['operations']=updated
+    if changes or (assumptions_update is None and not context_runtime and not gate_runtime):config['operations']=updated
     if assumptions_update is not None:config['assumptions']=copy.deepcopy(assumptions_update)
     validate(config)
     policy=original['policy.md'].decode('utf-8-sig').replace('\r\n','\n')
@@ -119,26 +137,33 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
         replacement['project-brief.md']=refresh_assumptions(original['project-brief.md'].decode('utf-8-sig'),before_config,config).encode('utf-8')
     if (assumptions_update is not None or context_runtime) and (root/'dashboard').is_dir():
         context_runtime_plan(root,original,replacement,context_runtime)
-    recipe_runtime=recipe_runtime or context_runtime
+    configured=operations(config)
+    gate_metadata='checks' in configured['smoke_gates'] or 'triggers' in configured['done_videos']
+    if (gate_metadata or gate_runtime) and (root/'dashboard').is_dir():
+        gate_runtime_plan(root,original,replacement,gate_runtime)
+    recipe_runtime=recipe_runtime or context_runtime or gate_runtime
     if 'done_videos' in changes:
         handoff=refresh_proposal(original['release-handoff.md'].decode('utf-8-sig'),'video',before_ops['done_videos'],operations(config)['done_videos'])
         replacement['release-handoff.md']=handoff.encode('utf-8')
     new_metadata=any(set(changes.get(section,{})) & fields for section,fields in (('issue_intake',INTAKE_FIELDS),('done_videos',VIDEO_FIELDS)))
     runtime='dashboard/operations.py'
     if (new_metadata or recipe_runtime) and (root/runtime).is_file():
-        current=(root/runtime).read_bytes()
+        current=replacement.get(runtime,(root/runtime).read_bytes())
         wanted=(ROOT/'scripts/operations.py').read_bytes()
         if digest(current)!=digest(wanted):
-            if digest(current)!=LEGACY_DASHBOARD_OPERATIONS:
+            if digest(current) not in (LEGACY_DASHBOARD_OPERATIONS,PRIOR_GATE_RUNTIME['operations.py']):
                 raise ValueError('Customized/unsupported dashboard runtime preserved; review a narrow manual compatibility migration')
-            if not recipe_runtime:
+            if digest(current)==LEGACY_DASHBOARD_OPERATIONS and not recipe_runtime:
                 raise ValueError('New recipe metadata needs a reviewed v1.2 dashboard migration; preview with --recipe-runtime')
-            original[runtime]=current;replacement[runtime]=wanted
+            if recipe_runtime:original[runtime]=current;replacement[runtime]=wanted
         dependency='dashboard/recipes.py'
         wanted=(ROOT/'scripts/recipes.py').read_bytes()
-        if (root/dependency).exists():
-            if digest((root/dependency).read_bytes())!=digest(wanted):
-                raise ValueError('Customized/unsupported dashboard recipe dependency preserved; review manually')
+        if (root/dependency).exists() or dependency in replacement:
+            current=replacement.get(dependency,(root/dependency).read_bytes() if (root/dependency).exists() else None)
+            if digest(current)!=digest(wanted):
+                if digest(current)!=PRIOR_GATE_RUNTIME['recipes.py']:
+                    raise ValueError('Customized/unsupported dashboard recipe dependency preserved; review manually')
+                if recipe_runtime:original[dependency]=current;replacement[dependency]=wanted
         elif recipe_runtime:
             original[dependency]=None;replacement[dependency]=wanted
         else:
@@ -146,7 +171,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
     if delivery_update or any(key in changes for key in ('smoke_gates','done_videos')):
         research=json.loads((root/'research.json').read_text(encoding='utf-8-sig'))
         reset_defaults=isinstance(changes.get('smoke_gates'),dict) and 'required' in changes['smoke_gates']
-        replacement['verification.md']=refreshed_verification(original['verification.md'].decode('utf-8-sig'),config,research,reset_defaults).encode('utf-8')
+        replacement['verification.md']=refreshed_verification(original['verification.md'].decode('utf-8-sig'),config,research,reset_defaults,before_config).encode('utf-8')
     if delivery_update:
         for phase in ('intake','verify','release'):
             name=f'.claude/skills/factory-{phase}/SKILL.md'
@@ -221,13 +246,14 @@ def main():
     parser.add_argument('--delivery-gates',action='store_true',help='Opt in to a reviewed narrow gate/template migration; preserve other factory files')
     parser.add_argument('--recipe-runtime',action='store_true',help='Opt in to a reviewed known-v1.2 dashboard validator/dependency migration for recipe metadata')
     parser.add_argument('--context-runtime',action='store_true',help='Opt in to a reviewed known dashboard context/diagnostic migration; includes recipe compatibility')
+    parser.add_argument('--gate-runtime',action='store_true',help='Opt in to reviewed known dashboard operations/recipes/gates support for structured gate metadata')
     args=parser.parse_args()
     if args.approve_plan and not args.apply:parser.error('--approve-plan requires --apply')
     if not args.operations and not args.assumptions:parser.error('--operations or --assumptions is required')
     changes=json.loads(Path(args.operations).read_text(encoding='utf-8-sig')) if args.operations else {}
     assumption_rows=json.loads(Path(args.assumptions).read_text(encoding='utf-8-sig')) if args.assumptions else None
     if args.assumptions and assumption_rows is None:raise ValueError('Assumptions input must be an array, not null')
-    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime)
+    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime)
     print('REVIEW PLAN: '+plan)
     for name,data in replacement.items():
         print(''.join(difflib.unified_diff(original[name].decode('utf-8-sig').splitlines(True) if original[name] is not None else [],data.decode('utf-8').splitlines(True),fromfile=name+' (current)',tofile=name+' (proposed)')))
