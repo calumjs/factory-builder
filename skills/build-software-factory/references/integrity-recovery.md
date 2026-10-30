@@ -2,9 +2,10 @@
 
 Use this when hand-edited contracts or unregistered files block checks, status,
 gates or operations preview. Those refusals are intentional. PR #15 improves error
-paths; it does not authorize accepting the changed files. There is no automatic
-rebaseline/apply helper for a broken factory in this release. The procedure below
-is a human-reviewed repository change, not an integrity bypass.
+paths; it does not authorize accepting the changed files. For a supported pinned
+baseline and stable inputs, [staged recovery automation](recovery-automation.md)
+can produce a reviewed recovered copy plus verified backup. It never edits/activates
+the damaged original; manual adoption and unsupported cases use the procedure below.
 
 ## Establish the baseline without losing work
 
@@ -56,11 +57,10 @@ is a human-reviewed repository change, not an integrity bypass.
    custom instructions, config/policy agreement, provenance, exact backup and
    recovery paths. Record the reviewer/verdict and immutable revision of that diff
    in the repository's normal review process. A review of an older diff does not
-   cover a changed proposal. This procedure issues no `--approve-plan` digest;
-   do not reuse an operations-update digest for a broken source. Automated recovery
-   would need a target-bound plan covering all baseline/current/proposed content
-   plus the original manifest, concurrency checks and verified backups; that helper
-   is explicitly deferred.
+   cover a changed proposal. This manual procedure issues no `--approve-plan`
+   digest; do not reuse an operations-update digest for a broken source. The staged
+   helper has its own full-content/target-bound plan and verified backup/completion
+   protocol. Automated in-place activation remains unsupported.
 
 ## Apply and verify within the reviewed scope
 
