@@ -65,6 +65,30 @@ class DashboardTests(unittest.TestCase):
         again = subprocess.run([sys.executable, str(self.factory/'dashboard/dashboard.py'), '--output', str(output)], capture_output=True)
         self.assertNotEqual(again.returncode, 0)
 
+    def test_run_records_render_and_malformed_ones_are_skipped(self):
+        runs = self.base/'.factory-runs'
+        runs.mkdir()
+        (runs/'run-20261030T120000Z-aaa.json').write_text(json.dumps({'run_id': 'run-20261030T120000Z-aaa', 'started': '2026-10-30T12:00:00+00:00',
+            'finished': '2026-10-30T12:05:00+00:00', 'dispatched': ['T1'], 'outcome': 'completed', 'notes': 'SYNTHETIC pass'}))
+        (runs/'run-20261030T110000Z-bbb.json').write_text('{not json')
+        (runs/'run-20261030T100000Z-ccc.json').write_text(json.dumps({'run_id': 'x', 'outcome': 'nonsense'}))
+        data = read(self.factory, now=self.now)
+        self.assertEqual([r['run_id'] for r in data['runs']], ['run-20261030T120000Z-aaa'])
+        html = page(data)
+        self.assertIn('Factory passes', html)
+        self.assertIn('SYNTHETIC pass', html)
+        self.assertNotIn('not json', html)
+        self.assertNotIn('<script', html)
+        self.assertIn('@media(prefers-color-scheme:dark)', html)
+        check(self.factory, quiet=True)
+
+    def test_page_renders_flow_pills_and_timelines_with_escaping(self):
+        data = summarize(self.files)
+        data['runs'] = []
+        html = page(data)
+        for needle in ('class="flow"', 'Intake', 'Learn', 'class="ring"', 'G1 NOT RUN', 'No run records', 'Required gates passed'):
+            self.assertIn(needle, html)
+
     def test_empty_tasks_are_unavailable_not_fabricated_activity(self):
         self.files['task-plan.json'] = json.dumps({'tasks': [], 'events': []})
         data = summarize(self.files)
