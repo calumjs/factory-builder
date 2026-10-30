@@ -12,6 +12,12 @@ compatibility/migration. These guides are not automatically copied into existing
 contracts. Read them from the installed builder or review a selective addition
 with its manifest entry; do not rescaffold or rebaseline unrelated edits.
 
+Known pristine assumption-aware dashboard integrity code published through v1.5.1
+remains compatible for assumptions-only updates and is preserved by default. An
+explicit `--context-runtime` plan may upgrade that exact source to detailed path
+diagnostics, with original bytes backed up and its selective manifest entry reviewed.
+Customized/unknown code is still preserved and refused for a separate manual review.
+
 For the optional structured assumptions replacement and advisory dashboard context,
 read [context-status.md](context-status.md). --assumptions accepts a private array;
 --context-runtime explicitly migrates known older dashboard code/dependencies,
@@ -21,7 +27,7 @@ When step 1 fails because contracts were hand-edited or files were added, follow
 [reviewed integrity recovery](integrity-recovery.md) first. The optional
 [staged recovery helper](recovery-automation.md) creates a reviewed recovered copy;
 activation remains separate. `update_operations.py` cannot preview or approve an
-invalid source; PR #15 diagnostics do not change that boundary. No force switch exists.
+invalid source; detailed path diagnostics do not change that boundary. No force switch exists.
 
 1. Confirm the exact factory path and authorized local write scope. Run the integrity check. Unreviewed contract edits must be resolved first; the updater refuses them. Schema 1 is unsupported and needs a separate reviewed migration.
 2. In approved scratch, write an operations-change JSON object, such as `{"done_videos":{"enabled":true,"scope":"Agreed narrated release demonstration"}}`. This is a partial operations patch, not a complete product config. Existing omitted fields are preserved. No credentials belong here.

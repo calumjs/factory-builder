@@ -55,7 +55,13 @@ def check(path, *, quiet=False):
             raise ValueError('Unsafe manifest path')
     actual = {str(f.relative_to(p)).replace('\\','/') for f in p.rglob('*') if f.is_file()} - {'manifest.json'}
     if actual != set(names):
-        raise ValueError('Manifest file set mismatch')
+        extra = sorted(actual - set(names))
+        missing = sorted(set(names) - actual)
+        detail = '; '.join(label + ': ' + json.dumps(paths, ensure_ascii=True)
+                           for label, paths in (('unexpected', extra), ('missing', missing)) if paths)
+        raise ValueError('Manifest file set mismatch (' + detail + '). Keep operator/runtime records '
+                         'outside the factory directory, e.g. docs/factory-operations.md. '
+                         'Do not reset hashes; use reviewed recovery for existing drift.')
     for name, expected in m['contracts'].items():
         if digest((p/name).read_bytes()) != expected:
             raise ValueError('Contract integrity mismatch: ' + name)

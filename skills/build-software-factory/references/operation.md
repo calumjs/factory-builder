@@ -107,7 +107,12 @@ for each issue:
 Recheck controls/dependencies at the separately authorized claim boundary to avoid
 stale decisions. The generic design launches no watcher and performs no GitHub
 mutation. Adapters need their own permissions, deduplication, atomic claims and tests.
-Put runtime records outside the managed factory, as in [dashboard.md](dashboard.md).
+Put runtime records outside the managed factory, as in [dashboard.md](dashboard.md),
+for example `docs/factory-operations.md` for watcher/done-video wiring and reviewed
+project evidence directories for logs. Unexpected files inside `.software-factory`
+remain integrity errors with explicit sorted unexpected/missing path diagnostics.
+The message does not authorize deletion, a hash reset or ignoring an operator area;
+use reviewed recovery for existing drift and preserve private backups.
 
 ## Release and learn
 
