@@ -13,6 +13,7 @@ import stat
 import subprocess
 import sys
 import threading
+import time
 sys.dont_write_bytecode=True
 from gates import assess, waivers
 from integrity import safe_path, validate_task_plan
@@ -41,6 +42,7 @@ def full_sha(value):
 def bounded_run(argv,env,limit,timeout=30):
     """Drain both pipes concurrently, stopping the child before buffers exceed limits."""
     process=subprocess.Popen(argv,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=env)
+    deadline=time.monotonic()+timeout
     outputs=[bytearray(),bytearray()];exceeded=threading.Event()
     def drain(stream,buffer,maximum):
         try:
@@ -59,12 +61,13 @@ def bounded_run(argv,env,limit,timeout=30):
     threads=[threading.Thread(target=drain,args=(process.stdout,outputs[0],limit),daemon=True),
              threading.Thread(target=drain,args=(process.stderr,outputs[1],65536),daemon=True)]
     for thread in threads:thread.start()
-    try:process.wait(timeout=timeout)
+    try:process.wait(timeout=max(0,deadline-time.monotonic()))
     except subprocess.TimeoutExpired:
         process.kill();process.wait()
         raise
     finally:
-        for thread in threads:thread.join()
+        for thread in threads:thread.join(timeout=max(0,deadline-time.monotonic()))
+        if any(thread.is_alive() for thread in threads):raise subprocess.TimeoutExpired(argv,timeout)
     if exceeded.is_set():raise ValueError('Git output exceeds bounded CI-record size')
     return process.returncode,bytes(outputs[0])
 

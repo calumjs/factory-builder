@@ -6,6 +6,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import time
 import unittest
 
 from ci_evidence import assess_ci, bounded_run, full_sha, relative
@@ -18,6 +19,13 @@ class CIEvidenceTests(unittest.TestCase):
             code='import os; os.write('+str(descriptor)+', b"x" * 200000)'
             with self.assertRaisesRegex(ValueError,'exceeds bounded'):
                 bounded_run([sys.executable,'-c',code],dict(os.environ),1024)
+
+    def test_pipe_held_by_descendant_cannot_defeat_deadline(self):
+        code='import subprocess,sys; subprocess.Popen([sys.executable,"-c","import time; time.sleep(1.5)"])'
+        started=time.monotonic()
+        with self.assertRaises(subprocess.TimeoutExpired):
+            bounded_run([sys.executable,'-c',code],dict(os.environ),1024,timeout=0.2)
+        self.assertLess(time.monotonic()-started,1.2)
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.repo=Path(self.tmp.name)/'project';self.repo.mkdir()
         self.hooks=self.repo/'.fixture-empty-hooks';self.hooks.mkdir()
