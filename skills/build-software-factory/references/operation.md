@@ -40,7 +40,7 @@ Record task status and revision-bound evidence together with the status helper. 
 
 ## Continuous issue pickup
 
-When intake records `operations.issue_intake.mode: continuous`, the factory is intended to watch a configured GitHub repository (scope in `github_scope`) for new eligible issues and enqueue work without a manual kickoff each time. Implement this as an authorized watcher or scheduled routine outside the default scaffold: bounded `autonomy` (submitters, rate limits, kill switch), read-only issue listing within verified scope, deterministic eligibility filters and explicit scheduler authority. One-shot mode (`one_shot`, the default) runs only when a human or an approved orchestrator starts a pass; do not imply a background watcher exists from the scaffold alone.
+When intake records `operations.issue_intake.mode: continuous`, the factory is intended to watch a configured GitHub repository (scope in `github_scope`) for new eligible issues and enqueue work without a manual kickoff each time. Implement this as an authorized watcher or scheduled routine outside the default scaffold: bounded `autonomy` (submitters, rate limits, kill switch), read-only issue listing within verified scope, deterministic eligibility filters and explicit scheduler authority. One-shot mode (`one_shot`, the default) runs only when a human or an approved orchestrator starts a pass; do not imply a background watcher exists from the scaffold alone. Record the watcher/routine and done-video wiring outside the manifest-checked factory directory (for example `docs/factory-operations.md`); extra files inside it fail `scaffold.py --check`.
 
 ## Done videos
 

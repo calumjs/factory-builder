@@ -85,4 +85,19 @@ class ScaffoldTests(unittest.TestCase):
         r=subprocess.run([sys.executable,str(SCRIPT),'--check',str(out)],capture_output=True,text=True)
         self.assertNotEqual(r.returncode,0)
 
+    def test_extra_file_named_in_mismatch(self):
+        self.assertEqual(self.run_cli('--apply').returncode,0)
+        out=self.target/'.software-factory'
+        (out/'operations.md').write_text('ops\n')
+        r=subprocess.run([sys.executable,str(SCRIPT),'--check',str(out)],capture_output=True,text=True)
+        self.assertNotEqual(r.returncode,0)
+        self.assertIn('unexpected: operations.md',r.stderr+r.stdout)
+    def test_missing_file_named_in_mismatch(self):
+        self.assertEqual(self.run_cli('--apply').returncode,0)
+        out=self.target/'.software-factory'
+        (out/'research.md').unlink()
+        r=subprocess.run([sys.executable,str(SCRIPT),'--check',str(out)],capture_output=True,text=True)
+        self.assertNotEqual(r.returncode,0)
+        self.assertIn('missing: research.md',r.stderr+r.stdout)
+
 if __name__=='__main__':unittest.main(verbosity=2)

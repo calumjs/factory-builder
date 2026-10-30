@@ -54,7 +54,12 @@ def check(path, *, quiet=False):
             raise ValueError('Unsafe manifest path')
     actual = {str(f.relative_to(p)).replace('\\','/') for f in p.rglob('*') if f.is_file()} - {'manifest.json'}
     if actual != set(names):
-        raise ValueError('Manifest file set mismatch')
+        extra = sorted(actual - set(names))
+        missing = sorted(set(names) - actual)
+        detail = '; '.join(x for x in (
+            ('unexpected: ' + ', '.join(extra)) if extra else '',
+            ('missing: ' + ', '.join(missing)) if missing else '') if x)
+        raise ValueError('Manifest file set mismatch (' + detail + '). Keep operator/runtime records such as watcher or done-video notes outside the factory directory, e.g. docs/factory-operations.md')
     for name, expected in m['contracts'].items():
         if digest((p/name).read_bytes()) != expected:
             raise ValueError('Contract integrity mismatch: ' + name)
