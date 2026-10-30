@@ -30,7 +30,7 @@ V2 never certifies V1. Missing, moved or duplicate expected rows are errors; eac
 
 ## Existing factories
 
-Use `update_operations.py`'s preview/digest/apply flow. New checks or triggers need compatible copied dashboard, recipes and gates helpers: `--gate-runtime` upgrades only known original v1.2–v1.5.1 sources (and a known missing v1.2 recipes dependency); custom or unknown code is refused and preserved. Review code, config, policy, rows, manifest and the verified backup together. Factories updated without these fields keep their older compatible helpers unless a runtime migration is selected; a plugin upgrade alone rewrites nothing.
+Use `update_operations.py`'s preview/digest/apply flow. New checks or triggers need compatible copied dashboard, recipes and gates helpers: `--gate-runtime` upgrades known original v1.2-v1.5.1 sources, the exact published v1.7 gate helper, and a known missing v1.2 recipes dependency; custom or unknown code is refused and preserved. The published v1.7 gate helper remains in place by default and needs the opt-in to receive duplicate-policy diagnostics. Review code, config, policy, rows, manifest and the backup together. A plugin upgrade alone rewrites nothing.
 
 ## Risk-focused verification
 
