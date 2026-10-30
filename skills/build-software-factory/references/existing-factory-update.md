@@ -12,6 +12,12 @@ compatibility/migration. These guides are not automatically copied into existing
 contracts. Read them from the installed builder or review a selective addition
 with its manifest entry; do not rescaffold or rebaseline unrelated edits.
 
+Known pristine assumption-aware dashboard integrity code published through v1.5.1
+remains compatible for assumptions-only updates and is preserved by default. An
+explicit `--context-runtime` plan may upgrade that exact source to detailed path
+diagnostics, with original bytes backed up and its selective manifest entry reviewed.
+Customized/unknown code is still preserved and refused for a separate manual review.
+
 For the optional structured assumptions replacement and advisory dashboard context,
 read [context-status.md](context-status.md). --assumptions accepts a private array;
 --context-runtime explicitly migrates known older dashboard code/dependencies,

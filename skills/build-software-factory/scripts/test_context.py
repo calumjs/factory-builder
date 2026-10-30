@@ -159,6 +159,34 @@ class ContextTests(unittest.TestCase):
         html=(self.base/'overview.html').read_text(encoding='utf-8');self.assertIn('AS1',html);self.assertNotIn('PRIVATE',html)
         check(root,quiet=True)
 
+    def test_published_v151_context_stays_compatible_and_can_opt_in_to_diagnostics(self):
+        from update_operations import COMPATIBLE_CONTEXT
+        data=(ROOT/'scripts/fixtures/v1_5_1_integrity.txt').read_bytes()
+        self.assertEqual(digest(data),COMPATIBLE_CONTEXT['integrity.py'])
+        path=self.root/'dashboard/integrity.py';path.write_bytes(data);self.rehash('dashboard/integrity.py')
+        before=self.snapshot()
+        root,old,new,plan=prepare(self.root,{},assumptions_update=self.rows)
+        self.assertEqual(before,self.snapshot())
+        self.assertNotIn('dashboard/integrity.py',new)
+        apply(root,old,new,plan,plan)
+        self.assertEqual(path.read_bytes(),data)
+        check(root,quiet=True)
+        root,old,new,plan=prepare(self.root,{},context_runtime=True)
+        self.assertEqual(old['dashboard/integrity.py'],data)
+        self.assertEqual(new['dashboard/integrity.py'],(ROOT/'scripts/integrity.py').read_bytes())
+        backup=apply(root,old,new,plan,plan)
+        self.assertEqual((backup/'dashboard/integrity.py').read_bytes(),data)
+        check(root,quiet=True)
+
+    def test_custom_v151_context_is_preserved_and_refused(self):
+        path=self.root/'dashboard/integrity.py'
+        path.write_bytes((ROOT/'scripts/fixtures/v1_5_1_integrity.txt').read_bytes()+b'\n# Synthetic custom rule\n')
+        self.rehash('dashboard/integrity.py');before=self.snapshot()
+        for opted_in in (False,True):
+            with self.assertRaisesRegex(ValueError,'Customized/unsupported'):
+                prepare(self.root,{},assumptions_update=self.rows,context_runtime=opted_in)
+            self.assertEqual(before,self.snapshot())
+
     def test_v12_context_migration_includes_recipe_compatibility(self):
         self.legacy_dashboard(v12=True)
         root,old,new,plan=prepare(self.root,{},assumptions_update=self.rows,context_runtime=True)

@@ -58,6 +58,9 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False):
 LEGACY_DASHBOARD_OPERATIONS = 'ef2679811ecf0d340064a87facc2d1e693b9703a65e25c10aac030100ed2e4ef'
 LEGACY_CONTEXT = {'dashboard.py':'9e785051fe9cc6a7dba5c4022992878066c264711fca1404e2a75237f49b34f1',
                   'integrity.py':'87c4d45bd1291f74aa468341c6820f82a66cdfd0bf719f5dd42553bc0e7fa576'}
+# Exact assumption-aware integrity.py published through v1.5.1: compatible without
+# the newer path diagnostics. Preserve it unless a reviewed runtime update is opted in.
+COMPATIBLE_CONTEXT = {'integrity.py':'c036ba6ce7bae45e7679ecc111fd33cc7dd65c323d13f1ce651856de6b291f94'}
 
 
 def context_runtime_plan(root, original, replacement, opted_in):
@@ -66,7 +69,9 @@ def context_runtime_plan(root, original, replacement, opted_in):
         path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename):
+        compatible=current is not None and digest(current)==COMPATIBLE_CONTEXT.get(filename)
+        if compatible and not opted_in:continue
+        if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename) and not compatible:
             raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')
         if not opted_in:
             raise ValueError('Assumptions need updated dashboard context; preview with --context-runtime')
@@ -215,7 +220,7 @@ def main():
     parser.add_argument('--apply',action='store_true');parser.add_argument('--approve-plan')
     parser.add_argument('--delivery-gates',action='store_true',help='Opt in to a reviewed narrow gate/template migration; preserve other factory files')
     parser.add_argument('--recipe-runtime',action='store_true',help='Opt in to a reviewed known-v1.2 dashboard validator/dependency migration for recipe metadata')
-    parser.add_argument('--context-runtime',action='store_true',help='Opt in to a reviewed known-v1.2/v1.3 dashboard context migration; includes recipe compatibility')
+    parser.add_argument('--context-runtime',action='store_true',help='Opt in to a reviewed known dashboard context/diagnostic migration; includes recipe compatibility')
     args=parser.parse_args()
     if args.approve_plan and not args.apply:parser.error('--approve-plan requires --apply')
     if not args.operations and not args.assumptions:parser.error('--operations or --assumptions is required')
