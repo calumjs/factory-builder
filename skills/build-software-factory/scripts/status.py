@@ -8,6 +8,7 @@ import sys
 import tempfile
 import uuid
 from integrity import check, safe_path, validate_task_plan
+from readiness import emit
 
 STATUSES = ('blocked','pending','in_progress','done')
 RESULTS = ('passed','failed','blocked','not-run')
@@ -37,6 +38,7 @@ def updated(plan, task_id, status, result, evidence, revision, environment, labe
 def record(factory, args):
     root = safe_path(factory)
     check(root, quiet=True)
+    emit(json.loads((root/'config.json').read_text(encoding='utf-8-sig')))
     path = root/'task-plan.json'
     original = path.read_bytes()
     plan = json.loads(original.decode('utf-8-sig'))

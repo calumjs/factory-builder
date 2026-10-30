@@ -4,6 +4,11 @@ Do not rerun the scaffolder over an existing factory. Do not directly edit hashe
 
 ## Preview and review
 
+For the optional structured assumptions replacement and advisory dashboard context,
+read [context-status.md](context-status.md). --assumptions accepts a private array;
+--context-runtime explicitly migrates known older dashboard code/dependencies,
+including recipe compatibility. Custom content/runtimes are preserved/refused.
+
 When step 1 fails because contracts were hand-edited or files were added, follow
 [reviewed integrity recovery](integrity-recovery.md) first. `update_operations.py`
 cannot preview or approve changes against an invalid source; PR #15 diagnostics

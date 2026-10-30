@@ -14,6 +14,8 @@ from gates import initial_table
 from dashboard import profile
 from dashboard_bundle import bundle
 from recipes import proposal
+from assumptions import assumptions, section
+from readiness import emit
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT = ('project', 'outcome', 'stack', 'harness', 'deployment', 'data_policy')
@@ -23,8 +25,9 @@ def validate(c):
     if not isinstance(c, dict):
         raise ValueError('Config must be an object')
     expected = set(TEXT + LISTS + ('budget', 'tasks'))
-    if set(c) - {'operations', 'dashboard'} != expected:
-        raise ValueError('Config keys must match example-config.json; missing or unknown keys: ' + str(sorted(set(c) ^ expected)))
+    actual=set(c)-{'operations','dashboard','assumptions'}
+    if actual != expected:
+        raise ValueError('Config keys must match example-config.json; missing or unknown keys: ' + str(sorted(actual ^ expected)))
     for key in TEXT:
         if not isinstance(c[key], str) or not c[key].strip():
             raise ValueError(key + ' must be a nonempty string')
@@ -74,6 +77,7 @@ def validate(c):
     for i in ids: visit(i)
     operations(c)
     profile(c)
+    assumptions(c)
 
 def dumps(c):
     return json.dumps(c, indent=2, ensure_ascii=False) + '\n'
@@ -103,6 +107,7 @@ def render(c, research):
         lines += ['- '+x for x in c[k]] if isinstance(c[k],list) else [c[k]]
         lines += ['']
     files['project-brief.md'] = '\n'.join(lines)+'\n'
+    files['project-brief.md'] += '\n'+section(c)+'\n'
     files['acceptance.md'] = '# Acceptance criteria\n\n' + '\n'.join(f'- A{i+1}: {a}\n  Owner: unassigned; status: NOT VERIFIED; evidence: none.' for i,a in enumerate(c['acceptance']))+'\n'
     files['task-plan.json'] = dumps({'tasks': c['tasks'], 'events': []})
     ops = operations(c)
@@ -134,7 +139,7 @@ def main():
     args=parser.parse_args()
     if args.check:
         if args.config or args.target or args.apply or args.research: parser.error('--check cannot be combined with scaffold options')
-        check(args.check);return
+        check(args.check);emit(json.loads((safe_path(args.check)/'config.json').read_text(encoding='utf-8-sig')));return
     if not args.config or not args.target: parser.error('--config and --target are required')
     c=json.loads(Path(args.config).read_text(encoding='utf-8'));validate(c)
     target=safe_path(args.target)

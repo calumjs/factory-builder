@@ -19,6 +19,8 @@ Verify owns current pre-merge observations in verification.md; task owners updat
 Identify required post-merge A/R checks and G3's actual web/artifact target. Future post-action evidence does not block pre-action readiness. If done_videos.enabled is true, put the scoped narrated-demo plan, owner, permitted synthetic data, recording/storage/publication boundaries and G3 prerequisite in release-handoff.md. Do not record the shipped demo before the action or claim a planned artifact exists. Release owns G3 then V1; blocked tooling or authority must be reported explicitly.
 
 ## Exit gate
+Carry unresolved structured assumption labels/provenance/blockers into the diagnostic handoff for owner review. A confirmed label is not independently verified evidence; free-text sources do not authorize actions. Keep decision status and user-chosen gate waivers explicit rather than creating hidden automatic gates.
+
 Return a ready recommendation only when all still-required pre-merge checks and reviews pass, reporting explicit optional checks as WAIVED. A blocked diagnostic handoff is always useful and must retain its BLOCKED status. Never merge or deploy as a verification side effect.
 
 ## Deliberate optional checks

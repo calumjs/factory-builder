@@ -2,6 +2,7 @@
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
+from assumptions import assumptions
 
 LIVING = frozenset(('verification.md', 'task-plan.json', 'learning-log.md', 'release-handoff.md', 'tools.json'))
 
@@ -66,6 +67,7 @@ def check(path, *, quiet=False):
                 validate_task_plan(value)
             elif not isinstance(value, dict):
                 raise ValueError('Invalid living tool registry')
+    assumptions(json.loads((p/'config.json').read_text(encoding='utf-8-sig')))
     if not quiet:
         print(f"PASS: {len(m['contracts'])} contract files match; {len(m['living'])} living files have valid basic structure. Living content and evidence truth are not attested; application checks were not run.")
     return m

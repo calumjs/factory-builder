@@ -71,6 +71,12 @@ limits are not consumption. Unavailable/proposed are different from zero.
 
 ## Privacy and rendering
 
+The optional `context` DTO extension shows advisory watcher design state and
+assumption position/status/blocker counts, with authority and liveness unverified.
+It excludes assumption text/source/blocker labels. See [context-status.md](context-status.md)
+for validation and explicit older-runtime adoption. These context labels do not
+create gate results or permission to schedule workers.
+
 Four fixed artifacts supply the data: config, task plan, verification and research,
 after integrity validation. Raw goals, evidence, commands, URLs and handoff prose
 are excluded; evidence paths are never followed. IDs, owner labels, revisions and

@@ -165,6 +165,12 @@ class RecipeTests(unittest.TestCase):
         (self.root/'dashboard/operations.py').write_bytes(source)
         (self.root/'dashboard/recipes.py').unlink()
         manifest=json.loads((self.root/'manifest.json').read_text())
+        for name in ('dashboard','integrity'):
+            data=(ROOT/('scripts/fixtures/v1_3_'+name+'.txt')).read_bytes()
+            (self.root/('dashboard/'+name+'.py')).write_bytes(data)
+            manifest['contracts']['dashboard/'+name+'.py']=digest(data)
+        for name in ('assumptions.py','readiness.py'):
+            (self.root/'dashboard'/name).unlink();manifest['contracts'].pop('dashboard/'+name)
         manifest['contracts']['dashboard/operations.py']=digest(source)
         manifest['contracts'].pop('dashboard/recipes.py')
         (self.root/'manifest.json').write_text(json.dumps(manifest))

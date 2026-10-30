@@ -13,6 +13,7 @@ from pathlib import Path
 import tempfile
 from gates import gate_rows, requirements
 from integrity import check, safe_path
+from readiness import report
 
 INPUTS = ('config.json', 'task-plan.json', 'verification.md', 'research.json')
 MAX_BYTES = 2_000_000
@@ -120,7 +121,7 @@ def summarize(files, *, now=None, sources=None, integrity='not checked: initial 
     return {'schema_version': 1, 'profile': settings, 'captured_at': now.isoformat() if sources is not None else None,
             'expires_at': (now+timedelta(minutes=settings['stale_after_minutes'])).isoformat() if sources is not None else None,
             'mode': 'local read-only snapshot; recorded claims, not verified live activity',
-            'integrity': integrity, 'errors': errors, 'sources': sources or [],
+            'integrity': integrity, 'errors': errors, 'sources': sources or [], 'context':report(config),
             'counts': {key: counts[key] for key in ('pending', 'in_progress', 'blocked', 'done')},
             'tasks': tasks, 'workers': workers, 'gates': gates, 'release': release,
             'events': events[:30], 'metrics': observations(extra, now, settings['stale_after_minutes']) if extra is not None else [],
@@ -173,6 +174,9 @@ def page(data):
     body += '<p class="notice">'+text(data['mode'])+'. No application check, release, watcher or worker was executed by this overview.</p>'
     body += '<p>Captured: '+text(data['captured_at'] or 'not captured; proposed scaffold')+'<br>Stale after: '+text(data['expires_at'] or 'initial snapshot is not current activity')+'. Compare this fixed snapshot with the current time; refresh explicitly.</p>'
     body += '<p>'+text(data['integrity'])+'</p>'
+    context=data['context']
+    body += '<section><h2>Continuous-intake design</h2><p>'+text(context['watcher']['state'])+'; runtime liveness and scheduler authority unverified.</p>'+''.join('<p class="notice">'+text(item)+'</p>' for item in context['watcher']['diagnostics'])+'</section>'
+    body += table('Recorded assumption labels', [('id','Assumption'),('status','Recorded status'),('blocker_count','Recorded blocker count')],context['assumptions'],'Labels are claims, not verified facts. Text/source/blocker labels stay in the private config/brief, not this overview.')
     if data['errors']:
         body += '<section class="notice"><h2>Data errors: readiness unavailable</h2>'+''.join('<p>'+text(e)+'</p>' for e in data['errors'])+'</section>'
     body += '<div class="cards">'+''.join('<div class="card">'+text(label)+'<strong>'+str(data['counts'][key])+'</strong>recorded</div>' for key, label in [('pending','Queued'),('in_progress','In progress'),('blocked','Blocked'),('done','Done')])+'</div>'
