@@ -12,6 +12,7 @@ import re
 import stat
 import subprocess
 import sys
+import threading
 sys.dont_write_bytecode=True
 from gates import assess, waivers
 from integrity import safe_path, validate_task_plan
@@ -37,20 +38,50 @@ def full_sha(value):
     return value.lower()
 
 
+def bounded_run(argv,env,limit,timeout=30):
+    """Drain both pipes concurrently, stopping the child before buffers exceed limits."""
+    process=subprocess.Popen(argv,stdout=subprocess.PIPE,stderr=subprocess.PIPE,env=env)
+    outputs=[bytearray(),bytearray()];exceeded=threading.Event()
+    def drain(stream,buffer,maximum):
+        try:
+            while True:
+                chunk=stream.read(65536)
+                if not chunk:break
+                remaining=maximum-len(buffer)
+                if len(chunk)>remaining:
+                    if remaining>0:buffer.extend(chunk[:remaining])
+                    exceeded.set()
+                    try:process.kill()
+                    except OSError:pass
+                    break
+                buffer.extend(chunk)
+        finally:stream.close()
+    threads=[threading.Thread(target=drain,args=(process.stdout,outputs[0],limit),daemon=True),
+             threading.Thread(target=drain,args=(process.stderr,outputs[1],65536),daemon=True)]
+    for thread in threads:thread.start()
+    try:process.wait(timeout=timeout)
+    except subprocess.TimeoutExpired:
+        process.kill();process.wait()
+        raise
+    finally:
+        for thread in threads:thread.join()
+    if exceeded.is_set():raise ValueError('Git output exceeds bounded CI-record size')
+    return process.returncode,bytes(outputs[0])
+
+
 class Git:
     def __init__(self,repo,executable='git'):
         self.repo=repo;self.executable=executable
 
-    def read(self,*args):
+    def read(self,*args,limit=MAX_TOTAL):
         env=dict(os.environ,GIT_NO_REPLACE_OBJECTS='1',GIT_NO_LAZY_FETCH='1',
                  GIT_OPTIONAL_LOCKS='0',GIT_TERMINAL_PROMPT='0')
-        result=subprocess.run([self.executable,'--no-lazy-fetch','--no-optional-locks','--literal-pathspecs',
+        status,output=bounded_run([self.executable,'--no-lazy-fetch','--no-optional-locks','--literal-pathspecs',
                                '-c','core.fsmonitor=false','-C',str(self.repo),*args],
-                              capture_output=True,env=env,timeout=30)
-        if result.returncode:
+                              env,limit)
+        if status:
             raise ValueError('Local Git '+args[0]+' failed; verify exact objects/history and checkout availability. No fetch is attempted.')
-        if len(result.stdout)>MAX_TOTAL:raise ValueError('Git metadata exceeds the bounded evidence-check size')
-        return result.stdout
+        return output
 
 
 def clean_storage(git,storage):
@@ -105,8 +136,7 @@ def task_core(plan):
 def task_history(git,factory,subject,storage):
     plans=[]
     for sha in (subject,storage):
-        body=git.read('show',sha+':'+factory+'/task-plan.json')
-        if len(body)>MAX_FILE:raise ValueError('Task-plan exceeds bounded CI-record size')
+        body=git.read('show',sha+':'+factory+'/task-plan.json',limit=MAX_FILE)
         plans.append(json.loads(body.decode('utf-8-sig')))
     before,after=plans
     if task_core(before)!=task_core(after):raise ValueError('Task definition/rescope changes are not evidence-only')

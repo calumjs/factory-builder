@@ -8,11 +8,16 @@ import sys
 import tempfile
 import unittest
 
-from ci_evidence import assess_ci, full_sha, relative
+from ci_evidence import assess_ci, bounded_run, full_sha, relative
 from scaffold import ROOT, render
 
 
 class CIEvidenceTests(unittest.TestCase):
+    def test_git_output_is_bounded_during_stdout_and_stderr_collection(self):
+        for descriptor in (1,2):
+            code='import os; os.write('+str(descriptor)+', b"x" * 200000)'
+            with self.assertRaisesRegex(ValueError,'exceeds bounded'):
+                bounded_run([sys.executable,'-c',code],dict(os.environ),1024)
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.repo=Path(self.tmp.name)/'project';self.repo.mkdir()
         self.hooks=self.repo/'.fixture-empty-hooks';self.hooks.mkdir()
