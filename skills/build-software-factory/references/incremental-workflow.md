@@ -54,3 +54,9 @@ run another updater or manual writer concurrently. Existing task event history a
 unrelated gate rows are preserved. No root configuration, permissions or contracts
 are rewritten. Old factories can use the trusted installed helpers without changing
 their copied runtime; review a separate migration before adopting any new contracts.
+
+For overlapping evidence branches, integrate serially: rebase the later change,
+resolve conflicts deliberately, retain each subject's observations, unique task
+events and Learn entries, and rerun the checks for the subject being assessed.
+Never discard failures or blindly choose the newest row. The helper's lock is
+cooperative local coordination; it is not a Git merge or arbitrary-writer lock.

@@ -15,6 +15,7 @@ from integrity import check, digest
 from operations import controls
 from scaffold import ROOT, render, validate
 from status import record
+from incremental_records import preview as preview_record, apply as apply_record
 from update_operations import prepare
 
 
@@ -23,7 +24,7 @@ class RecoveryEvidenceTests(unittest.TestCase):
         self.tmp=tempfile.TemporaryDirectory();self.base=Path(self.tmp.name)
         self.root=self.base/'.software-factory';self.root.mkdir()
         self.config=json.loads((ROOT/'assets/example-config.json').read_text())
-        self.config['operations']={'smoke_gates':{'target_kind':'artifact','deployed_url':'synthetic-package'}}
+        self.config['operations']={'smoke_gates':{'target_kind':'artifact','deployed_url':'synthetic-package','post_merge':'Synthetic artifact confirmation'}}
         self.research=json.loads((ROOT/'assets/example-research.json').read_text())
         self.files=render(self.config,self.research)
         for name,body in self.files.items():
@@ -60,6 +61,24 @@ class RecoveryEvidenceTests(unittest.TestCase):
                     self.assertEqual(current,self.snapshot())
                 if before is None:path.unlink()
                 else:path.write_bytes(before)
+
+    def test_failed_release_reopens_same_task_and_preserves_prior_gate_and_events(self):
+        def gate(revision,result,exit_status):
+            return {'gate':'G3','result':result,'revision':revision,'environment':'synthetic fixture','evidence':'synthetic evidence '+revision,'target':'synthetic-package','checked_at':'2026-10-30T00:00:00Z','exit_status':exit_status}
+        root,name,old,new,token=preview_record(self.root,'gate',gate('S1','FAILED','1'));apply_record(root,name,old,new,token,token)
+        event=self.args();event.status='blocked';event.result='failed';event.revision='S1';event.check='G3 observation'
+        record(self.root,event)
+        event.status='in_progress';event.result='not-run';event.revision='S2';event.check='Retry planned'
+        record(self.root,event)
+        root,name,old,new,token=preview_record(self.root,'gate',gate('S2','PASSED','0'));apply_record(root,name,old,new,token,token)
+        event.status='done';event.result='passed';event.check='G3 observation';record(self.root,event)
+        text=(root/'verification.md').read_text();rows=gate_rows(text)
+        self.assertEqual((rows['G3']['revision'],rows['G3']['result']),('S2','PASSED'))
+        self.assertIn('synthetic evidence S1',text);self.assertIn('> | G3 |',text)
+        plan=json.loads((root/'task-plan.json').read_text());events=[e for e in plan['events'] if e['task_id']=='T1']
+        self.assertEqual([(e['revision'],e['result'],e['status']) for e in events],[('S1','failed','blocked'),('S2','not-run','in_progress'),('S2','passed','done')])
+        self.assertEqual(len({e['id'] for e in events}),3);self.assertEqual(sum(t['id']=='T1' for t in plan['tasks']),1)
+
 
     def test_selective_reviewed_recovery_preserves_customizations_and_living_flags(self):
         baseline=self.snapshot()

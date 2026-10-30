@@ -9,6 +9,7 @@ import re
 from unittest.mock import patch
 from scaffold import ROOT, render
 from gates import gate_rows, assess
+from integrity import check
 from scoped_assessment import assess_scope
 from incremental_records import preview, apply
 from gate_plan_status import compare
@@ -74,6 +75,64 @@ class IncrementalTests(unittest.TestCase):
         with self.assertRaises(ValueError):preview(root,'gate',data) # Unconfirmed design must not pass.
         data['evidence']='bad | injected'
         with self.assertRaises(ValueError):preview(root,'gate',data)
+
+    def test_serial_repreview_preserves_both_failed_subjects(self):
+        first={'gate':'G1','result':'FAILED','revision':'S1','environment':'synthetic','evidence':'first failed','target':'artifact','checked_at':'2026-10-30T00:00:00Z','exit_status':'1'}
+        second={**first,'revision':'S2','evidence':'second failed'}
+        applied=preview(self.root,'gate',first);stale=preview(self.root,'gate',second)
+        apply(*applied,applied[-1]);after=self.snapshot()
+        with self.assertRaises(ValueError):apply(*stale,stale[-1])
+        self.assertEqual(after,self.snapshot())
+        refreshed=preview(self.root,'gate',second);apply(*refreshed,refreshed[-1])
+        text=(self.root/'verification.md').read_text(encoding='utf-8')
+        self.assertIn('first failed',text);self.assertIn('second failed',text)
+        self.assertEqual(gate_rows(text)['G1']['revision'],'S2')
+        self.assertEqual(gate_rows(text)['G1']['result'],'FAILED')
+
+    def test_two_branch_evidence_conflicts_are_reconciled_explicitly(self):
+        # A synthetic Git conflict and explicit resolution; no general automatic merge claim.
+        repo=Path(self.temp.name);hooks=repo/'empty-hooks';hooks.mkdir()
+        def git(*args,ok=True):
+            command=['git','-c','core.autocrlf=false','-c','core.hooksPath='+str(hooks),
+                     '-c','user.name=Synthetic fixture','-c','user.email=fixture@example.invalid',
+                     '-C',str(repo),*args]
+            result=subprocess.run(command,capture_output=True,text=True)
+            if ok:self.assertEqual(result.returncode,0,result.stderr)
+            return result
+        git('init','-q');git('add','--all');git('commit','-qm','Synthetic baseline')
+        base=git('rev-parse','HEAD').stdout.strip()
+        outputs={}
+        for branch,subject in (('left','S1'),('right','S2')):
+            git('checkout','-qb',branch,base)
+            data={'gate':'G1','result':'FAILED','revision':subject,'environment':'synthetic',
+                  'evidence':'failure '+subject,'target':'artifact','checked_at':'2026-10-30T00:00:00Z','exit_status':'1'}
+            result=preview(self.root,'gate',data);apply(*result,result[-1])
+            plan_path=self.root/'task-plan.json';plan=json.loads(plan_path.read_text())
+            plan['events'].append({'id':'event-'+subject,'task_id':'T1','timestamp':'2026-10-30T00:00:00Z',
+                'revision':subject,'environment':'synthetic','check':'G1','result':'failed',
+                'evidence':'failure '+subject,'old_status':'blocked','status':'blocked'})
+            plan_path.write_text(json.dumps(plan),encoding='utf-8')
+            log=self.root/'learning-log.md';log.write_text(log.read_text()+'\nSynthetic lesson '+subject+'\n',encoding='utf-8')
+            outputs[subject]={'verification':(self.root/'verification.md').read_text(),
+                              'plan':plan,'learning':log.read_text()}
+            git('add','--all');git('commit','-qm','Synthetic evidence '+subject)
+        conflict=git('merge','--no-edit','left',ok=False)
+        self.assertNotEqual(conflict.returncode,0)
+        left_row=next(line for line in outputs['S1']['verification'].splitlines() if line.startswith('| G1 |'))
+        (self.root/'verification.md').write_text(outputs['S2']['verification']+'\n## Prior observation\n> '+left_row+'\n',encoding='utf-8')
+        combined=outputs['S2']['plan'];combined['events']+=outputs['S1']['plan']['events']
+        (self.root/'task-plan.json').write_text(json.dumps(combined),encoding='utf-8')
+        (self.root/'learning-log.md').write_text(outputs['S2']['learning']+'\nSynthetic lesson S1\n',encoding='utf-8')
+        git('add','--all');git('commit','-qm','Synthetic reviewed resolution')
+        check(self.root,quiet=True)
+        text=(self.root/'verification.md').read_text()
+        self.assertIn('failure S1',text);self.assertIn('failure S2',text)
+        self.assertEqual((gate_rows(text)['G1']['revision'],gate_rows(text)['G1']['result']),('S2','FAILED'))
+        plan=json.loads((self.root/'task-plan.json').read_text())
+        self.assertEqual({e['id'] for e in plan['events']},{'event-S1','event-S2'})
+        self.assertEqual(len(plan['events']),2)
+        lessons=(self.root/'learning-log.md').read_text()
+        self.assertIn('Synthetic lesson S1',lessons);self.assertIn('Synthetic lesson S2',lessons)
 
     def test_nonpassing_record_rejects_unicode_line_breaks_without_write(self):
         data={'gate':'G1','result':'FAILED','revision':'subject','environment':'synthetic','evidence':'bad'+chr(0x2028)+'injected','target':'artifact','checked_at':'','exit_status':''}

@@ -11,5 +11,13 @@ description: Perform the Learn phase of this project's local software factory us
 4. Refresh the local overview with dashboard/README.md only when asked, to a snapshot outside this directory. Review source age, missing evidence and waived checks; counts are recorded claims, not throughput or liveness. Dashboard and status summaries deliberately omit private assumption text and sources. Propose project metrics only with an approved real source and adapter.
 5. For a reusable improvement to the builder itself, read upstream-provenance.json, resolve the component's source from installed plugin metadata, and use the contribute-upstream skill to prepare a sanitized draft. Read the upstream's contribution policy and check for duplicates; any issue, comment, fork, push or PR needs scoped approval or an already-authorized standing instruction.
 
+Coordinate shared evidence integration serially. Rebase a later evidence change onto
+an accepted one and preserve both subjects' observations, unique task events and
+learning entries; retain failures and resolve conflicts explicitly, never by blindly
+choosing the newest row. The gate table has one current row per ID: retain previous
+observations as history, select the subject being assessed and rerun the applicable
+checks for that subject. A status writer's lock coordinates cooperating writes only;
+it does not guarantee Git merges or exclude arbitrary concurrent editors.
+
 ## Exit
 A reviewed improvement proposal. No policy, permission, provider or production change is made here.

@@ -65,6 +65,14 @@ job permissions; no wrapper, alternate interpreter or elevated mode to evade den
 Unavailable tooling remains BLOCKED. Pin/review the helper and any CI actions before
 activation; the template does not authenticate source integrity or install tooling.
 
+When a project separately adopts this check, demonstrate on the actual PR check
+that synthetic wrong contract digests and missing contract entries each produce a
+failing required result, including config.json and any project-added test-map.json.
+Inspect the actual job, pinned helper, subject and required-check policy. A local
+helper regression cannot establish that hosted CI runs, propagates failure or is
+required by repository policy. Never automatically rehash a failed contract to
+make CI green; preserve the input and use reviewed recovery.
+
 ## Evidence-only envelope
 
 For S != E the stock helper permits only modifications to four existing living
