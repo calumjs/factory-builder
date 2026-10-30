@@ -85,4 +85,27 @@ class ScaffoldTests(unittest.TestCase):
         r=subprocess.run([sys.executable,str(SCRIPT),'--check',str(out)],capture_output=True,text=True)
         self.assertNotEqual(r.returncode,0)
 
+    def test_check_reports_once_per_invocation(self):
+        self.assertEqual(self.run_cli('--apply').returncode,0)
+        result=subprocess.run([sys.executable,str(SCRIPT),'--check',str(self.target/'.software-factory')],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual(result.stdout.count('PASS:'),1)
+
+    def test_stack_aware_ignore_fragment_without_root_overwrite(self):
+        (self.target/'.gitignore').write_text('user-policy\n')
+        self.config.update(stack='Next.js with TypeScript',deployment='Vercel preview',test_commands=['npx playwright test'])
+        self.assertEqual(self.run_cli('--apply').returncode,0)
+        fragment=(self.target/'.software-factory/gitignore.fragment').read_text()
+        for pattern in ('.next/','.vercel/','*.tsbuildinfo','playwright-report/','next-env.d.ts'):
+            self.assertIn(pattern,fragment)
+        self.assertIn('!.env.example',fragment)
+        self.assertEqual((self.target/'.gitignore').read_text(),'user-policy\n')
+
+    def test_unrelated_stack_does_not_get_framework_specific_ignores(self):
+        self.config.update(stack='Python CLI',deployment='Local package')
+        self.assertEqual(self.run_cli('--apply').returncode,0)
+        fragment=(self.target/'.software-factory/gitignore.fragment').read_text()
+        for pattern in ('.next/','.vercel/','*.tsbuildinfo','playwright-report/','next-env.d.ts'):
+            self.assertNotIn(pattern,fragment)
+
 if __name__=='__main__':unittest.main(verbosity=2)

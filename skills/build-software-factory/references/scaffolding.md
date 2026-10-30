@@ -60,6 +60,15 @@ The plugin builder is `/software-factory:build-software-factory`. Generated six-
 
 No hooks, tool preapproval, MCP server or settings changes are bundled. `gitignore.fragment` is an optional root ignore fragment to review and merge manually; the helper never edits root ignore rules. Keep non-secret `.env.example` files if useful. Stage explicit reviewed paths; avoid blanket staging of caches, backups, credentials or factory outputs.
 
+The fragment adds Next.js/TypeScript/Vercel/Playwright patterns only when named in
+the configured stack, target or test commands. Confirm actual installed tooling
+before adopting inferred patterns. Current Next.js documentation says next-env.d.ts
+is regenerated and should be ignored; older tracked-file conventions may differ.
+The helper neither deletes nor untracks files or overwrites root ignore policy.
+See [Next.js TypeScript](https://nextjs.org/docs/app/api-reference/config/typescript#next-envdts)
+(read 2026-10-30). Snapshots use factory-overview.html/json by convention; review
+additional runtime/adapter paths separately and keep them outside the factory.
+
 The generated `upstream-provenance.json` deliberately leaves the repository URL unverified/null. Resolve the reusable component's source from installed plugin metadata, then use the bundled contribution skill; never copy a private repository identity into shared output or infer posting authority from provenance.
 
 ## Offline tests
