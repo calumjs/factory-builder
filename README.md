@@ -63,6 +63,11 @@ New factories also receive a dedicated local read-only dashboard: open `.softwar
 
 Contract files are integrity-checked using normalized text hashes. Living task/evidence, verification, tools, release and learning records may evolve. The status helper records status and revision-bound evidence together without executing or attesting the check. Existing schema 1 factories require a reviewed migration.
 
+New factories receive an inactive [portable CI evidence job](skills/build-software-factory/assets/templates/ci/README.md).
+Its trusted helper distinguishes tested S from storage E, constrains evidence-only
+changes and checks required recorded gates/tasks. It executes no application tests
+and installs no workflow; adopting it into project CI requires separate scope.
+
 ## Improve reusable components
 
 During authorized work, capture useful observations and use the contribution skill to prepare a sanitized draft. The upstream is resolved from the affected component's verified source, not automatically the current application's origin. Check actual upstream CONTRIBUTING, issue/PR and security policies, including restrictions on agent-authored PRs. Verify duplicate searches. Private project data and secrets stay out of contributions.

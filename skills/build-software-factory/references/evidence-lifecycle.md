@@ -54,7 +54,11 @@ and evidence-storage policy rather than blindly comparing every row to HEAD and
 creating a circular self-referential evidence requirement.
 
 An authorized CI change may enforce integrity and stage gates using trusted scripts,
-with secrets/data boundaries appropriate to the repository. No generic CI stub is
-enabled here. An evidence commit, passing helper or waiver grants no merge/deploy/
+with secrets/data boundaries appropriate to the repository. New factories include
+an inactive [portable job template](../assets/templates/ci/README.md); the builder's
+scripts/ci_evidence.py checks explicit subject/storage identity, an evidence-only
+path envelope, stable committed records and required stage claims. Read the template's
+trust/size/semantic limits before adoption. No CI workflow is enabled here.
+An evidence commit, passing helper or waiver grants no merge/deploy/
 upload authority. If integrity prevents recording, use the reviewed recovery
 procedure; do not hand-edit passing observations to evade a failed check.
