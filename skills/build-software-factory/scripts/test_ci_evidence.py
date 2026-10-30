@@ -107,7 +107,7 @@ class CIEvidenceTests(unittest.TestCase):
         from integrity import digest
         baseline=self.subject
         for name in ('config.json','test-map.json'):
-            for mode in ('changed','missing-entry'):
+            for mode in ('changed','wrong-digest','missing-entry'):
                 with self.subTest(name=name,mode=mode):
                     self.git('reset','--hard',baseline)
                     manifest_path=self.factory/'manifest.json';manifest=json.loads(manifest_path.read_text())
@@ -117,13 +117,15 @@ class CIEvidenceTests(unittest.TestCase):
                         manifest['contracts'][name]=digest(path.read_bytes())
                     if mode=='changed':
                         path.write_bytes(path.read_bytes()+b' \n')
+                    elif mode=='wrong-digest':
+                        manifest['contracts'][name]='0'*64
                     else:
                         del manifest['contracts'][name]
                     manifest_path.write_text(json.dumps(manifest),encoding='utf-8')
                     subject=self.commit()
                     result=subprocess.run([sys.executable,str(ROOT/'scripts/ci_evidence.py'),'--repo',str(self.repo),'--factory','.software-factory','--subject',subject,'--storage',subject,'--stage','pre-merge'],capture_output=True,text=True)
                     self.assertEqual(result.returncode,2,result.stderr)
-                    self.assertIn('Contract integrity mismatch' if mode=='changed' else 'Manifest file set mismatch',result.stderr)
+                    self.assertIn('Manifest file set mismatch' if mode=='missing-entry' else 'Contract integrity mismatch',result.stderr)
 
     def test_evidence_only_storage_keeps_original_tested_subject_and_future_post_stage(self):
         self.record();storage=self.commit()
