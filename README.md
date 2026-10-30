@@ -2,15 +2,7 @@
 
 A Claude Code plugin that builds a project-specific AI delivery factory: it interviews you, researches current practices for your stack, and scaffolds a governed loop of seven skills into your repository.
 
-```
-                 ┌────────────────────────── /factory-run ──────────────────────────┐
-                 │  select work · dispatch N workers · release · learn · record     │
-                 └──┬──────────┬──────────┬──────────┬──────────┬──────────┬───────┘
-                    ▼          ▼          ▼          ▼          ▼          ▼
-                 Intake  →   Plan   →   Build  →  Verify  →  Release →  Learn
-                 brief       tasks      one task   G1/G2     G3 on the   log,
-                 + gates     + owners   per worker evidence  real target improve
-```
+A factory uses Intake → Plan → Build → Verify → Release → Learn. The optional Run skill prepares an advisory pass plan; work and scheduling need separately authorized, verified coordination.
 
 Everything is evidence-bound: required checks start NOT RUN, pass only for an exact revision, and a passing gate is never merge or deploy authority. The generated `boundaries.md` states the rules once; the skills stay procedural.
 
@@ -35,19 +27,24 @@ Then, from the project root:
 
 ```sh
 claude --add-dir .software-factory      # keep --setting-sources project for headless runs
-/factory-run                            # one pass: select → build/verify in parallel → release → learn
+/factory-run                            # review an advisory pass plan
 ```
 
 The repository is private; the installing account needs access and working Git auth. For a session-only preview without installing: `claude --plugin-dir /path/to/software-factory-plugin`. Helpers need Python 3.9+ and only the standard library; see the [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for Windows interpreter selection.
 
 ## How a pass works
 
-1. **Select.** `run.py select` checks integrity, the kill switch (`.factory-runs/STOP` or `FACTORY_STOP=1`), `budget.max_workers` minus in-progress tasks, the hourly rate window, and task dependencies. Tasks with overlapping `allowed_paths` are never dispatched together.
-2. **Dispatch.** One subagent per eligible task, in an isolated worktree, performs `/factory-build` then `/factory-verify` and returns revision, checks run and evidence.
-3. **Release and learn.** Once, for the pass. Readiness requires every still-required G1/G2 check to pass for the exact revision; G3 confirms the real URL or published artifact only after a separately authorized release.
-4. **Record.** The pass is written to `.factory-runs/` outside the hashed directory.
+`run.py select` and `plan` inspect recorded task status and produce an advisory
+selection and worker prompts. They do not reserve work, verify live usage or
+enforce concurrency, rate or budget. Before separately authorized dispatch, the
+orchestrator must establish and verify exclusive admission, task isolation, stop
+handling and budget controls. Integrate worker changes and reverify the exact
+combined revision before a release handoff.
 
-Continuous operation (`issue_intake.mode: continuous` with `autonomy.mode: bounded`) adds `run.py schedule --kind cron|launchd|windows|github`, which renders a scheduler definition you review and enable yourself, and `select --issues snapshot.json`, which filters a read-only issue export. Details: [running guide](skills/build-software-factory/references/running.md).
+Continuous intake requires its own scoped authorization. Issue snapshots are
+untrusted data and need a matching project-specific repository/label policy.
+`run.py schedule` emits non-executable proposal data; no runnable schedule is
+created or installed. See the [running guide](skills/build-software-factory/references/running.md).
 
 ## Safety model
 
@@ -65,6 +62,8 @@ Two mechanisms enforced by code, and one stated once and applied everywhere:
 - [Operations config](skills/build-software-factory/references/operations-config.md): identities, headless recipes, autonomy, continuous intake, assumptions.
 - [Evidence lifecycle](skills/build-software-factory/references/evidence-lifecycle.md) and the inactive [CI evidence job](skills/build-software-factory/assets/templates/ci/README.md).
 - [Dashboard](skills/build-software-factory/references/dashboard.md), [done videos](skills/build-software-factory/references/done-videos.md), [release preflight](skills/build-software-factory/references/release-preflight.md).
+
+Run selection is advisory and does not reserve work or enforce budget. Scheduler output is a non-executable proposal; see [running](skills/build-software-factory/references/running.md).
 
 ## Validate and test
 

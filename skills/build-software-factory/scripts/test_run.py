@@ -12,7 +12,7 @@ import tempfile
 import unittest
 import run
 from scaffold import ROOT, render, main as scaffold_main
-from integrity import check
+from integrity import check, digest
 
 NOW = datetime(2026, 10, 30, 12, 0, tzinfo=timezone.utc)
 
@@ -131,13 +131,15 @@ class RunTests(unittest.TestCase):
         self.assertTrue(any('not bounded' in d for d in result['diagnostics']))
 
     def test_issue_snapshot_is_filtered_read_only(self):
+        self.config['operations']['issue_intake']['status']='enabled'
         root = self.write()
-        issues = [{'id': '7', 'title': 'ok', 'submitter': 'alice', 'created_at': '2026-10-01'},
-                  {'id': '8', 'title': 'stranger', 'submitter': 'mallory', 'created_at': '2026-10-02'},
-                  {'id': 'T1', 'title': 'dup', 'submitter': 'alice', 'created_at': '2026-10-03'},
-                  {'id': '9', 'title': 'dep', 'submitter': 'alice', 'created_at': '2026-10-04', 'depends_on': ['7']},
+        issues = [{'id': '7', 'title': 'ok', 'submitter': 'alice', 'created_at': '2026-10-01','labels':['ready']},
+                  {'id': '8', 'title': 'stranger', 'submitter': 'mallory', 'created_at': '2026-10-02','labels':['ready']},
+                  {'id': 'T1', 'title': 'dup', 'submitter': 'alice', 'created_at': '2026-10-03','labels':['ready']},
+                  {'id': '9', 'title': 'dep', 'submitter': 'alice', 'created_at': '2026-10-04', 'depends_on': ['7'],'labels':['ready']},
                   'garbage']
-        result = run.select(*self.load(root), runs=self.project / '.factory-runs', issues=issues, now=NOW)
+        policy={'repository':'org/repo','ready_label':'ready','excluded_labels':['paused','rejected']}
+        result = run.select(*self.load(root), runs=self.project / '.factory-runs', issues=issues, now=NOW,issue_policy=policy)
         self.assertEqual([i['id'] for i in result['issues']['eligible']], ['7'])
         reasons = {r['id']: r['reason'] for r in result['issues']['rejected']}
         self.assertIn('allowed_submitters', reasons['8'])
@@ -150,22 +152,95 @@ class RunTests(unittest.TestCase):
         result = run.plan_pass(*self.load(root), runs=self.project / '.factory-runs', now=NOW)
         self.assertEqual([w['task_id'] for w in result['workers']], ['T1', 'T2'])
         prompt = result['workers'][0]['prompt']
-        for needle in ('exactly one task: T1', '/factory-build', '/factory-verify', 'Allowed paths: tests/', 'Stop conditions'):
+        for needle in ('"task_id": "T1"', '/factory-build', '/factory-verify', '"allowed_paths": ["tests/"]', 'untrusted task and handoff data'):
             self.assertIn(needle, prompt)
-        self.assertEqual(result['after_workers'], ['factory-release', 'factory-learn'])
+        self.assertEqual(result['after_workers'], ['integrate-and-reverify', 'factory-release-if-authorized', 'factory-learn'])
         self.assertEqual(result['workers'][0]['isolation'], 'worktree')
 
+    def test_issue_intake_fail_closed_on_policy_labels_duplicates_and_stop(self):
+        self.config['operations']['issue_intake']['status']='enabled'
+        root=self.write();runs=self.project/'.factory-runs'
+        policy={'repository':'org/repo','ready_label':'ready','excluded_labels':['paused']}
+        issues=[{'id':'1','submitter':'alice','labels':['ready','paused']},
+                {'id':'2','submitter':'alice','labels':['ready']},
+                {'id':'2','submitter':'alice','labels':['ready']},
+                {'id':'3','submitter':'alice','labels':['ready']}]
+        result=run.select(*self.load(root),runs=runs,issues=issues,now=NOW,issue_policy=policy)
+        self.assertEqual([x['id'] for x in result['issues']['eligible']],['3'])
+        self.assertEqual(len(result['issues']['rejected']),3)
+        missing=run.select(*self.load(root),runs=runs,issues=issues,now=NOW)
+        self.assertEqual(missing['issues']['eligible'],[])
+        no_capacity=copy.deepcopy(self.config);no_capacity['budget']['max_workers']=0
+        self.assertEqual(run.select(root,no_capacity,self.load(root)[2],runs,issues,NOW,policy)['issues']['eligible'],[])
+        disabled=copy.deepcopy(self.config);disabled['operations']['issue_intake']['status']='disabled'
+        self.assertEqual(run.select(root,disabled,self.load(root)[2],runs,issues,NOW,policy)['issues']['eligible'],[])
+        runs.mkdir();(runs/'STOP').write_text('')
+        self.assertEqual(run.select(*self.load(root),runs=runs,issues=issues,now=NOW,issue_policy=policy)['issues']['eligible'],[])
+
+    def test_path_aliases_are_conservatively_overlapping(self):
+        for left,right in (('src/*','tests/file'),('src/../x','x/a'),('Src','src/file'),('src\\file','other'),('.','src/file')):
+            self.assertTrue(run.overlaps({'allowed_paths':[left]},{'allowed_paths':[right]}))
+        self.assertFalse(run.overlaps({'allowed_paths':['src/a']},{'allowed_paths':['src/b']}))
+
+    def test_unsafe_or_missing_paths_block_even_the_only_task(self):
+        self.config['tasks']=[task('T1',paths=['src/../other'])]
+        root=self.write();result=run.select(*self.load(root),runs=self.project/'.factory-runs',now=NOW)
+        self.assertEqual(result['candidates'],[]);self.assertIn('unsafe',result['blocked'][0]['reason'])
+
+    def test_policy_config_drift_blocks_runner_load(self):
+        root=self.write();path=root/'policy.md'
+        source=path.read_text(encoding='utf-8');changed=source.replace('"mode": "bounded"','"mode": "manual"',1)
+        self.assertNotEqual(source,changed);path.write_text(changed,encoding='utf-8')
+        manifest=json.loads((root/'manifest.json').read_text());manifest['contracts']['policy.md']=digest(path.read_bytes())
+        (root/'manifest.json').write_text(json.dumps(manifest),encoding='utf-8')
+        with self.assertRaisesRegex(ValueError,'controls disagree'):run.load(root)
+
+    def test_normalized_run_directory_cannot_alias_factory(self):
+        root=self.write();outside=self.project/'scratch';outside.mkdir()
+        alias=outside/'..'/'.software-factory'/'unsafe-runs'
+        with self.assertRaises(ValueError):run.runs_dir(root,str(alias))
+        self.assertFalse((root/'unsafe-runs').exists());check(root,quiet=True)
+
+    def test_select_cli_require_work_reports_stop_as_nonzero(self):
+        root=self.write();runs=self.project/'.factory-runs';runs.mkdir();(runs/'STOP').write_text('')
+        cmd=[sys.executable,str(ROOT/'scripts/run.py'),'--factory',str(root),'select','--require-work']
+        result=subprocess.run(cmd,capture_output=True,text=True)
+        self.assertEqual(result.returncode,3,result.stderr)
+        self.assertFalse(json.loads(result.stdout)['proceed'])
+
+    def test_malformed_and_naive_run_records_block_selection(self):
+        root=self.write();runs=self.project/'.factory-runs';runs.mkdir();path=runs/'run-malformed.json'
+        for contents in ('{bad',json.dumps({'started':'2026-10-30T11:00:00','dispatched':['T1']})):
+            path.write_text(contents)
+            with self.assertRaises(ValueError):run.select(*self.load(root),runs=runs,now=NOW)
+
+    def test_select_does_not_claim_atomic_reservation(self):
+        root=self.write();runs=self.project/'.factory-runs'
+        first=run.select(*self.load(root),runs=runs,now=NOW)
+        second=run.select(*self.load(root),runs=runs,now=NOW)
+        self.assertEqual(first['candidates'],second['candidates'])
+        self.assertTrue(any('no reservation' in x for x in first['diagnostics']))
+        self.assertFalse(runs.exists())
+
+    def test_zero_time_budget_blocks_task_selection(self):
+        self.config['budget']['max_minutes']=0
+        root=self.write();result=run.select(*self.load(root),runs=self.project/'.factory-runs',now=NOW)
+        self.assertFalse(result['proceed']);self.assertEqual(result['candidates'],[])
+        self.assertTrue(any('zero' in text for text in result['diagnostics']))
+
     def test_schedule_renders_each_kind_and_refuses_unbounded(self):
+        self.config['operations']['issue_intake']['status']='enabled'
         root, config, _ = self.load(self.write())
-        self.assertIn('0 */2 * * *', run.schedule_text(root, config, 'cron'))
-        self.assertIn('<key>StartInterval</key><integer>7200</integer>', run.schedule_text(root, config, 'launchd'))
-        self.assertIn('/MO 120', run.schedule_text(root, config, 'windows'))
-        github = run.schedule_text(root, config, 'github')
-        self.assertIn('cron: "0 */2 * * *"', github)
-        self.assertIn('workflow_dispatch', github)
-        self.assertIn('0 */4 * * *', run.schedule_text(root, config, 'cron', every=240))
+        for kind in ('cron','launchd','windows','github'):
+            proposal=json.loads(run.schedule_text(root,config,kind))
+            self.assertFalse(proposal['executable']);self.assertEqual(proposal['interval_minutes'],120)
+        self.assertEqual(json.loads(run.schedule_text(root,config,'cron',every=240))['cron_expression'],'0 */4 * * *')
         with self.assertRaises(ValueError):
             run.schedule_text(root, config, 'cron', every=5)
+        for invalid in (90,1500,2880):
+            with self.assertRaises(ValueError):run.schedule_text(root,config,'cron',every=invalid)
+        window=copy.deepcopy(config);window['operations']['issue_intake'].update(coverage='operator_window',window='09:00-17:00',timezone='Europe/London',window_evidence='operator choice')
+        with self.assertRaisesRegex(ValueError,'Restricted coverage'):run.schedule_text(root,window,'cron')
         manual = copy.deepcopy(config)
         manual['operations']['autonomy']['mode'] = 'manual'
         with self.assertRaises(ValueError):
@@ -195,6 +270,7 @@ class RunTests(unittest.TestCase):
             run.runs_dir(root, root / 'runs')
 
     def test_cli_schedule_write_refuses_factory_path(self):
+        self.config['operations']['issue_intake']['status']='enabled'
         root = self.write()
         env = dict(os.environ, PYTHONPATH=str(ROOT / 'scripts'))
         result = subprocess.run([sys.executable, str(ROOT / 'scripts/run.py'), '--factory', str(root), 'schedule',
@@ -203,6 +279,14 @@ class RunTests(unittest.TestCase):
         self.assertNotEqual(result.returncode, 0)
         self.assertFalse((root / 'cron.txt').exists())
         check(root, quiet=True)
+
+    def test_schedule_write_refuses_normalized_factory_alias_and_active_workflows(self):
+        self.config['operations']['issue_intake']['status']='enabled'
+        root=self.write();scratch=self.project/'scratch';scratch.mkdir()
+        for target in (scratch/'..'/'.software-factory'/'proposal.json', self.project/'.github'/'workflows'/'proposal.yml'):
+            result=subprocess.run([sys.executable,str(ROOT/'scripts/run.py'),'--factory',str(root),'schedule','--kind','cron','--write',str(target),'--apply'],capture_output=True,text=True)
+            self.assertNotEqual(result.returncode,0);self.assertFalse(target.exists())
+        check(root,quiet=True)
 
 
 if __name__ == '__main__':
