@@ -13,6 +13,7 @@ from operations import operations, controls, DELIVERY_POLICY
 from gates import initial_table
 from dashboard import profile
 from dashboard_bundle import bundle
+from recipes import proposal
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT = ('project', 'outcome', 'stack', 'harness', 'deployment', 'data_policy')
@@ -105,10 +106,12 @@ def render(c, research):
     files['acceptance.md'] = '# Acceptance criteria\n\n' + '\n'.join(f'- A{i+1}: {a}\n  Owner: unassigned; status: NOT VERIFIED; evidence: none.' for i,a in enumerate(c['acceptance']))+'\n'
     files['task-plan.json'] = dumps({'tasks': c['tasks'], 'events': []})
     ops = operations(c)
+    files['release-handoff.md'] += '\n'+proposal('video',ops['done_videos'])+'\n'
     files['tools.json'] = dumps({'integrations':[{'requested':x,'enabled':False,'availability':'unverified','evidence':None,'authorization':None,'data_egress':'not authorized','cost':'unverified'} for x in c['providers']], 'test_commands':[{'command':x,'execution_authorized':False,'result':'not-run'} for x in c['test_commands']], 'identities':ops['identities'], 'headless_recipes':ops['tool_recipes']})
     files['policy.md'] = '# Approval and budget policy\n\n## Requested permission scope (verify authority before action)\n'+'\n'.join('- '+x for x in c['permissions'])+'\n\n## Data boundary\n'+c['data_policy']+'\n\n## Proposed limits (confirm before live execution)\n```json\n'+dumps(c['budget'])+'```\n\nExternal integrations are disabled. No paid agents, provisioning, credentials, permission changes, data upload, publication, PR approval/merge or deployment is authorized by this scaffold. Approval must identify the action, target and scope.\n\nStop at the agreed time/cost/retry limit, missing authority, unsafe data boundary, unresolved required evidence, or requested outcome. Retry only with a new hypothesis. Escalate with evidence and the smallest needed decision.\n'
     files['policy.md'] += '\n## Proposed autonomy and review controls (not execution authority)\n```json\n' + dumps(controls(c)) + '```\n\nIf enabled later, independent reviewers return revision, verdict (approve/request_changes/blocked), findings and evidence. Every required approval must cover the final revision; repair attempts stay within budget.\n'
     files['policy.md'] += '\n' + DELIVERY_POLICY
+    files['policy.md'] += '\n'+proposal('intake',ops['issue_intake'])+'\n'
     plugin_manifest = ROOT.parents[1]/'.claude-plugin/plugin.json'
     metadata = json.loads(plugin_manifest.read_text(encoding='utf-8')) if plugin_manifest.is_file() else {}
     files['upstream-provenance.json'] = dumps({'schema_version':1,

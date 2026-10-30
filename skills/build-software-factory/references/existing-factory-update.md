@@ -17,6 +17,33 @@ do not change that boundary. There is no force switch or automated rebaseline.
 
 ## Preservation and recovery
 
+For a v1.2 factory with an existing dashboard, new recipe metadata requires a
+compatible bundled validator. The updater refuses that patch by default. Preview
+the same patch with `--recipe-runtime` to explicitly migrate the known pristine
+v1.2 dashboard/operations.py and add dashboard/recipes.py; review those exact code
+and manifest changes plus the normal plan digest before applying. New v1.3 factories
+already include the dependency. Customized/unknown bundled runtimes or dependencies
+are preserved and require a separate narrow manual compatibility review. No other
+dashboard files or initial snapshot are replaced. Factories without a dashboard
+need no such migration. This opt-in grants no runtime execution authority.
+
+When a reviewed plan adds a dependency, backups include `added-files.json` naming
+the additions plus the originals/manifest for changed files. Interrupted recovery
+must inspect those additions and restore the reviewed original set together with
+its manifest; do not merely restore hashes or blindly remove concurrent files.
+New destinations are exclusively created, so a concurrent new file is not overwritten.
+
+Optional flat issue_intake coverage fields and done_videos recipe fields use the
+same preview-first update. Explicit scheduling changes refresh a known marked
+policy proposal; explicit video changes refresh a known marked living handoff
+proposal. Customized/ambiguous marked blocks are refused for manual review, never
+discarded. Other handoff content remains. Old configs gain no hidden control fields;
+default design values are separate proposals. Updating video preferences can reset
+active observations as described below; retain waivers and history. New recipe
+contract files are not silently copied into existing factories; read the installed
+builder recipe or review a separate selective manifest addition. No actual schedule,
+recording, narration, provider connection or delivery action runs.
+
 Original changed files and manifest are backed up under the project's `.factory-update-backups/<plan-digest>/`, outside the managed factory. Add these private backups to reviewed ignore policy before staging. Existing custom skill content is retained; an opt-in adds a marked delivery/intake addendum that supersedes conflicting old instructions. Review that precedence deliberately. Research, acceptance, tasks, learning and unrelated project files are preserved.
 
 Smoke/video preference changes or a delivery migration reset active gate observations to NOT RUN, preserving deliberate row-level requiredness choices unless the patch explicitly changes smoke defaults. Retired V1 observations remain historical when videos are disabled. Prior observations are retained as quoted historical rows, not reused as passing current evidence. Extra required checks are retained. Legacy eight-column rows migrate only when their shape is recognizable; malformed or ambiguous rows require manual review. Post-release-only checks remain staged after the action; a no-release exclusion is distinct from an unknown target.

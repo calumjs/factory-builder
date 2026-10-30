@@ -6,7 +6,7 @@ from dashboard import page, summarize
 def bundle(files):
     scripts = Path(__file__).resolve().parent
     result = {'dashboard/'+name: (scripts/name).read_text(encoding='utf-8')
-              for name in ('dashboard.py', 'integrity.py', 'gates.py', 'operations.py')}
+              for name in ('dashboard.py', 'integrity.py', 'gates.py', 'operations.py', 'recipes.py')}
     result['dashboard/index.html'] = page(summarize(files))
     result['dashboard/README.md'] = '''# Local factory overview
 
