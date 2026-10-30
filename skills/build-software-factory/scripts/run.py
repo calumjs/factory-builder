@@ -1,14 +1,18 @@
 """Drive a factory pass: select eligible work, plan bounded parallel workers,
-render scheduler definitions and record runs. Read-only against the factory;
+describe non-executable scheduler proposals and record runs. Read-only against the factory;
 run records live outside it. Executes no worker, scheduler, agent or GitHub call."""
 import argparse
 from datetime import datetime, timedelta, timezone
 import json
 import os
 from pathlib import Path
+import plistlib
 import re
+import shlex
+import subprocess
 import sys
 import uuid
+from xml.etree import ElementTree
 from integrity import check, safe_path, validate_task_plan
 from gates import policy_controls
 from operations import controls, operations as validated_operations
@@ -260,7 +264,33 @@ def cron_expression(minutes):
     raise ValueError('This cadence cannot be represented as a fixed cron interval; choose a supported hourly divisor or use a reviewed platform-specific scheduler')
 
 
-def schedule_text(root, config, kind, every=None, builder=None):
+def recipe_preview(recipe, kind):
+    """Format one explicit non-secret argv recipe as inert review data."""
+    if not isinstance(recipe,dict) or set(recipe)!={'purpose','argv','restrictions'} or recipe['purpose']!='factory-run':
+        raise ValueError('Explicit recipe must name factory-run purpose, argv and restrictions')
+    argv=recipe['argv'];restrictions=recipe['restrictions']
+    unknown=r'^(?:unknown|tbd|unconfirmed|not configured|pending|n/a)(?:\b|[:;])'
+    if not isinstance(argv,list) or not 1<=len(argv)<=64 or any(not isinstance(a,str) or not a.strip() or len(a)>1024 or not a.isprintable() or re.match(unknown,a.strip(),re.I) for a in argv):
+        raise ValueError('Recipe argv must contain concrete, printable argument strings')
+    if not isinstance(restrictions,str) or not restrictions.strip() or len(restrictions)>1000 or not restrictions.isprintable() or re.match(unknown,restrictions.strip(),re.I):
+        raise ValueError('Recipe restrictions must be explicit')
+    if kind=='cron' and any('\\%' in arg for arg in argv):
+        raise ValueError('Cron preview cannot safely represent a backslash immediately before percent')
+    if kind=='github' and any('${{' in arg for arg in argv):
+        raise ValueError('GitHub preview cannot preserve expression markers as literal arguments')
+    if kind=='launchd':formatted=plistlib.dumps({'ProgramArguments':argv},fmt=plistlib.FMT_XML,sort_keys=True).decode('utf-8')
+    elif kind=='windows':
+        node=ElementTree.Element('Exec');ElementTree.SubElement(node,'Command').text=argv[0]
+        ElementTree.SubElement(node,'Arguments').text=subprocess.list2cmdline(argv[1:])
+        formatted=ElementTree.tostring(node,encoding='unicode')
+    elif kind=='cron':formatted=shlex.join(argv).replace('%','\\%')
+    elif kind=='github':formatted='run: '+json.dumps(shlex.join(argv),ensure_ascii=True)
+    else:raise ValueError('Unsupported scheduler kind')
+    return {'purpose':'factory-run','restrictions':restrictions,'format':kind,'fragment':formatted,
+            'notice':'Untrusted user-selected command preview only; not a scheduler, dispatch or authority.'}
+
+
+def schedule_text(root, config, kind, every=None, builder=None, recipe=None):
     autonomy, intake = operations(config)
     if intake['mode'] != 'continuous' or autonomy['mode'] != 'bounded' or intake['status'].strip().casefold()!='enabled':
         raise ValueError('Schedule design requires explicitly enabled continuous intake and bounded autonomy; metadata grants no scheduling authority')
@@ -275,6 +305,7 @@ def schedule_text(root, config, kind, every=None, builder=None):
     proposal={'kind':kind,'interval_minutes':minutes,'cron_expression':cadence,
               'executable':False,'requires':['explicit scheduling authority','reviewed single-dispatch coordination','project-specific kill switch and budget enforcement','verified command and environment'],
               'notice':'Design only; no runnable scheduler, worker or external action is created.'}
+    proposal['recipe']=recipe_preview(recipe,kind) if recipe is not None else {'status':'unconfigured'}
     return json.dumps(proposal,indent=2,ensure_ascii=True)+'\n'
 
 
@@ -311,11 +342,12 @@ def main():
     p = sub.add_parser('plan', help='Selection plus rendered worker prompts; nothing is dispatched')
     p.add_argument('--issues')
     p.add_argument('--issue-policy')
-    sc = sub.add_parser('schedule', help='Render a scheduler definition; installs nothing')
+    sc = sub.add_parser('schedule', help='Describe a non-executable scheduler proposal; installs nothing')
     sc.add_argument('--kind', choices=SCHEDULERS, required=True)
     sc.add_argument('--every', type=int, help='Interval in minutes (overrides recorded cadence)')
-    sc.add_argument('--builder', help='Absolute builder skill directory to embed in the definition')
-    sc.add_argument('--write', help='Path outside the factory to save the rendered definition')
+    sc.add_argument('--builder', help='Reserved compatibility option; no command is embedded')
+    sc.add_argument('--recipe', help='Explicit non-secret factory-run argv recipe JSON for an inert format preview')
+    sc.add_argument('--write', help='Path outside the factory to save the non-executable proposal')
     sc.add_argument('--apply', action='store_true')
     r = sub.add_parser('record', help='Preview or append a run record outside the factory')
     r.add_argument('--run-id', required=True)
@@ -336,13 +368,19 @@ def main():
         emit(result)
         return 3 if args.command=='select' and args.require_work and not result['proceed'] else 0
     if args.command == 'schedule':
-        text = schedule_text(root, config, args.kind, args.every, args.builder)
+        recipe=None
+        if args.recipe:
+            path=safe_path(args.recipe)
+            with path.open('rb') as stream:data=stream.read(65537)
+            if len(data)>65536:raise ValueError('Recipe file too large')
+            recipe=json.loads(data.decode('utf-8-sig'))
+        text = schedule_text(root, config, args.kind, args.every, args.builder, recipe)
         if args.write:
             target = outside_factory(root,args.write)
             workflows=safe_path(root.parent/'.github'/'workflows')
             if target==workflows or workflows in target.parents or (workflows.exists() and any(parent.exists() and parent.samefile(workflows) for parent in (target,*target.parents))):
                 raise ValueError('Do not write scheduler proposals to active workflow locations')
-            print(('APPLY' if args.apply else 'DRY RUN — not written') + ': ' + str(target))
+            print(('APPLY' if args.apply else 'DRY RUN - not written') + ': ' + str(target))
             if args.apply:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 with target.open('x', encoding='utf-8', newline='\n') as stream:
@@ -351,7 +389,7 @@ def main():
         sys.stdout.write(text)
         return
     record = record_run(runs, args.run_id, args.dispatched.split(','), args.outcome, args.notes, args.started)
-    print(('APPLY' if args.apply else 'DRY RUN — not written') + ': ' + str(runs / (record['run_id'] + '.json')))
+    print(('APPLY' if args.apply else 'DRY RUN - not written') + ': ' + str(runs / (record['run_id'] + '.json')))
     emit(record)
     if args.apply:
         runs.mkdir(parents=True, exist_ok=True)

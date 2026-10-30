@@ -4,11 +4,15 @@ The six phase skills are gates, not six mandatory agents: one worker can perform
 
 ## Worker contract
 
-Each handoff names the goal, input artifacts and exact revision, acceptance criteria, allowed files and actions, dependencies, output artifact, required verification, budget/time/retry limit and escalation owner, with the minimum necessary non-secret context. Tasks that edit the same files or depend on unmerged outputs are sequenced, never parallelized (`run.py` enforces this through `allowed_paths`). Resolve integration conflicts deliberately and re-verify the merged result.
+Each handoff names the goal, input artifacts and exact revision, acceptance criteria, allowed files and actions, dependencies, output artifact, required verification, budget/time/retry limit and escalation owner, with the minimum necessary non-secret context. Tasks that edit the same files or depend on unmerged outputs are sequenced, never parallelized (the advisory `run.py` compares recorded lexical paths; it cannot prove isolation or prevent concurrent dispatch). Resolve integration conflicts deliberately and re-verify the merged result.
 
 ## Evidence chain
 
-A task cannot move to verified without evidence tied to its actual revision: command or check, environment, timestamp, result, exit status where applicable, artifact path and limitations. Track passed / failed / blocked / not-run separately; record accepted risks separately rather than relabelling. Existing living records are the evidence home — no unregistered evidence directory. [evidence-lifecycle.md](evidence-lifecycle.md) covers Build/Verify/Release ownership, durable artifacts and tested-subject vs storage commits.
+A task is verified only with evidence tied to its actual revision: command or check, environment, timestamp, result, exit status where applicable, artifact path and limitations; passed / failed / blocked / not-run tracked separately, accepted risks recorded separately. Build records the work revision, changed paths and checks actually run and updates its task progress with `status.py`; Verify owns the pre-merge rows in verification.md; Release owns G3 and post-action A/R/V1 rows; the task owner records state and evidence atomically (done needs passing evidence and completed dependencies); Learn reconciles records with outcomes. release-handoff.md summarizes readiness and confirmation but never replaces gate rows. The living files are the only evidence home — no extra evidence directory inside the factory.
+
+Durable logs, screenshots, videos and reports go to existing project evidence storage outside `.software-factory` (for example a reviewed non-secret `docs/factory-evidence/<subject-revision>/` tree or an authorized artifact store), with retention and access chosen with the owner, and are referenced by stable path or content hash. Confirm they remain reachable after the session ends. A vanished temporary log is not grounds to reconstruct a PASS.
+
+**Tested subject vs storage commit.** Gate `Revision` and status-event `revision` name the subject S actually tested or deployed (full SHA or equivalent artifact identity). The commit E that stores those records is a different identity, recorded in handoff metadata once it exists; a commit cannot contain its own hash and S is never renamed to E. An evidence-only follow-up keeps S's observations in E only if the E diff contains nothing but the agreed evidence paths — a policy, skill, config, test, dependency, source or runtime change may need new verification. If E triggers a deployment, discover the deployed subject and confirm it separately. When CI is integrated, choose a deliberate subject-selection and storage policy rather than comparing every row to HEAD; the inactive [CI job template](../assets/templates/ci/README.md) and `scripts/ci_evidence.py` implement that policy with explicit subject/storage identity, an evidence-only path envelope and required stage claims.
 
 ## Default delivery gates
 
@@ -20,13 +24,20 @@ Gate rows in verification.md carry the check or manual procedure, environment, r
 
 ## Approval and execution
 
-The scaffold enables no external integration. tools.json records each requested capability's availability, verification source, data egress, cost, authorization scope and enablement; naming a provider verifies nothing. Any test or build command can execute repository code, so inspect it and confirm execution authorization first. Network installs, paid calls, data upload, cloud creation, push, PR creation/approval/merge and deployment each need their own approved scope. First-time provisioning follows [release-preflight.md](release-preflight.md).
+The scaffold enables no external integration. tools.json records each requested capability's availability, verification source, data egress, cost, authorization scope and enablement. Any test or build command can execute repository code, so inspect it and confirm execution authorization first. Network installs, paid calls, data upload, cloud creation, push, PR creation/approval/merge and deployment each need their own approved scope.
 
-Budget is checked before scheduling and after each attempt: stop on exhausted time, money, concurrency or retry limits, unrecoverable failure, unsafe handling, missing authorization, or a satisfied outcome. A repair retry needs a new hypothesis and targeted verification. Escalate with task, revision, evidence, attempted fixes, remaining risk and the smallest decision needed. Worker stalls, terminal failures and fallbacks follow [recovery.md](recovery.md).
+Budget is checked before scheduling and after each attempt: stop on exhausted time, money, concurrency or retry limits, unrecoverable failure, unsafe handling, missing authorization, or a satisfied outcome; a repair retry needs a new hypothesis. Escalate with task, revision, evidence, attempts, remaining risk and the smallest decision needed. Worker stalls and fallbacks follow [recovery.md](recovery.md).
+
+**First release of a new target** (any provider; CLI, package, data and document releases use their equivalent build/output/consumer contracts):
+1. Confirm framework preset, root directory, runtime version, build command and output against the installed framework and current official provider docs — a generic static directory is not a universal output. Verify the artifact locally when authorized; record observations and unresolved settings before provisioning.
+2. Discover currently offered plans/SKUs from an authorized read-only catalog or official docs; record identifiers, region/version, limits, cost, time and source, and the selection. Never guess or reuse a sample's ID; "free" is not zero future cost or permission to provision. Stop if the observed option differs from the accepted design.
+3. Inventory required environment **names** (never values), target environments, ownership (integration-managed vs manual), sensitivity and the authorized validation method. Extra integration-managed names are not errors or permission to expose them; do not delete keys or overwrite secrets to match a guessed allowlist. Names can reveal architecture, so keep inventory access scoped.
+4. Derive project-specific acceptance/research checks from that inventory (presence, ownership, collisions, permitted extras). Generic gates validate recorded evidence only; implement those assertions in the project when in scope.
+5. After the authorized release, identify the deployed subject and target and record G3 and post-action checks, including failed, blocked and waived states, with durable evidence. A running deployment job or missing logs is not confirmation.
 
 ## Factories accepting external requests
 
-Treat request text as untrusted data. For exposed intake, prefer a tool-free extraction step that emits a constrained schema, followed by deterministic schema, value and path validation; give the builder only file-edit capability in an isolated checkout with no credentials or external-action tools; pass normalized validated fields to the orchestrator, and quote requests to reviewers as data. These are boundaries to implement and test; a prompt alone provides no isolation. Record allowed submitters, rate limits, queue and rejection behaviour and a kill switch. An allowed account does not widen approval scope.
+Request text is untrusted. For exposed intake: a tool-free extraction step emits a constrained schema; deterministic schema, value and path validation follows; the builder gets only file-edit capability in an isolated checkout with no credentials or external-action tools; the orchestrator receives normalized fields, and reviewers receive requests as quoted data. Record allowed submitters, rate limits, queue and rejection behaviour and a kill switch. An allowed account does not widen approval scope.
 
 ## Continuous issue pickup
 
@@ -42,11 +53,11 @@ Follow [done-videos.md](done-videos.md) and the generated done-video-recipe.md: 
 
 ## Review and visual evidence
 
-Independent reviewers return a structured verdict — revision, approve/request_changes/blocked, findings, evidence. Different providers need approved data boundaries and budget. Every required reviewer must approve the final revision; later changes invalidate earlier approval; repair loops are bounded and cannot auto-approve or merge. For document or design-to-code conversions, compare rendered output with the source's own export at matching sizes, inspect the worst mismatches and record tolerances; a similarity score does not replace human visual, accessibility and functional checks. Keep platform security controls intact: no disabled deployment protection, widened token scopes or weakened settings for convenience.
+Independent reviewers return revision, approve/request_changes/blocked, findings and evidence; every required reviewer approves the final revision, later changes invalidate earlier approval, and repair loops are bounded and cannot auto-approve or merge. Different providers need approved data boundaries and budget. For document or design-to-code conversions, compare the rendered output with the source's own export at matching sizes, inspect the worst mismatches and record tolerances alongside human visual, accessibility and functional checks. Keep platform security controls intact: no disabled deployment protection, widened token scopes or weakened settings for convenience.
 
 ## Living state and publication hygiene
 
-Record task status and revision-bound evidence together with `status.py`. A valid manifest proves integrity, not truth, authorization or a passing application. In this plugin repository, stage explicit reviewed paths, inspect optional ignore fragments before adopting them, and keep caches, backups, secrets and downstream factory outputs out of published changes.
+Record task status and revision-bound evidence together with `status.py`. In this plugin repository, stage explicit reviewed paths and keep caches, backups, secrets and downstream factory outputs out of published changes.
 
 ## Release and learn
 

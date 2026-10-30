@@ -1,13 +1,6 @@
-# Optional operational configuration
+# Operational configuration (`operations`)
 
-Legacy `not_run_is_blocking` is unsupported: do not copy it into operations. In a
-reviewed migration, retain required NOT RUN checks as blocking, or express the
-user's deliberate optional choice with `smoke_gates.required:false` (G1/G2/G3
-defaults) or Required=no in a specific living row. Preserve the original record
-and context; never silently drop an unknown legacy field or translate it to PASSED.
-There is one requiredness system, with transparent WAIVED outcomes.
-
-`operations` is an optional object in the intake config. Missing sections use manual, disabled or unconfirmed defaults. These are proposals, not permission or verified authentication. The helper validates and copies metadata; it runs no recipe, probe, agent or identity-changing command.
+Optional object in the intake config; missing sections default to manual, disabled or unconfirmed. Everything here is a proposal — not permission, not verified authentication. `scripts/operations.py` validates the shape and its errors name each constraint; the notes below cover what a validator cannot express. Keep credential values out.
 
 ```json
 {
@@ -66,63 +59,18 @@ There is one requiredness system, with transparent WAIVED outcomes.
 }
 ```
 
-Each identity and recipe record uses exactly the shown fields, with nonempty strings. Use `unverified` rather than inventing an account, flag or probe result. Keep credential values out. Autonomous `mode: bounded` requires a positive integer rate limit and named permitted submitters; concurrency and repair limits come from `budget`. Required reviewer approvals are a non-negative integer. Review and visual booleans must be actual JSON booleans.
+## Semantics the validator cannot check
 
-`issue_intake.mode` is `one_shot` (default) or `continuous`. Continuous mode is a design intent only until a watcher or scheduled routine is implemented with bounded `autonomy`, verified GitHub read scope and an authorized scheduler; record `github_scope` and `status` as unconfirmed/disabled until then. `done_videos.enabled` defaults to false; when true, record which ship events trigger narration, where artifacts may be stored and whether publication is authorized.
+- **identities / tool_recipes:** use `unverified` rather than inventing an account, flag or probe result. Intake verifies the Git author and authenticated platform scope before the first authorized commit and reports mismatches; a PATH binary is not authentication, and a recipe is unavailable for autonomous use until reviewed against the installed CLI version and observed auth, cost, isolation and structured-output behaviour. `run.py schedule` does not select a recorded command; an explicit non-secret argv recipe can be shown as inert review data.
+- **autonomy:** `bounded` needs named `allowed_submitters` and a positive `max_items_per_hour`; concurrency and repair limits come from `budget`. `manual` has no rate window and means only a human kickoff runs a pass.
+- **issue_intake:** `one_shot` (default) or `continuous`. Continuous is design intent. `run.py select` makes an advisory selection without reservation or actual rate, concurrency or budget enforcement; `run.py schedule` returns a non-executable proposal. Separately authorized scheduling needs verified exclusive admission, stop controls, data scope and budget enforcement. Continuous means 24/7 polling or event-driven coverage: `coverage` is `around_the_clock` (requires `window: none`) or `operator_window` (requires a real `window`, `timezone` and `window_evidence` of the operator's explicit choice — never inferred from locale or a tool's examples). `mechanism` is unconfirmed/polling/event_driven; `cadence` stays unconfirmed until fitted to scheduler limits and budget, and event-driven does not invent a polling schedule. The helper validates this metadata only, not cron syntax, IANA timezone availability or runtime coverage; verify timezone and cadence with the actual scheduler before any live action.
+- **done_videos:** `enabled` defaults to false; when true, record which ship events trigger narration, where artifacts may be stored and whether publication is authorized ([done-videos.md](done-videos.md)). An enabled preference requests a recipe; it does not authorize narration, paid services, recording or delivery.
+- **review / visual_checks:** required approvals are a count; booleans are JSON booleans.
+- **smoke_gates:** `required` sets the default requiredness for G1/G2/G3 and may be false by the user's choice without an exception; a living row's explicit Required=no overrides it for that row. Optional checks are WAIVED with their recorded status. `pre_merge`/`targeted`/`post_merge` are designs or inspected recipes, never executed. `deployed_url` is the planned actual target identity (also for non-web artifacts); the retained `exception` string is descriptive, not an authorization requirement. `post_merge_applicability` defaults to applicable. `target_kind` is unconfirmed/web/artifact/no_release; a `not_applicable` G3 needs `target_kind: no_release`, a `post_merge_rationale` and a named `accepted_by` — an unknown target is not an exclusion, and a shipped-work video conflicts with no-release scope while preview-only does not. Structured `checks` and `done_videos.triggers` are in [gates.md](gates.md).
+- **check_stages:** maps A/R IDs to a stage with rationale, e.g. `{"A2":{"stage":"post-merge","rationale":"Needs the actual published artifact"}}`. Acceptance defaults pre-merge; research checks mapped only to Release/Learn default post-merge. G1/G2 stay pre-merge and G3/V1 post-merge. A research practice can inform Verify yet have its check inspect the released artifact: `{"check_stages":{"R1":{"stage":"post-merge","rationale":"..."}}}` overrides the mixed-phase default without blocking pre-action readiness; keep checks that can run before release at pre-merge. Requiredness is independent of stage.
+- **Legacy `not_run_is_blocking`:** unsupported. In a reviewed migration keep required NOT RUN as blocking, or express the operator's optional choice with `smoke_gates.required: false` or a row-level Required=no; preserve the original and its context during review; never silently discard the field or convert it to PASSED.
 
-Continuous intent means **24/7 polling or event-driven intake**, not a weekday or
-business-hours default. A time window is opt-in only. Optional flat issue_intake
-fields are `coverage` (around_the_clock default, or operator_window), `mechanism`
-(unconfirmed/polling/event_driven), `cadence`, `timezone`, `window`, `window_evidence`.
-All text must be nonempty and at most 2000 characters. Around-the-clock requires
-window=none. An operator_window needs a real window, timezone and evidence of the
-operator's choice. Verify the timezone/cadence with the actual scheduler before any
-authorized live action; the helper validates metadata, not cron syntax, IANA timezone
-availability or runtime coverage. Cadence remains unconfirmed until fitted to platform
-limits and budget. Event-driven does not invent a polling schedule. Unknown controls
-remain a valid disabled draft and activate nothing.
-
-```json
-{"issue_intake":{"mode":"continuous","status":"disabled","evidence":"Operator chose continuous intake; scheduling authority pending","coverage":"around_the_clock","mechanism":"polling","cadence":"Operator-selected interval within scheduler limits","timezone":"UTC","window":"none","window_evidence":"none"}}
-```
-
-An explicitly selected restricted window uses coverage=operator_window plus its
-window/timezone/source evidence; do not infer a window from business locale or a
-tool skill's defaults. Existing live schedules are not changed by this metadata.
-The marked proposed intake design in new policy files is refreshed by the reviewed
-operations updater. Custom marked blocks are preserved/refused for manual review.
-The normal config/policy controls remain authoritative; no new fields are injected
-into old controls solely by loading a newer helper.
-
-For composed video design and optional flat done_videos metadata, read
-[done-videos.md](done-videos.md). Enabled preference requests a recipe; it does not
-authorize narration, paid services, recording/data transfer or delivery messages.
-
-Intake should verify existing Git author and authenticated platform account/scope when relevant before the first authorized commit or release. Report mismatches; do not silently change Git config, history, credentials, teams or security settings. A PATH binary alone is not available authentication. An authorized, harmless read-only probe is preferred; paid or mutating calls require their own authority. Recipes are unavailable for autonomous use until reviewed against the installed CLI version and observed authentication, cost, isolation and structured-output behavior.
-
-`smoke_gates.required` sets the default requiredness for G1/G2/G3 and may be false by user choice without an exception or extra approval. Individual living verification rows may also explicitly use Required=no/n/false; this overrides the default for that row. Optional checks are visibly WAIVED with their recorded status, never tests-passed. Keep expected rows present: missing/malformed/duplicate rows are errors. The retained exception string is descriptive, not an authorization requirement. pre_merge/targeted/post_merge are designs or inspected recipes, never auto-executed commands. deployed_url is the planned actual target identity (also used for non-web artifacts); unconfirmed remains unresolved.
-
-Optional smoke_gates.checks provides structured G1/G2/G3 command/environment/target
-records. Optional done_videos.triggers selects pre_merge_preview (V2) and/or
-post_g3_release (V1); omission preserves release-only. See
-[gates.md](gates.md) for exact fields, target consistency,
-record matching and explicit copied-runtime migration. No blocking field is added;
-there is still one user-editable requiredness system. These plans run nothing.
-
-target_kind is unconfirmed, web, artifact or no_release. Post-merge applicability is applicable by default. A not_applicable G3 requires target_kind no_release, a specific post_merge_rationale and named accepted_by. An unknown target is not an exclusion. A selected shipped-work video conflicts with a no-release exclusion; explicitly preview-only video does not require a release.
-
-check_stages optionally maps A/R IDs to a stage and nonempty rationale, e.g. {"A2":{"stage":"post-merge","rationale":"Needs the actual published artifact"}}. Unknown IDs are rejected. Acceptance defaults pre-merge; research checks mapped only to Release/Learn default post-merge, with explicit overrides available. Keep G1/G2 pre-merge and G3/V1 post-merge. Requiredness is independently user-editable and is not locked by these stage defaults.
-
-A resource may inform Verify and Release while its observable check needs the
-published artifact. For such a selected R1, set
-`{"check_stages":{"R1":{"stage":"post-merge","rationale":"The practice informs Verify planning, but this check inspects the actual released artifact"}}}`
-inside smoke_gates. This overrides the mixed-phase pre-merge default without a new
-schema. Verify can plan it; future release evidence does not block pre-action
-readiness. Keep checks that can run before release at pre-merge instead.
-
-Changing a living row to optional needs no config rewrite, extra approval or exception. For changes to contract-level default preferences, use the normal synchronized config/policy/manifest update within existing local-write authority; this is integrity bookkeeping, not an extra approval for waiving a test. See [existing-factory-update.md](existing-factory-update.md). Smoke/video changes reset active observations to NOT RUN while retaining quoted history. No preference starts a watcher, recording or external integration.
-
-When `issue_intake.mode` is `continuous`, wire pickup only after autonomy controls, issue filters and scheduler authority are confirmed; the scaffold does not start a watcher. When `done_videos.enabled` is true, respect the effective G3/V1 row requiredness: a required G3 passes before a required demo, an optional G3/V1 is explicitly WAIVED, and an optional demo is not required to exist. Keep recording, storage and upload within separately authorized data boundaries.
+Changing a living row to optional needs no config rewrite. Changing contract-level defaults goes through the synchronized update ([existing-factory-update.md](existing-factory-update.md)); smoke and video changes reset active observations to NOT RUN with history kept. Loading a newer helper injects no fields into old configs. No preference starts a watcher, recording or integration.
 
 ## Structured assumptions (`assumptions`)
 
@@ -140,4 +88,4 @@ Adopt or replace assumptions in an existing factory with `update_operations.py -
 
 ## Watcher design diagnostics
 
-`scaffold.py --check` and `status.py` print ADVISORY messages when continuous intent is recorded with disabled status, manual autonomy, missing submitter/rate/concurrency/time bounds, an unresolved mechanism or cadence, or a non-concrete repository scope. A well-formed disabled draft is valid (exit 0) and the warnings activate nothing. Even a fully specified design is `configured_unverified`: scheduler authority, authenticated scope, kill-switch wiring and liveness need their own observations. The dashboard's context object reports watcher state and these diagnostics without rendering any source text as authority. A successful hash check, a status event, a 24/7 proposal or an operator-written "running" label never implies live readiness. `run.py select` (see [running.md](running.md)) is the read-only selection path that enforces the recorded bounds.
+`scaffold.py --check` and `status.py` print ADVISORY messages when continuous intent is recorded with disabled status, manual autonomy, missing submitter/rate/concurrency/time bounds, an unresolved mechanism or cadence, or a non-concrete repository scope. A well-formed disabled draft is valid (exit 0) and the warnings activate nothing. Even a fully specified design is `configured_unverified`: scheduler authority, authenticated scope, kill-switch wiring and liveness need their own observations. The dashboard's context object reports watcher state and these diagnostics without rendering any source text as authority. A successful hash check, a status event, a 24/7 proposal or an operator-written "running" label never implies live readiness. `run.py select` (see [running.md](running.md)) is a read-only advisory selection; it cannot enforce live bounds.

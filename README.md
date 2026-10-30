@@ -23,7 +23,7 @@ One generated directory, `<project>/.software-factory/`, containing the seven `f
 /software-factory:build-software-factory Add CSV export to the reports page
 ```
 
-Then, from the project root:
+Load `.software-factory/.claude/skills/` using your harness, then invoke `factory-run` for an advisory plan. For example, from the project root in Claude Code:
 
 ```sh
 claude --add-dir .software-factory      # keep --setting-sources project for headless runs
@@ -60,8 +60,8 @@ Two mechanisms enforced by code, and one stated once and applied everywhere:
 - [Gates](skills/build-software-factory/references/gates.md): structured smoke recipes, video triggers, risk-focused verification.
 - [Recovery](skills/build-software-factory/references/recovery.md): manual integrity recovery, the staged recovery helper, worker health and fallback.
 - [Operations config](skills/build-software-factory/references/operations-config.md): identities, headless recipes, autonomy, continuous intake, assumptions.
-- [Evidence lifecycle](skills/build-software-factory/references/evidence-lifecycle.md) and the inactive [CI evidence job](skills/build-software-factory/assets/templates/ci/README.md).
-- [Dashboard](skills/build-software-factory/references/dashboard.md), [done videos](skills/build-software-factory/references/done-videos.md), [release preflight](skills/build-software-factory/references/release-preflight.md).
+- [Evidence lifecycle](skills/build-software-factory/references/operation.md#evidence-chain) and the inactive [CI evidence job](skills/build-software-factory/assets/templates/ci/README.md).
+- [Dashboard](skills/build-software-factory/references/dashboard.md), [done videos](skills/build-software-factory/references/done-videos.md), [release preflight](skills/build-software-factory/references/operation.md#approval-and-execution).
 
 Run selection is advisory and does not reserve work or enforce budget. Scheduler output is a non-executable proposal; see [running](skills/build-software-factory/references/running.md).
 

@@ -254,6 +254,30 @@ class RunTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             run.schedule_text(root, manual, 'cron')
 
+    def test_schedule_recipe_is_explicit_inert_and_format_escaped(self):
+        import plistlib
+        from xml.etree import ElementTree
+        self.config['operations']['issue_intake']['status']='enabled'
+        root,config,_=self.load(self.write())
+        recipe={'purpose':'factory-run','argv':['/path with space/app','value & <quoted>','quote"x','50%'], 'restrictions':'Synthetic data, no network'}
+        unconfigured=json.loads(run.schedule_text(root,config,'cron'))
+        self.assertEqual(unconfigured['recipe']['status'],'unconfigured')
+        for kind in ('cron','launchd','windows','github'):
+            proposal=json.loads(run.schedule_text(root,config,kind,recipe=recipe))
+            self.assertFalse(proposal['executable']);fragment=proposal['recipe']['fragment']
+            if kind=='launchd':self.assertEqual(plistlib.loads(fragment.encode())['ProgramArguments'],recipe['argv'])
+            if kind=='windows':self.assertEqual(ElementTree.fromstring(fragment).find('Command').text,recipe['argv'][0]);self.assertIn('&amp;',fragment)
+            if kind=='cron':self.assertIn('\\%',fragment)
+            if kind=='github':self.assertTrue(fragment.startswith('run: "'))
+        for invalid in (None,1,[],{},'unknown: waiting','unconfirmed; consult docs','bad\ncommand'):
+            bad={**recipe,'argv':[invalid]}
+            with self.assertRaises(ValueError):run.schedule_text(root,config,'cron',recipe=bad)
+        with self.assertRaises(ValueError):run.schedule_text(root,config,'cron',recipe={**recipe,'purpose':'other'})
+        with self.assertRaisesRegex(ValueError,'backslash immediately before percent'):
+            run.schedule_text(root,config,'cron',recipe={**recipe,'argv':['agent',r'one\%two']})
+        with self.assertRaisesRegex(ValueError,'expression markers'):
+            run.schedule_text(root,config,'github',recipe={**recipe,'argv':['agent','${{ github.event.issue.title }}']})
+
     def test_cli_record_writes_outside_factory_and_preserves_integrity(self):
         root = self.write()
         runs = self.project / '.factory-runs'

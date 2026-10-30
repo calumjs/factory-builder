@@ -44,7 +44,7 @@ The helper requires an explicit matching repository and project-specific ready a
 excluded label policy, then applies label, submitter, duplicate and dependency
 checks. The snapshot and its claimed repository are untrusted and must be verified
 within the authorized intake process; reported IDs are candidate data. An eligible issue
-still goes through `/factory-intake` to become a task; the helper never labels,
+still goes through `factory-intake` to become a task; the helper never labels,
 claims or comments.
 
 ## Schedules
@@ -74,3 +74,11 @@ reports the smallest next human decision.
 updater does not add them. An older factory needs a separately reviewed selective
 contract migration and backup; do not copy files into a hashed directory or
 silently rebaseline it.
+
+Optional `--recipe <nonsecret-json>` supplies an explicitly selected argv recipe:
+`{"purpose":"factory-run","argv":["agent","--example"],"restrictions":"project-specific bounds"}`.
+The format-specific fragment is inert review data, not a scheduler or authority;
+no free-text recipe is selected automatically. Cron and GitHub previews use POSIX
+shell quoting; Windows previews are for direct process arguments, not a shell.
+Cron backslash-percent and GitHub expression markers are refused; review platform
+semantics and execution scope before any separately authorized integration.
