@@ -78,14 +78,15 @@ class Git:
 
     def read(self,*args,limit=MAX_TOTAL):
         env=dict(os.environ,GIT_NO_REPLACE_OBJECTS='1',GIT_NO_LAZY_FETCH='1',
+                 GIT_ALLOW_PROTOCOL='',GIT_PROTOCOL_FROM_USER='0',
                  GIT_OPTIONAL_LOCKS='0',GIT_TERMINAL_PROMPT='0')
-        # The --no-lazy-fetch flag (git >= 2.46) makes older git exit 129; GIT_NO_LAZY_FETCH in env is set below and
-        # is honoured by the same versions, so the flag adds nothing and the helper stays runnable on older git.
+        # Older Git may ignore GIT_NO_LAZY_FETCH. An empty protocol allowlist
+        # independently denies every fetch transport, including local helpers.
         status,output=bounded_run([self.executable,'--no-optional-locks','--literal-pathspecs',
                                '-c','core.fsmonitor=false','-C',str(self.repo),*args],
                               env,limit)
         if status:
-            raise ValueError('Local Git '+args[0]+' failed; verify exact objects/history and checkout availability. No fetch is attempted.')
+            raise ValueError('Local Git '+args[0]+' failed; verify exact objects/history and checkout availability. Fetch transports are disabled.')
         return output
 
 

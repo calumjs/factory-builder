@@ -13,11 +13,25 @@ from gates import policy_controls, initial_table, requirements, gate_rows, ROW
 from integrity import check, digest, safe_path
 from operations import controls, operations, DELIVERY_POLICY
 from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS
-from scaffold import validate, ROOT
+from scaffold import validate, ROOT, phase_skill, RETURN
 from assumptions import refresh as refresh_assumptions
 
 def dumps(value):
     return json.dumps(value,indent=2,ensure_ascii=False)+'\n'
+
+def control_differences(left, right, path='controls'):
+    if type(left) is not type(right):return [path]
+    if isinstance(left,dict):
+        result=[]
+        for key in sorted(left.keys() | right.keys()):
+            child=path+'.'+str(key)
+            if key not in left or key not in right:result.append(child)
+            else:result.extend(control_differences(left[key],right[key],child))
+        return result
+    if isinstance(left,list):
+        if len(left)!=len(right):return [path]
+        return [item for index,(a,b) in enumerate(zip(left,right)) for item in control_differences(a,b,path+'['+str(index)+']')]
+    return [] if left==right else [path]
 
 def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None):
     expected=requirements(config,research)
@@ -121,7 +135,10 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
     if assumptions_update is not None:config['assumptions']=copy.deepcopy(assumptions_update)
     validate(config)
     policy=original['policy.md'].decode('utf-8-sig').replace('\r\n','\n')
-    policy_controls(policy)  # Refuse a missing/ambiguous/malformed source section.
+    existing_controls=policy_controls(policy)
+    drift=control_differences(existing_controls,controls(before_config))
+    if drift:
+        raise ValueError('Policy/config controls disagree at '+', '.join(drift)+'; preserve and reconcile with a reviewed synchronized recovery before updating')
     header='## Proposed autonomy and review controls (not execution authority)'
     pattern=re.escape(header)+r'(\s*```json\n)(.*?)(\n```)'
     policy=re.sub(pattern,lambda m:header+m[1]+dumps(controls(config)).rstrip('\n')+m[3],policy,count=1,flags=re.S)
@@ -173,11 +190,18 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
         reset_defaults=isinstance(changes.get('smoke_gates'),dict) and 'required' in changes['smoke_gates']
         replacement['verification.md']=refreshed_verification(original['verification.md'].decode('utf-8-sig'),config,research,reset_defaults,before_config).encode('utf-8')
     if delivery_update:
+        boundary='boundaries.md'
+        boundary_source=(ROOT/'assets/templates'/boundary).read_bytes()
+        existing=(root/boundary).read_bytes() if (root/boundary).is_file() else None
+        if existing is not None and digest(existing)!=digest(boundary_source):
+            raise ValueError('Customized boundaries preserved; review their compatibility before a delivery migration')
+        if existing is None:
+            original[boundary]=None;replacement[boundary]=boundary_source
         for phase in ('intake','verify','release'):
             name=f'.claude/skills/factory-{phase}/SKILL.md'
             original[name]=(root/name).read_bytes()
             current=original[name].decode('utf-8-sig')
-            source=(ROOT/'assets/templates'/name).read_text(encoding='utf-8').split('---',2)[2].strip()
+            source=phase_skill((ROOT/'assets/templates'/name).read_text(encoding='utf-8')).split('---',2)[2].strip()+'\n\n'+RETURN
             addon='<!-- factory-delivery-update:start -->\n## Reviewed delivery-gate addendum\nThis reviewed addendum supersedes conflicting older delivery/intake instructions; other custom project instructions remain in force.\n\n'+source+'\n<!-- factory-delivery-update:end -->'
             pattern=r'<!-- factory-delivery-update:start -->.*?<!-- factory-delivery-update:end -->'
             if current.count('<!-- factory-delivery-update:start -->')>1 or current.count('<!-- factory-delivery-update:start -->')!=current.count('<!-- factory-delivery-update:end -->'):
@@ -191,7 +215,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             replacement['tools.json']=dumps(tools).encode('utf-8')
     manifest=json.loads(original['manifest.json'].decode('utf-8-sig'))
     for name,data in replacement.items():
-        if name in manifest['contracts'] or name.startswith('dashboard/'):
+        if name in manifest['contracts'] or name.startswith('dashboard/') or name=='boundaries.md':
             manifest['contracts'][name]=digest(data)
     replacement['manifest.json']=dumps(manifest).encode('utf-8')
     replacement={k:v for k,v in replacement.items() if v!=original[k]}

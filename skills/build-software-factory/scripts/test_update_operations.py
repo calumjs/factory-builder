@@ -32,6 +32,40 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(self.snapshot(),before)
         with self.assertRaises(ValueError):apply(root,old,new,plan,'not-approved')
         self.assertEqual(self.snapshot(),before)
+
+    def test_delivery_migration_adds_reviewed_boundaries_to_older_factory(self):
+        from scaffold import PREAMBLE, RETURN
+        boundary=self.factory/'boundaries.md';boundary.unlink()
+        manifest=json.loads((self.factory/'manifest.json').read_text());manifest['contracts'].pop('boundaries.md')
+        (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+        before=self.snapshot();root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        self.assertEqual(before,self.snapshot());self.assertIsNone(old['boundaries.md'])
+        self.assertIn('boundaries.md',new)
+        for phase in ('intake','verify','release'):
+            text=new[f'.claude/skills/factory-{phase}/SKILL.md'].decode()
+            addon=text.split('<!-- factory-delivery-update:start -->',1)[1]
+            self.assertIn(PREAMBLE,addon);self.assertIn(RETURN,addon)
+        backup=apply(root,old,new,plan,plan)
+        self.assertIn('boundaries.md',json.loads((backup/'added-files.json').read_text()))
+        check(root,quiet=True)
+
+    def test_delivery_migration_preserves_custom_boundaries(self):
+        path=self.factory/'boundaries.md';path.write_text(path.read_text()+'\nCustom policy.\n')
+        manifest=json.loads((self.factory/'manifest.json').read_text());manifest['contracts']['boundaries.md']=digest(path.read_bytes())
+        (self.factory/'manifest.json').write_text(json.dumps(manifest));before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'Customized boundaries'):
+            prepare(self.factory,{},delivery_update=True)
+        self.assertEqual(before,self.snapshot())
+
+    def test_delivery_migration_rejects_policy_drift_without_writes(self):
+        path=self.factory/'policy.md';source=path.read_text()
+        changed=source.replace('"concurrency": 1','"concurrency": true')
+        self.assertNotEqual(source,changed);path.write_text(changed)
+        manifest=json.loads((self.factory/'manifest.json').read_text());manifest['contracts']['policy.md']=digest(path.read_bytes())
+        (self.factory/'manifest.json').write_text(json.dumps(manifest));before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'controls.concurrency'):
+            prepare(self.factory,{},delivery_update=True)
+        self.assertEqual(before,self.snapshot())
     def test_synchronized_update_preserves_custom_policy_and_evidence_history(self):
         evidence=self.factory/'verification.md';evidence.write_text(evidence.read_text()+'\nOperator notes: preserve this history.\n')
         before=self.snapshot()

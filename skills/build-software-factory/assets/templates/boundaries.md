@@ -18,7 +18,7 @@ Every phase skill follows these rules. They are stated once here so the skills c
 
 ## Contracts
 
-- Contract files are hashed in manifest.json; living files (task-plan.json, verification.md, learning-log.md, release-handoff.md, tools.json) evolve through the status and gate helpers. Do not edit hashed files in place, rebaseline a hash, or add unregistered files inside this directory. Runtime notes, snapshots and scheduler output belong outside it.
+- Contract files are hashed in manifest.json; living files (task-plan.json, verification.md, learning-log.md, release-handoff.md, tools.json) evolve through the status and gate helpers. Change contracts only through an authorized, reviewed synchronized update that preserves unrelated files and selectively updates the manifest. Do not silently rebaseline hashes or add unregistered files. Runtime notes, snapshots and scheduler output belong outside this directory.
 - Operational changes go through the builder's preview-first synchronized update; integrity failures go through its reviewed recovery, never a force rebaseline.
 
 ## Data
