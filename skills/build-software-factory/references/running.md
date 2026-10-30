@@ -1,6 +1,6 @@
 # Running the factory
 
-The seventh generated skill, the `factory-run` skill, is the engine. The six phase skills
+The seventh generated skill, `factory-run`, is the engine. The six phase skills
 are procedures; `factory-run` selects work, drives them, and records each pass.
 It adds no authority: every action it dispatches is bounded by policy.md, the
 recorded budget and the autonomy controls.
@@ -19,10 +19,10 @@ task dependencies, then lists candidates and why the rest are blocked. Tasks who
 together; a task with no recorded paths is treated as overlapping everything.
 
 `plan` adds one rendered worker prompt per candidate, built from
-worker-handoff.md. The orchestrating session starts one subagent per worker
-(isolated worktree when the harness offers one), each performing
-the `factory-build` skill then the `factory-verify` skill for its single task, waits for all of
-them, then performs the `factory-release` skill and the `factory-learn` skill once. Nothing in the
+worker-handoff.md. The orchestrating session starts one worker per entry with its
+own subagent mechanism (isolated checkout when the harness offers one), each
+performing `factory-build` then `factory-verify` for its single task, waits for all
+of them, then performs `factory-release` and `factory-learn` once. Nothing in the
 helper starts a worker.
 
 ```sh
@@ -40,7 +40,7 @@ A continuous factory does not read GitHub itself. The authorized scheduler job
 exports a read-only snapshot and passes it with `select --issues snapshot.json`.
 The helper applies the submitter allowlist, duplicate and dependency checks from
 [operation.md](operation.md) and reports eligible issue IDs. An eligible issue
-still goes through the `factory-intake` skill to become a task; the helper never labels,
+still goes through `factory-intake` to become a task; the helper never labels,
 claims or comments.
 
 ## Schedules
