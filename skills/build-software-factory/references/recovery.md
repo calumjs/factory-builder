@@ -60,20 +60,8 @@ Failure leaves the original intact and partial output preserved; there is no for
 
 ## 3. Worker health, bounded retries and fallback
 
-Use the task's tool recipe and worker-handoff.md; no extra schema is needed, and pin a provider only when the project requires it. Identify any permitted fallback, its data boundary, output format and execution authority during intake or Plan. The primary worker being unavailable does not authorize an alternative.
+Use the task's tool recipe and worker-handoff.md; pin a provider only when the project requires it. Identify any permitted fallback, its data boundary, output format and execution authority during intake or Plan — the primary worker being unavailable does not authorize an alternative.
 
-At each checkpoint inspect the actual run ID, terminal/running state, exit signal, last progress time, expected artifact and revision/branch in the assigned checkout. Confirm whether a commit, PR or artifact exists before retrying or switching; an empty transcript proves neither failure nor absence of work, and an old task status or accepted launch request proves no liveness.
+At each checkpoint confirm from the actual run ID, state, logs, expected artifact and branch whether a commit, PR or artifact already exists before retrying or switching; reconcile an existing artifact first to avoid duplicate commits. An auth, permission or data-boundary rejection stops that action — no identity or security change, no tool switch to get around it.
 
-| Condition | Response within existing scope |
-|---|---|
-| Running with credible recent progress | Continue within deadline; no duplicate launch. |
-| Terminal success with expected artifact/revision | Validate artifact and checks; a transcript does not prove quality. |
-| Terminal success without required artifact | Task incomplete; inspect output/schema, escalate or retry with a new hypothesis. |
-| Explicit transient provider/tool error | Diagnose; bounded retry only when safe and a new hypothesis exists. |
-| Auth, permission, data-boundary or rejected action | Stop that action; no identity/security change or tool switch to bypass it. |
-| Unknown/stalled state or missing output | Query state/artifacts where authorized; avoid overlapping writers; report uncertainty. |
-| Artifact exists despite failed/empty output | Preserve and reconcile before any retry to avoid duplicate commits/PRs. |
-
-`budget.max_repair_attempts`, `max_minutes`, `max_workers` and the monetary limit cover the task including retries and fallbacks; a fallback does not reset them. Before retrying, name the new hypothesis, timeout, expected artifact and verification. Fallback is permitted only when its provider, data egress, cost, paths and actions fit existing explicit scope; use an isolated checkout, reconcile the primary worker's uncertain outcome and make sure it cannot write the same files concurrently. Never terminate a run outside authority. Record which worker/run produced the final artifact, its revision and checks; do not fabricate health telemetry. If automatic pickup exists, use its authorized pause/kill switch rather than reconfiguring a watcher.
-
-For a Claude Code laptop fallback, follow the generated launch-guide.md: inspect the exact checkout before the owner's workspace-trust decision, keep work blocked and intake paused through authorized controls while waiting, then recheck loaded source, discovery and helper permissions.
+`budget.max_repair_attempts`, `max_minutes`, `max_workers` and the cost limit cover the task including every retry and fallback; a fallback does not reset them. Fallback is permitted only when its provider, data egress, cost, paths and actions fit existing explicit scope; use an isolated checkout and make sure the primary worker cannot write the same files concurrently. Never terminate a run outside authority. Record which worker/run produced the final artifact, its revision and checks. If automatic pickup exists, use its authorized pause or kill switch rather than reconfiguring a watcher. For a laptop fallback follow the generated launch-guide.md, keeping work blocked and pickup paused through authorized controls while any trust decision is pending.

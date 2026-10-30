@@ -36,7 +36,10 @@ class RunTests(unittest.TestCase):
             'autonomy': {'mode': 'bounded', 'kill_switch': 'STOP file', 'max_items_per_hour': 3,
                          'allowed_submitters': ['alice'], 'rejected_items': 'record and stop'},
             'issue_intake': {'mode': 'continuous', 'github_scope': 'org/repo', 'status': 'disabled',
-                             'evidence': 'synthetic test', 'cadence': '120'}}
+                             'evidence': 'synthetic test', 'cadence': '120'},
+            'tool_recipes': [{'provider': 'synthetic harness', 'headless_command': 'synthetic-harness run factory-run',
+                              'structured_output': 'unconfirmed', 'tool_restrictions': 'unconfirmed',
+                              'auth_probe': 'unconfirmed', 'auth_status': 'unverified', 'auth_evidence': 'synthetic'}]}
 
     def tearDown(self):
         self.tmp.cleanup()
@@ -157,12 +160,22 @@ class RunTests(unittest.TestCase):
 
     def test_schedule_renders_each_kind_and_refuses_unbounded(self):
         root, config, _ = self.load(self.write())
-        self.assertIn('0 */2 * * *', run.schedule_text(root, config, 'cron'))
+        cron = run.schedule_text(root, config, 'cron')
+        self.assertIn('0 */2 * * *', cron)
+        self.assertIn('synthetic-harness run factory-run', cron)
+        self.assertNotIn('claude -p', cron)
         self.assertIn('<key>StartInterval</key><integer>7200</integer>', run.schedule_text(root, config, 'launchd'))
         self.assertIn('/MO 120', run.schedule_text(root, config, 'windows'))
         github = run.schedule_text(root, config, 'github')
         self.assertIn('cron: "0 */2 * * *"', github)
         self.assertIn('workflow_dispatch', github)
+        self.assertIn('synthetic-harness run factory-run', github)
+        no_recipe = copy.deepcopy(config)
+        no_recipe['operations']['tool_recipes'] = []
+        (root / 'tools.json').write_text(json.dumps({'headless_recipes': []}))
+        with self.assertRaises(ValueError):
+            run.schedule_text(root, no_recipe, 'cron')
+        (root / 'tools.json').write_text(json.dumps({'headless_recipes': [{'headless_command': 'synthetic-harness run factory-run'}]}))
         self.assertIn('0 */4 * * *', run.schedule_text(root, config, 'cron', every=240))
         with self.assertRaises(ValueError):
             run.schedule_text(root, config, 'cron', every=5)

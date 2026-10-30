@@ -23,9 +23,9 @@ load, schtasks /create, committing a workflow) is a separate, authorized action.
 
 ## What a scheduled pass does
 
-Each firing runs one `/factory-run` pass in headless mode with the project's
-recorded headless recipe (see `tools.json`), for example
-`claude -p "/factory-run" --add-dir .software-factory`. The pass selects work,
+Each firing runs one factory-run pass with the headless recipe recorded in
+`tools.json` (`run.py schedule` refuses to render without a confirmed one; the
+scheduler is not a harness, so it needs the literal command). The pass selects work,
 dispatches up to `budget.max_workers` workers, releases and learns, then records
 the run in `.factory-runs/`. The rate limit is enforced from those records, so a
 scheduler that fires more often than `max_items_per_hour` simply produces empty

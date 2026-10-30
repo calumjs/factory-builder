@@ -39,11 +39,11 @@ class InstallTrustSecretGuidanceTests(unittest.TestCase):
     def test_generated_launch_preflight_retains_distinct_source_trust_permission_boundaries(self):
         files = render(self.config, self.research)
         guide = ' '.join(files['launch-guide.md'].split())
-        for clause in ('actual loaded plugin directory', 'scripts/gates.py',
-                       'A version string alone is not proof', 'generated-factory migration are separate',
-                       'normal interactive UI', 'absence does not prove',
-                       'affected task BLOCKED', 'A denied action remains denied',
-                       'exact trusted helper argv', '--setting-sources project'):
+        for clause in ('the directory it was loaded from', 'scripts/gates.py', 'scripts/run.py',
+                       'A version string alone does not identify code', 'does not migrate this factory',
+                       'human owner makes it in the normal UI', 'absence does not prove',
+                       'affected task BLOCKED', 'a denied action remains denied',
+                       'exact helper argv', 'headless recipe recorded in `tools.json`'):
             self.assertIn(clause, guide)
         self.assertIn('launch-guide.md', files['.claude/skills/factory-intake/SKILL.md'])
         self.assertIn('launch-guide.md', files['.claude/skills/factory-build/SKILL.md'])

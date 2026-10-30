@@ -211,6 +211,16 @@ def cron_expression(minutes):
     return '*/' + str(minutes) + ' * * * *'
 
 
+def headless_command(root):
+    """The recorded headless recipe from tools.json; the scheduler is not a harness and needs a literal command."""
+    tools = json.loads((root / 'tools.json').read_text(encoding='utf-8-sig')) if (root / 'tools.json').is_file() else {}
+    for recipe in tools.get('headless_recipes') or []:
+        command = str(recipe.get('headless_command', '')).strip()
+        if command and not command.casefold().startswith('unconfirmed'):
+            return command
+    raise ValueError('No confirmed headless recipe in tools.json; record the harness command for a factory-run pass before scheduling')
+
+
 def schedule_text(root, config, kind, every=None, builder=None):
     autonomy, intake = operations(config)
     if intake['mode'] != 'continuous' or autonomy['mode'] != 'bounded':
@@ -219,7 +229,7 @@ def schedule_text(root, config, kind, every=None, builder=None):
     project = root.parent
     builder = builder or '<builder-skill-dir>'
     helper = builder + '/scripts/run.py'
-    pass_cmd = 'claude -p "/factory-run" --add-dir .software-factory'
+    pass_cmd = headless_command(root)
     header = '# Rendered by run.py schedule for ' + config['project'] + ' every ' + str(minutes) + ' minutes. Not installed. Review, then enable within authorized scheduler scope.\n'
     if kind == 'cron':
         return (header + '# Kill switch: touch ' + str(project / '.factory-runs' / STOP_FILE) + '\n'
@@ -243,7 +253,8 @@ def schedule_text(root, config, kind, every=None, builder=None):
     if kind == 'github':
         template = root / 'scheduling' / 'factory-run.example.yml'
         text = template.read_text(encoding='utf-8-sig') if template.is_file() else 'on:\n  schedule:\n    - cron: "0 * * * *"\n'
-        return header + re.sub(r'cron: "[^"]*"', 'cron: "' + cron_expression(minutes) + '"', text, count=1)
+        text = re.sub(r'cron: "[^"]*"', 'cron: "' + cron_expression(minutes) + '"', text, count=1)
+        return header + text.replace('echo "headless pass not configured" && exit 1', pass_cmd, 1)
     raise ValueError('Unsupported scheduler kind')
 
 

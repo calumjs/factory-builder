@@ -7,7 +7,7 @@ description: Design and scaffold a project-specific AI software delivery factory
 
 Build the smallest factory that fits the project, reusing its actual stack and constraints. A factory is a repeatable delivery loop with explicit context, tools, owners, evidence and human decisions. Its six phase skills are **Intake → Plan → Build → Verify → Release → Learn**, driven by a seventh, **Run**, which selects work, dispatches bounded parallel workers and can be scheduled. A solo worker is a valid default; do not add a platform, swarm or provider to look complete.
 
-Invoke with `/software-factory:build-software-factory <project goal>`. The default harness is Claude Code; no agent provider is required.
+Invoke this skill with the project goal. Any harness that loads Agent Skills can run the factory it produces; no agent provider is required.
 
 ## 1. Discover
 
@@ -34,20 +34,19 @@ python <skill-dir>/scripts/scaffold.py --config <config.json> --research <resear
 python <skill-dir>/scripts/scaffold.py --config <config.json> --research <research.json> --target <repo-or-folder> --apply
 ```
 
-It creates only `<target>/.software-factory/` — seven skills, boundaries.md, contracts, living records, a read-only dashboard, and inactive CI and scheduling templates — and refuses an existing output. It implements no product, runs no worker or test, enables no provider, publishes nothing. Read [operation.md](references/operation.md) when customizing worker and evidence gates and [running.md](references/running.md) for how passes, parallel workers, issue snapshots and schedules work. Do not alter the project's existing CLAUDE.md, AGENTS.md, settings or skills.
+It creates only `<target>/.software-factory/` — seven skills, boundaries.md, contracts, living records, a read-only dashboard, and inactive CI and scheduling templates — and refuses an existing output. Read [operation.md](references/operation.md) when customizing worker and evidence gates and [running.md](references/running.md) for how passes, parallel workers, issue snapshots and schedules work. Do not alter the project's existing CLAUDE.md, AGENTS.md, settings or skills.
 
 ## 6. Prove and hand over
 
-Preflight phase discovery with the launch guidance in [scaffolding.md](references/scaffolding.md): pin the loaded source and version and confirm the helpers. Check that each selected research decision appears as an instruction and planned check in the right generated skill, with citations, and that excluded components have a reason. Audit source claims against pages actually read; the offline helper validates structure, not source truth. Run `scaffold.py --check`, inspect the brief, policy and task plan, and walk one representative task through the gates without external mutations; confirm every acceptance criterion has a planned check and every task an owner and dependencies. Distinguish scaffold integrity from application correctness. Deliver: created paths, how to invoke each skill, actual checks, blocked capabilities and the next human decision.
+Preflight with the generated launch-guide.md: pin the loaded builder, confirm the helpers, load the seven skills in the harness. Check that each selected research decision appears as an instruction and planned check in the right generated skill, with citations, and that excluded components have a reason. Audit source claims against pages actually read; the offline helper validates structure, not source truth. Run `scaffold.py --check`, inspect the brief, policy and task plan, and walk one representative task through the gates without external mutations; confirm every acceptance criterion has a planned check and every task an owner and dependencies. Distinguish scaffold integrity from application correctness. Deliver: created paths, how to invoke each skill, actual checks, blocked capabilities and the next human decision.
 
 ## Other situations
 
 - Existing factory or changed preferences: [existing-factory-update.md](references/existing-factory-update.md) — preview-first synchronized update, never a direct edit of hashed files.
 - Integrity already failing, or a worker stuck: [recovery.md](references/recovery.md).
-- Tested-subject vs evidence-storage commits and the inactive CI job: [evidence-lifecycle.md](references/evidence-lifecycle.md) and `assets/templates/ci/README.md`.
-- First provisioning of a release target: [release-preflight.md](references/release-preflight.md).
+- Evidence ownership, tested-subject vs storage commits, first release of a new target: [operation.md](references/operation.md); the inactive CI job is `assets/templates/ci/README.md`.
 - Enabled done videos: [done-videos.md](references/done-videos.md).
-- Reusable improvements to this builder: the bundled `/software-factory:contribute-upstream` skill.
+- Reusable improvements to this builder: the bundled `contribute-upstream` skill.
 
 Read only the references the current task needs.
 

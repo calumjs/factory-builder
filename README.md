@@ -1,6 +1,6 @@
 # Software Factory plugin
 
-A Claude Code plugin that builds a project-specific AI delivery factory: it interviews you, researches current practices for your stack, and scaffolds a governed loop of seven skills into your repository.
+A plugin that builds a project-specific AI delivery factory: it interviews you, researches current practices for your stack, and scaffolds a governed loop of seven skills into your repository. It ships as a Claude Code plugin; the factory it generates uses the open Agent Skills format and stdlib Python, so any harness that loads skills and has a subagent mechanism can run it.
 
 ```
                  ┌────────────────────────── /factory-run ──────────────────────────┐
@@ -31,19 +31,14 @@ One generated directory, `<project>/.software-factory/`, containing the seven `f
 /software-factory:build-software-factory Add CSV export to the reports page
 ```
 
-Then, from the project root:
-
-```sh
-claude --add-dir .software-factory      # keep --setting-sources project for headless runs
-/factory-run                            # one pass: select → build/verify in parallel → release → learn
-```
+Then load `.software-factory/.claude/skills/` in your harness as an additional skills directory and invoke `factory-run` for one pass (select → build/verify in parallel → release → learn). In Claude Code that is `claude --add-dir .software-factory` then `/factory-run`.
 
 The repository is private; the installing account needs access and working Git auth. For a session-only preview without installing: `claude --plugin-dir /path/to/software-factory-plugin`. Helpers need Python 3.9+ and only the standard library; see the [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for Windows interpreter selection.
 
 ## How a pass works
 
 1. **Select.** `run.py select` checks integrity, the kill switch (`.factory-runs/STOP` or `FACTORY_STOP=1`), `budget.max_workers` minus in-progress tasks, the hourly rate window, and task dependencies. Tasks with overlapping `allowed_paths` are never dispatched together.
-2. **Dispatch.** One subagent per eligible task, in an isolated worktree, performs `/factory-build` then `/factory-verify` and returns revision, checks run and evidence.
+2. **Dispatch.** The harness starts one worker per eligible task with its own subagent mechanism, isolated where it can be; each performs `factory-build` then `factory-verify` and returns revision, checks run and evidence.
 3. **Release and learn.** Once, for the pass. Readiness requires every still-required G1/G2 check to pass for the exact revision; G3 confirms the real URL or published artifact only after a separately authorized release.
 4. **Record.** The pass is written to `.factory-runs/` outside the hashed directory.
 
@@ -63,8 +58,8 @@ Two mechanisms enforced by code, and one stated once and applied everywhere:
 - [Gates](skills/build-software-factory/references/gates.md): structured smoke recipes, video triggers, risk-focused verification.
 - [Recovery](skills/build-software-factory/references/recovery.md): manual integrity recovery, the staged recovery helper, worker health and fallback.
 - [Operations config](skills/build-software-factory/references/operations-config.md): identities, headless recipes, autonomy, continuous intake, assumptions.
-- [Evidence lifecycle](skills/build-software-factory/references/evidence-lifecycle.md) and the inactive [CI evidence job](skills/build-software-factory/assets/templates/ci/README.md).
-- [Dashboard](skills/build-software-factory/references/dashboard.md), [done videos](skills/build-software-factory/references/done-videos.md), [release preflight](skills/build-software-factory/references/release-preflight.md).
+- [Operation](skills/build-software-factory/references/operation.md): worker contract, evidence chain, first release of a target, continuous pickup; the inactive [CI evidence job](skills/build-software-factory/assets/templates/ci/README.md).
+- [Dashboard](skills/build-software-factory/references/dashboard.md), [done videos](skills/build-software-factory/references/done-videos.md), [research record](skills/build-software-factory/references/research.md), [intake questions](skills/build-software-factory/references/intake.md).
 
 ## Validate and test
 
