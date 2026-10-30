@@ -48,7 +48,7 @@ For a write-free proposed table, use `python scripts/gates.py --factory /approve
 New factories also contain ci/README.md and ci/job.example.py: an inactive portable
 CI adoption template, not a root workflow. It invokes a trusted pinned installed
 builder helper to assess explicit tested-subject versus evidence-storage commits.
-See [evidence-lifecycle.md](evidence-lifecycle.md); CI activation/required-check setup
+See [evidence lifecycle](operation.md#evidence-chain); CI activation/required-check setup
 needs separate scope. Do not execute a PR-supplied helper in a privileged job.
 
 `task-plan.json` is the authoritative atomic task/evidence record. Use the status helper rather than separately editing a JSON status and a Markdown evidence table:
