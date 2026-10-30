@@ -34,6 +34,8 @@ After authorized local writes, the offline Python helper creates only `<project>
 
 Start Claude from the project root with `claude --add-dir .software-factory`, then use `/factory-intake`, `/factory-plan`, `/factory-build`, `/factory-verify`, `/factory-release` and `/factory-learn`. Confirm additional-directory skill discovery under the installed version and organization policy. See the builder's [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for helper commands and Windows interpreter selection.
 
+For isolated/headless phase discovery, keep `--setting-sources project` and follow the generated launch-guide.md preflight; an empty source list can hide phases. Risk-focused Verify guidance adapts independent review and identifier/persistence fault cases to the project's actual promises, preserving discovered failures and exact repair-revision evidence.
+
 Every generated factory requires production-equivalent local smoke (G1), change-targeted tests (G2) and applicable acceptance/research checks before pre-merge readiness. After a separately authorized release, G3 checks the actual web URL or installed/published artifact at the merged revision. Pending post-action evidence does not block pre-action readiness; it does prevent claiming the release confirmed. Required failed, NOT RUN, malformed, stale, removed or wrong-target evidence blocks its stage. The offline gate helper validates records only; build/hash success is not application verification. Enabled narrated videos have a post-G3 V1 handoff.
 
 Existing factories can opt in through a [narrow reviewed update](skills/build-software-factory/references/existing-factory-update.md), preserving custom instructions and historical evidence.

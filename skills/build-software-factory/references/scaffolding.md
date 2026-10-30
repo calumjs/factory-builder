@@ -56,6 +56,24 @@ The preview writes nothing. `--apply` updates status and appends an evidence eve
 
 ## Claude Code integration
 
+New factories include launch-guide.md. For scoped/headless use, keep the project
+setting source: `claude --plugin-dir <trusted-plugin-root> --add-dir .software-factory --setting-sources project`.
+An empty source list can hide generated phases even though the plugin loads.
+Preflight all six names and a scoped actual Skill call before delivery; inspect the
+project customizations, installed-version bare/safe behavior and managed policy.
+Report discovery blocked rather than copying skills globally or bypassing policy.
+See [official added-directory loading](https://code.claude.com/docs/en/skills#load-skills-from-a-directory-outside-the-project)
+and [CLI options](https://code.claude.com/docs/en/cli-reference) (read 2026-10-30).
+This documents verified dogfood behavior; the builder does not launch a model call.
+
+Also preflight the exact resolved interpreter plus trusted helper argv/target/subject
+against task-specific execution permissions. A wrapper can select a binary that a
+dontAsk allowlist does not permit even when Python is installed. Report that exact
+blocked command and keep its checks pending; use the normal bounded task approval
+process, never another launch route or broader global permissions. This task adds
+guidance only and changes no allowlist. Passing consumer smoke does not complete
+Release, post-action evidence, status recording or a blocked dashboard refresh.
+
 The plugin builder is `/software-factory:build-software-factory`. Generated six-phase folders live at `.software-factory/.claude/skills/factory-<phase>/`. Start Claude from the project root with `claude --add-dir .software-factory`, then invoke `/factory-intake`, `/factory-plan`, `/factory-build`, `/factory-verify`, `/factory-release` or `/factory-learn`. Confirm discovery under the installed Claude version and organization policy. The phase instructions resolve their artifact root three levels above their containing folder.
 
 No hooks, tool preapproval, MCP server or settings changes are bundled. `gitignore.fragment` is an optional root ignore fragment to review and merge manually; the helper never edits root ignore rules. Keep non-secret `.env.example` files if useful. Stage explicit reviewed paths; avoid blanket staging of caches, backups, credentials or factory outputs.

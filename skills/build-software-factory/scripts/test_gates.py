@@ -236,4 +236,24 @@ class GateTests(unittest.TestCase):
             self.write(root,self.mark(self.rows(),'G3',target='fixture-artifact'))
             self.assertEqual(assess(root,'post-merge','r1','fixture-artifact'),[])
 
+    def test_late_independent_failures_and_new_subject_require_truthful_regating(self):
+        self.config['acceptance'] += ['Synthetic retry property','Synthetic persisted state','Synthetic failure recovery']
+        self.files=render(self.config,self.research)
+        text=self.all_pass();self.assertEqual(self.check(text),[])
+        historical=[]
+        for gate in ('A3','A4'):
+            text=self.mark(text,gate,result='FAILED')
+            historical += ['> '+line for line in text.splitlines() if line.startswith('| '+gate+' |')]
+        failures=self.check(text)
+        self.assertTrue(any('A3 is FAILED' in row for row in failures))
+        self.assertTrue(any('A4 is FAILED' in row for row in failures))
+        text+='\n## Synthetic historical repros\n'+'\n'.join(historical)
+        for gate in ('A3','A4'):text=self.mark(text,gate,revision='repaired-subject')
+        self.assertTrue(self.check(text,revision='repaired-subject'))  # Other required observations still old.
+        for gate,spec in requirements(self.config,self.research).items():
+            if spec['stage']=='pre-merge':text=self.mark(text,gate,revision='repaired-subject')
+        self.assertEqual(self.check(text,revision='repaired-subject'),[])
+        self.assertIn('> | A3 |',text);self.assertIn('> | A4 |',text)
+        self.assertIn('| FAILED |',text)
+
 if __name__=='__main__':unittest.main(verbosity=2)
