@@ -57,12 +57,21 @@ The bundled `/software-factory:contribute-upstream` skill turns useful reusable 
 ## Prove and hand over
 
 Preflight generated phase discovery with the scoped launcher guidance in
-[scaffolding.md](references/scaffolding.md); a loaded plugin alone is insufficient.
+[scaffolding.md](references/scaffolding.md); pin the loaded source/version and
+confirm required helpers first. A loaded plugin alone is insufficient. Required
+workspace trust is the human owner's normal decision, separate from execution
+authority; keep affected work blocked rather than changing permission modes.
 For promises such as retry idempotency or durable persistence, read
 [risk-focused-verification.md](references/risk-focused-verification.md) and fit
 independent review/edge-case/fault checks to the actual task, stack and budget.
 Do not impose every example on unrelated projects or treat a passing smoke as
 proof against failures it did not exercise.
+
+For task-relevant connection-string/secret checks, fit the bundled
+[review guide](assets/templates/connection-string-review.md) to the actual criterion.
+Review synthetic provenance instead of blanket host/path exemptions, keep negative
+coverage and obtain fresh evidence after reviewed check changes. The builder does
+not implement a secret scanner or treat R1 as a fixed security rule.
 
 Check that each relevant research decision is visible as a concrete instruction and planned check in the appropriate generated skill, with citations supporting the instruction, and that irrelevant components have a reason for exclusion. Audit source claims against pages actually read; the offline helper validates structure, not source truth. Run the helper's integrity check, inspect the generated brief/policy/task plan, and walk one representative task through the six gates without external mutations. Verify each acceptance criterion has a planned check and each task has an owner/dependencies. Distinguish scaffold integrity from application correctness; do not claim product tests passed. Deliver created paths, how to invoke each phase, actual checks, blocked capabilities and the next human decision.
 

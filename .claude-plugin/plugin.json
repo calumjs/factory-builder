@@ -1,6 +1,6 @@
 {
   "name": "software-factory",
-  "version": "1.5.0",
+  "version": "1.5.1",
   "description": "Research and scaffold a fitted six-phase software factory, record evidence, and contribute reusable improvements upstream.",
   "author": {"name": "calumjs"},
   "repository": "https://github.com/calumjs/software-factory-plugin",

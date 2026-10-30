@@ -1,5 +1,53 @@
 # Scoped Claude Code phase discovery
 
+## Pin the loaded source before choosing helper commands
+
+Record the installed Claude version, plugin name/version/scope/status and actual
+loaded plugin directory. Use `claude plugin list` or the installed-plugin details;
+for --plugin-dir, inspect that exact directory's .claude-plugin/plugin.json. For a
+Git checkout, record its full commit and dirty state with read-only Git inspection;
+for an archive/cache, retain the verified source revision/checksum from its trusted
+delivery record. A version string alone is not proof of a commit or untampered code.
+Do not inspect credentials or assume the application's Git origin is the plugin source.
+
+Resolve <trusted-skill-root> to skills/build-software-factory in that loaded source.
+Before planning execution, inspect that root for scripts/scaffold.py, scripts/status.py,
+scripts/gates.py and their imported local dependencies. The published v1.3 package
+includes gates.py; an older package may not. A missing helper is a BLOCKED tooling
+preflight, not a passing or notice-only CI gate. Do not invent a replacement engine,
+guess a cache path or copy an isolated script with incompatible dependencies.
+
+An installed-plugin update and a generated-factory migration are separate changes.
+Within separately authorized install scope, update the verified plugin from its
+trusted source and confirm the loaded version/path again in a fresh session (or
+the installed version's supported reload). Cached/running sessions can retain old
+code. Preserve existing factories; use the builder's narrow reviewed update when
+their contracts/runtime need migration. While unavailable, retain actual manual
+observations in living records and report automated assessment NOT RUN/BLOCKED.
+Manual evidence is not a substitute for a still-required automated check. CI wiring
+requires its own scope and an actual executable helper; no notice stub is enforcement.
+
+## Human workspace trust and execution permissions
+
+Before laptop fallback or headless work, have the human owner inspect the intended
+checkout path, source, instructions/settings and project/plugin integrations. Where
+Claude Code presents workspace trust, the owner decides in its normal interactive
+UI for that directory. The agent must not accept it, edit trust state or select a
+permission-bypass launch mode. A non-interactive session may show no trust prompt;
+that absence does not prove the owner accepted trust or authorize using it as a
+workaround. Trust is distinct from tool permissions, integration approval and task
+authority; it grants no new deployment, data egress, spend or arbitrary execution.
+
+Keep the affected task BLOCKED while required trust is pending. If automatic pickup
+is already active, pause it only through its authorized control; otherwise ask the
+owner to pause it. Do not start intake/fallback work to test around the barrier.
+Record pending path/owner decision without sending messages outside authorized
+scope. After the owner confirms the normal trust decision, recheck task permissions,
+exact helper command and six-phase discovery below. A denied action remains denied.
+Record worker/run identity, actual revision and outcome in the final handoff.
+
+## Session-only phase loading
+
 From the approved project root, after inspecting its settings/instructions, load the
 trusted plugin for this session and retain the project setting source:
 
@@ -45,3 +93,6 @@ Example command identity to review (substitute approved actual paths):
 Primary references (checked 2026-10-30):
 [added-directory skills](https://code.claude.com/docs/en/skills#load-skills-from-a-directory-outside-the-project),
 [CLI flags](https://code.claude.com/docs/en/cli-reference).
+Version/update and trust references (read 2026-10-30):
+[installed-plugin details and updates](https://code.claude.com/docs/en/discover-plugins),
+[workspace trust and permissions](https://code.claude.com/docs/en/security).
