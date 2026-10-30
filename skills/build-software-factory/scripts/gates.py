@@ -7,7 +7,7 @@ from pathlib import Path
 import re
 import sys
 from integrity import check, safe_path
-from operations import controls, operations
+from operations import controls, operations, unresolved
 
 STAGES = ('pre-merge', 'post-merge')
 ROW = re.compile(r'^\|\s*([A-Z]\d+)\s*\|')
@@ -22,6 +22,7 @@ def requirements(config, research):
         'G3': {'stage':'post-merge','design':smoke['post_merge'],'applicability':smoke['post_merge_applicability'],
                'rationale':smoke['post_merge_rationale'],'accepted_by':smoke['accepted_by']}
     }
+    for spec in required.values():spec['required']=smoke['required']
     for i, criterion in enumerate(config['acceptance'], 1):
         required['A'+str(i)] = {'stage':'pre-merge','design':criterion,'applicability':'applicable'}
     selected = [p for p in research['practices'] if p['decision']=='selected']
@@ -41,7 +42,7 @@ def initial_table(config, research):
     for gate, spec in requirements(config, research).items():
         na = spec['applicability']=='not_applicable'
         evidence = spec['rationale']+'; accepted by '+spec['accepted_by'] if na else ''
-        cells = [gate,spec['stage'],spec['design'],'unconfirmed','yes','',
+        cells = [gate,spec['stage'],spec['design'],'unconfirmed','yes' if spec.get('required',True) else 'no','',
                  'NOT APPLICABLE' if na else 'NOT RUN',evidence,'','','']
         lines.append('| '+' | '.join(str(c).replace('|','/') for c in cells)+' |')
     return '\n'.join(lines)+'\n'
@@ -57,6 +58,8 @@ def gate_rows(text):
             row = dict(zip(keys,cells))
             if row['gate'] in rows:
                 raise ValueError('Duplicate gate: '+row['gate'])
+            flag=row['required'].casefold()
+            row['required']='yes' if flag in ('yes','y','true') else 'no' if flag in ('no','n','false') else flag
             if row['stage'] not in STAGES or row['required'] not in ('yes','no'):
                 raise ValueError('Invalid gate stage/required flag: '+row['gate'])
             if row['result'] not in ('PASSED','FAILED','BLOCKED','NOT RUN','NOT APPLICABLE'):
@@ -82,9 +85,9 @@ def problems(text, stage, revision, required=None, target=None):
     for gate, spec in required.items():
         row = rows.get(gate)
         if row is None:
-            out.append('Missing required gate: '+gate)
-        elif row['stage'] != spec['stage'] or row['required'] != 'yes':
-            out.append('Required gate moved or disabled: '+gate)
+            out.append('Missing expected gate row: '+gate)
+        elif row['stage'] != spec['stage']:
+            out.append('Gate is in the wrong stage: '+gate)
     for gate,row in rows.items():
         if row['stage'] != stage or row['required']=='no':
             continue
@@ -98,9 +101,9 @@ def problems(text, stage, revision, required=None, target=None):
             continue
         if row['revision'] != revision.strip():
             out.append(gate+' has stale or missing revision')
-        if not row['design'] or row['design'].lower().startswith(('unconfirmed','replace with','design (not a command)')) or row['environment'].lower() in ('','unconfirmed','none') or row['evidence'].lower() in ('','none','not run','n/a','todo','unconfirmed'):
+        if unresolved(row['design']) or row['design'].lower().startswith(('unconfirmed','replace with','design (not a command)')) or unresolved(row['environment']) or unresolved(row['evidence']) or row['evidence'].lower() in ('not run','todo'):
             out.append(gate+' lacks concrete check, environment or evidence')
-        if not row['target'] or row['target'].lower() in ('unconfirmed','none'):
+        if unresolved(row['target']):
             out.append(gate+' lacks the actual target')
         if target is not None and row['target'] != target:
             out.append(gate+' evidence is for a different target')
@@ -114,7 +117,7 @@ def problems(text, stage, revision, required=None, target=None):
             out.append(gate+' lacks a valid observation timestamp with timezone')
     if stage=='post-merge' and 'V1' in required:
         smoke,video = rows.get('G3'),rows.get('V1')
-        if smoke and video and video['result']=='PASSED':
+        if smoke and video and smoke['required']=='yes' and video['required']=='yes' and video['result']=='PASSED':
             try:
                 if smoke['result']!='PASSED' or observed_time(video['checked_at']) < observed_time(smoke['checked_at']):
                     out.append('V1 must follow passing G3 evidence for the shipped revision')
@@ -132,6 +135,9 @@ def policy_controls(policy):
         raise ValueError('Malformed policy control JSON')
     return json.loads(match.group(1))
 
+def waivers(text,stage):
+    return [gate+' WAIVED (recorded '+row['result']+')' for gate,row in gate_rows(text).items() if row['stage']==stage and row['required']=='no']
+
 def assess(factory, stage, revision, target=None):
     root = safe_path(factory)
     check(root,quiet=True)
@@ -141,8 +147,12 @@ def assess(factory, stage, revision, target=None):
         raise ValueError('Configuration and policy controls disagree; use a reviewed synchronized operations update')
     expected = requirements(config,research)
     s = operations(config)['smoke_gates']
-    if stage=='post-merge' and s['post_merge_applicability']=='applicable' and s['deployed_url'].lower()!='unconfirmed' and target!=s['deployed_url']:
-        return ['Actual post-release target differs from the configured target']
+    rows=gate_rows((root/'verification.md').read_text(encoding='utf-8-sig'))
+    if stage=='post-merge' and s['post_merge_applicability']=='applicable' and rows.get('G3',{}).get('required')=='yes':
+        if s['target_kind']=='unconfirmed' or unresolved(target):
+            return ['Actual post-release target or target kind is unresolved']
+        if not unresolved(s['deployed_url']) and target!=s['deployed_url']:
+            return ['Actual post-release target differs from the configured target']
     return problems((root/'verification.md').read_text(encoding='utf-8-sig'),stage,revision,expected,target)
 
 def main():
@@ -163,11 +173,13 @@ def main():
     if not args.stage or not args.revision:
         parser.error('--stage and --revision are required for evidence assessment')
     found = assess(args.factory,args.stage,args.revision,args.target)
+    skipped=waivers((safe_path(args.factory)/'verification.md').read_text(encoding='utf-8-sig'),args.stage)
+    for item in skipped:print(item+'; not evidence that the check ran or passed')
     if found:
         print('BLOCKED: recorded '+args.stage+' gates are not satisfied')
         for item in found: print('  - '+item)
         sys.exit(1)
-    print('RECORDED '+args.stage+' gates satisfied. No checks were executed or attested; this grants no release authority.')
+    print(('ELIGIBLE WITH WAIVERS: ' if skipped else 'RECORDED requirements satisfied: ')+args.stage+'. No checks were executed or attested; this grants no release authority.')
 
 if __name__=='__main__':
     try: main()

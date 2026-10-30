@@ -66,7 +66,7 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(self.snapshot(),before)
     def test_invalid_operations_do_not_write(self):
         before=self.snapshot()
-        for changes in ({'unexpected':{}},{'smoke_gates':{'required':False}},{'autonomy':{'mode':'bounded'}}):
+        for changes in ({'unexpected':{}},{'smoke_gates':{'required':'false'}},{'autonomy':{'mode':'bounded'}}):
             with self.assertRaises(ValueError):prepare(self.factory,changes)
         self.assertEqual(self.snapshot(),before)
     def test_narrow_delivery_opt_in_preserves_other_files_and_custom_skill(self):
@@ -131,5 +131,44 @@ class UpdateTests(unittest.TestCase):
         approved=subprocess.run(command+['--apply','--approve-plan',token],capture_output=True,text=True)
         self.assertEqual(approved.returncode,0,approved.stderr)
         self.assertTrue(json.loads((self.factory/'config.json').read_text())['operations']['done_videos']['enabled'])
+    def test_disabling_video_retires_reserved_gate_but_keeps_history(self):
+        root,old,new,plan=prepare(self.factory,{'done_videos':{'enabled':True}})
+        apply(root,old,new,plan,plan)
+        self.assertIn('V1',gate_rows((root/'verification.md').read_text()))
+        root,old,new,plan=prepare(self.factory,{'done_videos':{'enabled':False}})
+        apply(root,old,new,plan,plan)
+        text=(root/'verification.md').read_text()
+        self.assertNotIn('V1',gate_rows(text));self.assertIn('> | V1 |',text)
+        config=json.loads((root/'config.json').read_text())
+        self.assertFalse(controls(config)['done_videos']['enabled'])
+    def test_unrelated_update_preserves_custom_text_inside_delivery_policy_section(self):
+        p=self.factory/'policy.md'
+        p.write_text(p.read_text().replace('## Default delivery gates\n','## Default delivery gates\nCustom package-signature requirement remains mandatory.\n'))
+        m=json.loads((self.factory/'manifest.json').read_text());m['contracts']['policy.md']=digest(p.read_bytes())
+        (self.factory/'manifest.json').write_text(json.dumps(m))
+        root,old,new,plan=prepare(self.factory,{'issue_intake':{'mode':'continuous'}})
+        apply(root,old,new,plan,plan)
+        self.assertIn('Custom package-signature requirement remains mandatory.',p.read_text())
+        self.assertNotIn('Reviewed delivery policy addendum',p.read_text())
+        root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        apply(root,old,new,plan,plan)
+        self.assertIn('Custom package-signature requirement remains mandatory.',p.read_text())
+    def test_preference_updates_preserve_deliberate_row_waivers(self):
+        p=self.factory/'verification.md'
+        lines=[]
+        for line in p.read_text().splitlines():
+            if line.startswith('| G2 |'):
+                cells=[v.strip() for v in line.strip().strip('|').split('|')]
+                cells[4]='false';line='| '+' | '.join(cells)+' |'
+            lines.append(line)
+        p.write_text('\n'.join(lines))
+        root,old,new,plan=prepare(self.factory,{'done_videos':{'enabled':True}})
+        apply(root,old,new,plan,plan)
+        self.assertEqual(gate_rows(p.read_text())['G2']['required'],'no')
+        root,old,new,plan=prepare(self.factory,{'smoke_gates':{'required':False}})
+        apply(root,old,new,plan,plan)
+        rows=gate_rows(p.read_text())
+        self.assertTrue(all(rows[g]['required']=='no' for g in ('G1','G2','G3')))
+        self.assertEqual(rows['A1']['required'],'yes')
 
 if __name__=='__main__':unittest.main(verbosity=2)

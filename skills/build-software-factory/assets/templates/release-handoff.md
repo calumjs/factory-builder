@@ -11,7 +11,7 @@ Review verdict and exact revision:
 Accepted scope, migrations and rollback plan:
 Actual intended web/artifact target:
 Named authorizer, allowed action and boundaries:
-Only mark READY FOR AUTHORIZED ACTION after applicable pre-merge gates pass. Pending post-action evidence is not a pre-merge dependency.
+Only mark READY FOR AUTHORIZED ACTION after all still-required pre-merge gates pass; use READY WITH WAIVERS when the user explicitly made checks optional and list them with recorded status. Pending post-action evidence is not a pre-merge dependency.
 
 ## Post-action confirmation
 Status: PENDING / UNCONFIRMED (initial; no action performed)
@@ -27,6 +27,6 @@ Verify's planned recording scope, synthetic/non-secret data and owner:
 G3 prerequisite result:
 V1 narrated demo status, shipped revision, actual target, artifact and observation time:
 Recording/storage/publication authority (separate scopes):
-Report blocked recording or follow-up explicitly; do not fabricate a demo or mark it complete without its artifact. When enabled, V1 follows passing G3; neither is required before the release action can exist.
+Report blocked recording or follow-up explicitly; do not fabricate a demo or mark it complete without its artifact. When enabled and still required, V1 follows passing G3 unless G3 was explicitly waived (report that waiver); neither is required before the release action can exist.
 
-Only report CONFIRMED/DONE when every applicable post-action gate passes. A failed or NOT RUN G3 is unconfirmed, never silent success. Merge, deployment, recording and publication remain separately authorized.
+Only report checked confirmation when every still-required post-action gate passes. If confirmation or a demo was deliberately optional, report COMPLETED WITH WAIVERS and list what was not checked; do not claim the waived checks passed. A failed or NOT RUN G3 is unconfirmed, never silent success. Merge, deployment, recording and publication remain separately authorized.

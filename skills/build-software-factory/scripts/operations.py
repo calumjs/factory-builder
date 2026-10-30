@@ -1,6 +1,11 @@
 """Validate proposed operational metadata; never probe or enable a provider."""
 import copy
 
+def unresolved(value):
+    if not isinstance(value,str):return True
+    normalized=' '.join(value.casefold().strip().split()).rstrip(' .:')
+    return normalized in ('','none','unconfirmed','unknown','tbd','to be determined','not configured','not set','pending','n/a','not applicable') or normalized.startswith(('unknown:','unconfirmed:','tbd:','not configured:'))
+
 def operations(config):
     defaults = {
         'identities': [], 'tool_recipes': [],
@@ -63,12 +68,10 @@ def operations(config):
     s = result['smoke_gates']
     if type(s['required']) is not bool or any(not isinstance(s[k],str) or not s[k].strip() for k in ('pre_merge','targeted','post_merge','deployed_url','exception','target_kind','post_merge_applicability','post_merge_rationale','accepted_by')):
         raise ValueError('Invalid smoke-gate policy')
-    if not s['required']:
-        raise ValueError('G1/G2 cannot be disabled wholesale; adapt smoke and targeted checks to the project')
     if s['target_kind'] not in ('unconfirmed','web','artifact','no_release') or s['post_merge_applicability'] not in ('applicable','not_applicable'):
         raise ValueError('Invalid delivery target or applicability')
     if s['post_merge_applicability'] == 'not_applicable':
-        if s['target_kind'] != 'no_release' or s['post_merge_rationale'] == 'No exclusion recorded' or s['accepted_by'].lower() in ('none','unconfirmed','unknown'):
+        if s['target_kind'] != 'no_release' or s['post_merge_rationale'] == 'No exclusion recorded' or unresolved(s['post_merge_rationale']) or unresolved(s['accepted_by']):
             raise ValueError('Post-merge not-applicable requires no-release scope, rationale and named acceptance')
         if d['enabled']:
             raise ValueError('Enabled shipped-work videos conflict with a no-release/not-applicable scope')
@@ -84,9 +87,9 @@ def controls(config):
     return dict({'concurrency':config['budget']['max_workers']}, **{k:ops[k] for k in ('autonomy','review','visual_checks','issue_intake','done_videos','smoke_gates')})
 
 DELIVERY_POLICY = '''## Default delivery gates
-G1 production-equivalent local smoke and G2 change-targeted tests, plus every required acceptance/research check, must pass for the exact pre-merge revision before a merge recommendation or release-ready handoff. A blocked diagnostic handoff may always be prepared. NOT RUN, BLOCKED, FAILED, missing or stale evidence is not ready. Build/hash/lint success alone is not application verification.
+G1 production-equivalent local smoke and G2 change-targeted tests default to required; users may deliberately mark individual verification rows optional or configure optional smoke defaults without extra approval for that choice. Every remaining required pre-merge check must pass for the exact revision before readiness. Report optional checks visibly as WAIVED (including recorded failures), never tests-passed. Missing/malformed/duplicate rows are errors, not waivers. A blocked diagnostic handoff may always be prepared. Build/hash/lint success alone is not application verification.
 
-G3 confirms the actual post-merge/deploy/install/publish target and merged revision after the separately authorized action. Pending G3 does not block pre-release readiness, but the outcome remains UNCONFIRMED until applicable post-release checks pass. Failure or inability to run must be reported to the release owner/orchestrator with evidence and a rollback/diagnosis decision; no silent success. A no-release G3 exclusion needs explicit rationale and named acceptance in operations; an unknown target stays blocked, not not-applicable.
+G3 confirms the actual post-merge/deploy/install/publish target and merged revision after the separately authorized action. Pending G3 does not block pre-release readiness. Required post-release checks must pass; explicit optional choices are reported COMPLETED WITH WAIVERS, not checked confirmation. Required failure or inability to run is reported to the owner/orchestrator with evidence and a rollback/diagnosis decision. A no-release G3 exclusion needs rationale and named acceptance; an unknown target for a required check stays blocked, not not-applicable.
 
-When done videos are enabled, Verify prepares a scoped recording handoff; Release runs G3 first, then records the authorized narrated demo and artifact as V1. A blocked video is reported explicitly, never fabricated. Video recording/publication, merge, deployment and scheduling need their own authority. All gate records are operator-supplied evidence, not independently executed or attested by the helper.
+When done videos are enabled, Verify prepares a scoped recording handoff. Required G3 passes before a required V1 demo; an explicit G3/V1 waiver is respected and reported. A blocked required video is reported, never fabricated. Optional checks grant no merge/deploy/video/publication/scheduling authority. All gate records are operator-supplied evidence, not independently executed or attested by the helper.
 '''

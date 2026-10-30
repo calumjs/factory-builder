@@ -63,12 +63,11 @@ class GateTests(unittest.TestCase):
         self.assertEqual(self.check(text),[])
         self.assertEqual(gate_rows(text)['G3']['result'],'NOT RUN')
         self.assertTrue(self.check(text,'post-merge',target='fixture-artifact'))
-    def test_each_required_gate_cannot_be_removed_or_disabled_or_moved(self):
+    def test_expected_gate_rows_cannot_be_removed_or_moved_accidentally(self):
         for gate in ('G1','G2','A1','G3'):
             text=self.all_pass()
             removed='\n'.join(l for l in text.split('\n') if not l.startswith('| '+gate+' |'))
             self.assertTrue(self.check(removed),gate)
-            self.assertTrue(self.check(self.edit(text,gate,4,'no')),gate)
             other='post-merge' if gate!='G3' else 'pre-merge'
             self.assertTrue(self.check(self.edit(text,gate,1,other)),gate)
     def test_failed_blocked_missing_and_stale_observations_block(self):
@@ -120,9 +119,33 @@ class GateTests(unittest.TestCase):
         self.assertTrue(self.check(self.edit(self.rows(),'G3',7,''),'post-merge'))
         self.config['operations']['done_videos']={'enabled':True}
         with self.assertRaises(ValueError):operations(self.config)
-    def test_blanket_gate_disabling_is_not_an_exception(self):
-        self.config['operations']={'smoke_gates':{'required':False,'exception':'A string claiming approval'}}
-        with self.assertRaises(ValueError):operations(self.config)
+    def test_optional_smoke_defaults_need_no_extra_exception_or_approval(self):
+        self.config['operations']={'smoke_gates':{'required':False}}
+        self.files=render(self.config,self.research)
+        self.assertFalse(operations(self.config)['smoke_gates']['required'])
+        rows=gate_rows(self.rows())
+        for gate in ('G1','G2','G3'):self.assertEqual(rows[gate]['required'],'no')
+        self.assertEqual(rows['A1']['required'],'yes')
+        self.assertEqual(self.check(self.mark(self.rows(),'A1')),[])
+    def test_explicit_optional_rows_are_waived_without_hiding_failures(self):
+        from gates import waivers
+        for flag in ('no','false','n','NO'):
+            text=self.edit(self.all_pass(),'G2',6,'FAILED')
+            text=self.edit(text,'G2',4,flag)
+            self.assertEqual(self.check(text),[])
+            self.assertEqual(waivers(text,'pre-merge'),['G2 WAIVED (recorded FAILED)'])
+        text=self.edit(self.rows(),'G3',4,'no')
+        self.assertEqual(self.check(text,'post-merge'),[])
+    def test_cli_reports_waivers_as_waivers_not_test_passes(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            text=self.edit(self.all_pass(),'G2',4,'no')
+            text=self.edit(text,'G2',6,'NOT RUN');self.write(root,text)
+            r=subprocess.run([sys.executable,str(ROOT/'scripts/gates.py'),'--factory',d,'--stage','pre-merge','--revision','r1'],capture_output=True,text=True)
+            self.assertEqual(r.returncode,0,r.stderr)
+            self.assertIn('G2 WAIVED (recorded NOT RUN)',r.stdout)
+            self.assertIn('ELIGIBLE WITH WAIVERS',r.stdout)
+            self.assertNotIn('PASSED',r.stdout)
     def test_post_only_acceptance_does_not_block_pre_release(self):
         self.config['acceptance'].append('Observe the actually released artifact')
         self.config['operations']={'smoke_gates':{'check_stages':{'A2':{'stage':'post-merge','rationale':'Requires the release action first'}}}}
@@ -173,5 +196,18 @@ class GateTests(unittest.TestCase):
         self.assertIn('success/failure assertions',self.config['tasks'][0]['goal'])
         self.assertIn('representative critical path',gate_rows(self.rows())['G1']['design'])
         self.assertTrue(self.check(self.rows()))
+    def test_unresolved_actual_targets_never_confirm_release(self):
+        for placeholder in ('unknown','TBD','not configured','unconfirmed: target pending','none','n/a'):
+            text=self.mark(self.rows(),'G3',target=placeholder)
+            self.assertTrue(self.check(text,'post-merge',target=placeholder),placeholder)
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d);self.write(root,self.mark(self.rows(),'G3',target='unknown'))
+            self.assertTrue(assess(root,'post-merge','r1','unknown'))
+            self.write(root,self.mark(self.rows(),'G3',target='fixture-artifact'))
+            self.assertTrue(assess(root,'post-merge','r1','fixture-artifact'))
+            self.config['operations']={'smoke_gates':{'target_kind':'artifact'}}
+            self.files=render(self.config,self.research)
+            self.write(root,self.mark(self.rows(),'G3',target='fixture-artifact'))
+            self.assertEqual(assess(root,'post-merge','r1','fixture-artifact'),[])
 
 if __name__=='__main__':unittest.main(verbosity=2)

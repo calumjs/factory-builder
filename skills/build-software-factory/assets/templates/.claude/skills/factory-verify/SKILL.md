@@ -7,12 +7,15 @@ description: Perform revision-bound pre-merge application verification and prepa
 
 Resolve the factory root as `../../../` relative to this file's containing folder. Follow repository instructions and policy.md; no new authority is granted.
 
-Inspect the final diff, acceptance.md, research.md, verification.md and configured operations. Reuse the stack's existing CI/test setup. Run authorized G1 production-equivalent local smoke over a critical success and expected-failure path, plus G2 change-targeted tests selected for this diff. Build/lint/hash success alone is insufficient. Greenfield first gets a concrete fixture/assertion/test implementation design, never invented commands or invented passing results.
+Inspect the final diff, acceptance.md, research.md, verification.md and configured operations. Reuse the stack's existing CI/test setup. For checks still required, run authorized G1 production-equivalent local smoke over a critical success and expected-failure path, plus G2 change-targeted tests selected for this diff. Build/lint/hash success alone is insufficient. Greenfield first gets a concrete fixture/assertion/test implementation design, never invented commands or invented passing results.
 
-Record G1/G2 and every required pre-merge A/R check for the actual revision with command/manual procedure, environment, target, observation time, exit status and evidence. NOT RUN, BLOCKED, FAILED, missing or stale evidence blocks pre-merge readiness. Run the builder's gates.py --factory <root> --stage pre-merge --revision <actual-revision> when available; it validates records only and runs no checks. Required reviews must cover this final diff. Preserve visual-fidelity requirements where applicable.
+Record Every still-required pre-merge check, defaulting to G1/G2 and A/R checks, for the actual revision with command/manual procedure, environment, target, observation time, exit status and evidence. NOT RUN, BLOCKED, FAILED, missing or stale evidence blocks pre-merge readiness. Run the builder's gates.py --factory <root> --stage pre-merge --revision <actual-revision> when available; it validates records only and runs no checks. Required reviews must cover this final diff. Preserve visual-fidelity requirements where applicable.
 
 ## Post-action and video handoff
 Identify required post-merge A/R checks and G3's actual web/artifact target. Future post-action evidence does not block pre-action readiness. If done_videos.enabled is true, put the scoped narrated-demo plan, owner, permitted synthetic data, recording/storage/publication boundaries and G3 prerequisite in release-handoff.md. Do not record the shipped demo before the action or claim a planned artifact exists. Release owns G3 then V1; blocked tooling or authority must be reported explicitly.
 
 ## Exit gate
-Return a ready recommendation only when all required pre-merge checks and reviews pass. A blocked diagnostic handoff is always useful and must retain its BLOCKED status. Never merge or deploy as a verification side effect.
+Return a ready recommendation only when all still-required pre-merge checks and reviews pass, reporting explicit optional checks as WAIVED. A blocked diagnostic handoff is always useful and must retain its BLOCKED status. Never merge or deploy as a verification side effect.
+
+## Deliberate optional checks
+Respect an explicit Required=no/false in a living verification row without requesting another approval. Keep the expected row present; report it as WAIVED with its recorded result (including failures), not tests-passed. Missing/malformed/duplicate rows are errors. Only still-required checks block readiness. Optional tests do not authorize merge, deployment, recording or publication.

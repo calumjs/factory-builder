@@ -17,21 +17,37 @@ from scaffold import validate, ROOT
 def dumps(value):
     return json.dumps(value,indent=2,ensure_ascii=False)+'\n'
 
-def refreshed_verification(text, config, research):
+def refreshed_verification(text, config, research, reset_smoke_defaults=False):
     expected=requirements(config,research)
-    preserved=[];history=[];extra=[]
+    preserved=[];history=[];extra=[];flags={}
     for line in text.splitlines():
         if not ROW.match(line):
             preserved.append(line);continue
         cells=[v.strip() for v in line.strip().strip('|').split('|')]
         if len(cells) not in (8,11):
             raise ValueError('Cannot migrate malformed gate row; review it manually')
+        if cells[0] in flags:
+            raise ValueError('Duplicate source gate row requires review: '+cells[0])
+        flag=cells[4].casefold()
+        if flag not in ('yes','y','true','no','n','false'):
+            raise ValueError('Malformed source requiredness requires review')
+        flags[cells[0]]='yes' if flag in ('yes','y','true') else 'no'
         history.append('> '+line)
+        if cells[0]=='V1' and 'V1' not in expected:
+            continue  # Reserved video gate is retired by the reviewed disabled preference.
         if cells[0] not in expected:
             cells=(cells+['','',''])[:11]
             cells[5:11]=['','NOT RUN','','','','']
             extra.append('| '+' | '.join(cells)+' |')
-    result='\n'.join(preserved).rstrip()+'\n\n## Historical observations (not current evidence)\n'+'\n'.join(history)+'\n\n## Current delivery gate records\n'+initial_table(config,research)+'\n'.join(extra)+'\n'
+    current=[]
+    for line in initial_table(config,research).splitlines():
+        if ROW.match(line):
+            cells=[v.strip() for v in line.strip().strip('|').split('|')]
+            if cells[0] in flags and not (reset_smoke_defaults and cells[0] in ('G1','G2','G3')):
+                cells[4]=flags[cells[0]]
+                line='| '+' | '.join(cells)+' |'
+        current.append(line)
+    result='\n'.join(preserved).rstrip()+'\n\n## Historical observations (not current evidence)\n'+'\n'.join(history)+'\n\n## Current delivery gate records\n'+'\n'.join(current)+'\n'+'\n'.join(extra)+'\n'
     gate_rows(result)  # Reject ambiguity or malformed legacy extra checks before writing.
     return result
 
@@ -55,15 +71,14 @@ def prepare(factory, changes, delivery_update=False):
     header='## Proposed autonomy and review controls (not execution authority)'
     pattern=re.escape(header)+r'(\s*```json\n)(.*?)(\n```)'
     policy=re.sub(pattern,lambda m:header+m[1]+dumps(controls(config)).rstrip('\n')+m[3],policy,count=1,flags=re.S)
-    section=r'^## Default delivery gates\n.*?(?=^## |\Z)'
-    if re.search(section,policy,flags=re.M|re.S):
-        policy=re.sub(section,lambda _:DELIVERY_POLICY+'\n',policy,count=1,flags=re.M|re.S)
-    else:
-        policy=policy.rstrip()+'\n\n'+DELIVERY_POLICY
+    scoped_delivery_update=delivery_update or any(key in changes for key in ('smoke_gates','done_videos'))
+    if scoped_delivery_update and DELIVERY_POLICY not in policy:
+        policy=policy.rstrip()+'\n\n## Reviewed delivery policy addendum\nThis reviewed addendum supersedes conflicting older gate instructions; custom project requirements remain in force.\n\n'+DELIVERY_POLICY
     replacement={'config.json':dumps(config).encode('utf-8'),'policy.md':policy.encode('utf-8')}
     if delivery_update or any(key in changes for key in ('smoke_gates','done_videos')):
         research=json.loads((root/'research.json').read_text(encoding='utf-8-sig'))
-        replacement['verification.md']=refreshed_verification(original['verification.md'].decode('utf-8-sig'),config,research).encode('utf-8')
+        reset_defaults=isinstance(changes.get('smoke_gates'),dict) and 'required' in changes['smoke_gates']
+        replacement['verification.md']=refreshed_verification(original['verification.md'].decode('utf-8-sig'),config,research,reset_defaults).encode('utf-8')
     if delivery_update:
         for phase in ('intake','verify','release'):
             name=f'.claude/skills/factory-{phase}/SKILL.md'
