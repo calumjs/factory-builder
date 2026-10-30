@@ -84,6 +84,9 @@ PRIOR_GATE_RUNTIME = {
     'operations.py':'0a964032c4680520b945f8103185a0cb04fa265a147c1b0bb7f547f5302b8d00',
     'recipes.py':'0290d43d98da9529dd20452c93c5d0bb037a794c3e9a8e68526a546391cd8d27',
     'gates.py':'7303b291fc504d60ede7c8e0f5ada8f6957f71738606b1284e63b440d5f0db01'}
+# Exact published v1.7 gate code supports existing recipes. Preserve it unless
+# the operator explicitly reviews the newer duplicate-policy diagnostic.
+COMPATIBLE_GATE_RUNTIME = {'gates.py':'4e998f0f9a1a013fc06fc9c391ea255d6d7ab57e436ab0abbfd6367b9721be7a'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -92,8 +95,10 @@ def gate_runtime_plan(root, original, replacement, opted_in):
         wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
+        compatible=current is not None and digest(current)==COMPATIBLE_GATE_RUNTIME.get(filename)
+        if compatible and not opted_in:continue
         known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
-        if not known and not (current is None and filename=='recipes.py'):
+        if not known and not compatible and not (current is None and filename=='recipes.py'):
             raise ValueError('Customized/unsupported dashboard gate runtime preserved; review manually')
         if not opted_in:raise ValueError('Structured gates need a reviewed dashboard migration; preview with --gate-runtime')
         original[name]=current;replacement[name]=wanted

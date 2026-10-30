@@ -4,6 +4,15 @@ Do not rerun the scaffolder over an existing factory. Do not directly edit hashe
 
 ## Preview and review
 
+Ambiguous duplicate policy keys and policy/config disagreement block the update;
+preserve and reconcile both records through a reviewed synchronized recovery.
+Known pristine v1.7 copied gate helpers remain unchanged by default; the installed
+helper rejects duplicate policy keys, while a copied older helper needs an explicit
+reviewed `--gate-runtime` upgrade to receive that diagnostic. A delivery migration
+adds the shared boundaries contract when absent, checks only the six installed
+phases unless Run was separately adopted, and refuses unknown customized delivery
+addenda rather than replacing them. Resolve such content through manual review.
+
 The optional portable CI/evidence template is not copied into existing factories
 automatically. Read it from the installed builder, or review selective ci/ artifact
 and manifest additions. Use the trusted installed helper outside the change checkout;

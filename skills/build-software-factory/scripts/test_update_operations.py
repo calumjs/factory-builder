@@ -100,6 +100,39 @@ class UpdateTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'controls.concurrency'):
             prepare(self.factory,{},delivery_update=True)
         self.assertEqual(before,self.snapshot())
+
+    def test_duplicate_policy_keys_block_migration_and_gate_assessment(self):
+        path=self.factory/'policy.md';source=path.read_text()
+        changed=source.replace('"concurrency": 1','"concurrency": 999,\n  "concurrency": 1',1)
+        self.assertNotEqual(source,changed);path.write_text(changed)
+        manifest=json.loads((self.factory/'manifest.json').read_text());manifest['contracts']['policy.md']=digest(path.read_bytes())
+        (self.factory/'manifest.json').write_text(json.dumps(manifest));before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'Duplicate key'):
+            prepare(self.factory,{},delivery_update=True)
+        with self.assertRaisesRegex(ValueError,'Duplicate key'):
+            assess(self.factory,'pre-merge','synthetic')
+        self.assertEqual(before,self.snapshot())
+
+    def test_nested_duplicate_policy_keys_are_rejected(self):
+        text=(self.factory/'policy.md').read_text()
+        changed=text.replace('"independent": false','"independent": true,\n    "independent": false',1)
+        self.assertNotEqual(text,changed)
+        with self.assertRaisesRegex(ValueError,'Duplicate key'):policy_controls(changed)
+
+    def test_published_v17_gate_code_is_preserved_or_reviewedly_upgraded(self):
+        from update_operations import COMPATIBLE_GATE_RUNTIME
+        data=(ROOT/'scripts/fixtures/v1_7_gates.txt').read_bytes()
+        self.assertEqual(digest(data),COMPATIBLE_GATE_RUNTIME['gates.py'])
+        path=self.factory/'dashboard/gates.py';path.write_bytes(data)
+        manifest=json.loads((self.factory/'manifest.json').read_text());manifest['contracts']['dashboard/gates.py']=digest(data)
+        (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+        changes={'done_videos':{'enabled':True,'triggers':['post_g3_release']}}
+        root,old,new,plan=prepare(self.factory,changes,gate_runtime=False)
+        self.assertNotIn('dashboard/gates.py',new)
+        root,old,new,plan=prepare(self.factory,changes,gate_runtime=True)
+        backup=apply(root,old,new,plan,plan)
+        self.assertEqual((backup/'dashboard/gates.py').read_bytes(),data)
+        self.assertEqual(path.read_bytes(),(ROOT/'scripts/gates.py').read_bytes());check(root,quiet=True)
     def test_synchronized_update_preserves_custom_policy_and_evidence_history(self):
         evidence=self.factory/'verification.md';evidence.write_text(evidence.read_text()+'\nOperator notes: preserve this history.\n')
         before=self.snapshot()
