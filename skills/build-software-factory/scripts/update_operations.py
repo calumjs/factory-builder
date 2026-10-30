@@ -75,7 +75,8 @@ LEGACY_CONTEXT = {'dashboard.py':'9e785051fe9cc6a7dba5c4022992878066c264711fca14
                   'integrity.py':'87c4d45bd1291f74aa468341c6820f82a66cdfd0bf719f5dd42553bc0e7fa576'}
 # Exact assumption-aware integrity.py published through v1.5.1: compatible without
 # the newer path diagnostics. Preserve it unless a reviewed runtime update is opted in.
-COMPATIBLE_CONTEXT = {'integrity.py':'c036ba6ce7bae45e7679ecc111fd33cc7dd65c323d13f1ce651856de6b291f94'}
+COMPATIBLE_CONTEXT = {'integrity.py':'c036ba6ce7bae45e7679ecc111fd33cc7dd65c323d13f1ce651856de6b291f94',
+                      'dashboard.py':'3d8aa7b1587795462e31cb1776e81f921f5f0dc69b412e8b069374d4bbf8ffe2'}
 LEGACY_DELIVERY_ADDENDUM = {
     'intake':'222e1a4da39797890d2da2f7279d2f3492f678daca322823f0ceafc30c915573',
     'verify':'fea10626d5030ace9cf8a36f8d8246ea0a0d086b4abbb894fd10dfa5d875ea47',
