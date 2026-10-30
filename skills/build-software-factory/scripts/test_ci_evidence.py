@@ -215,6 +215,20 @@ class CIEvidenceTests(unittest.TestCase):
         self.record();plan['events']=[];path.write_text(json.dumps(plan));storage=self.commit()
         with self.assertRaisesRegex(ValueError,'preserve prior task evidence'):self.assess(storage)
 
+    def test_ambiguous_subject_history_is_not_evidence_only(self):
+        path=self.factory/'task-plan.json';plan=json.loads(path.read_text())
+        plan['events'].append({'id':'prior-failure','task_id':'T1','timestamp':'2026-10-30T06:00:00Z',
+            'revision':'S0','environment':'isolated fixture','check':'synthetic failure',
+            'result':'failed','evidence':'retained synthetic failure','old_status':'blocked','status':'blocked'})
+        raw=json.dumps(plan);path.write_bytes((raw[:-1]+', "events": []}').encode('utf-8'))
+        self.subject=self.commit()
+        plan['events']=[];path.write_bytes(json.dumps(plan).encode('utf-8'))
+        self.record();storage=self.commit();before=self.git('status','--porcelain')
+        with self.assertRaisesRegex(ValueError,'Duplicate JSON object key'):self.assess(storage)
+        self.assertEqual(before,self.git('status','--porcelain'))
+        old=self.git('show',self.subject+':.software-factory/task-plan.json')
+        self.assertIn('retained synthetic failure',old)
+
     def test_executable_log_and_unrelated_subject_are_rejected(self):
         self.record();path=self.repo/'docs/factory-evidence'/self.subject/'smoke.txt'
         path.parent.mkdir(parents=True);path.write_text('SYNTHETIC inert text')
