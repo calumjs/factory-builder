@@ -79,7 +79,8 @@ class Git:
     def read(self,*args,limit=MAX_TOTAL):
         env=dict(os.environ,GIT_NO_REPLACE_OBJECTS='1',GIT_NO_LAZY_FETCH='1',
                  GIT_OPTIONAL_LOCKS='0',GIT_TERMINAL_PROMPT='0')
-        # GIT_NO_LAZY_FETCH in env covers git < 2.46, which lacks the --no-lazy-fetch flag.
+        # The --no-lazy-fetch flag (git >= 2.46) makes older git exit 129; GIT_NO_LAZY_FETCH in env is set below and
+        # is honoured by the same versions, so the flag adds nothing and the helper stays runnable on older git.
         status,output=bounded_run([self.executable,'--no-optional-locks','--literal-pathspecs',
                                '-c','core.fsmonitor=false','-C',str(self.repo),*args],
                               env,limit)

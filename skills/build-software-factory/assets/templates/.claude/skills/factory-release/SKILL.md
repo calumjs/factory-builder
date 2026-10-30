@@ -7,7 +7,7 @@ description: Prepare a truthful readiness handoff, perform only authorized relea
 
 ## Pre-action
 1. Prepare release-handoff.md, blocked or not, preserving evidence for diagnosis. Mark it READY FOR AUTHORIZED ACTION only when every still-required pre-merge check passes for the exact reviewed revision and required reviewer verdicts cover that revision. Run `gates.py --factory <root> --stage pre-merge --revision <rev>`.
-2. Before first provisioning, verify framework, runtime, build and output settings against the project and current official provider guidance. Discover the live plan/SKU identifiers and record the selection, limits, cost, source and time; a free plan is not permission. Inventory permitted environment names (no values) and who manages each target.
+2. Before first provisioning, verify framework, runtime, build and output settings against the project and current official provider guidance. Discover the live plan/SKU identifiers and record the selection, limits, cost, source and time; never guess from a sample, and a free plan is not permission. Inventory permitted environment names (no values) and who manages each target; required names and integration-managed extras need project-specific checks, since the generic gates enforce no env allowlist.
 3. Without publication authority, deliver the prepared handoff and stop.
 
 ## Post-action

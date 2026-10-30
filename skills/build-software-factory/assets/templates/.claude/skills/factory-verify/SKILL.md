@@ -13,7 +13,7 @@ description: Perform revision-bound pre-merge application verification and prepa
 5. When a task-fitted secret or connection-string check applies, use connection-string-review.md: review candidate provenance with synthetic positive and negative fixtures. Localhost, fixture usernames and documentation paths are not exemptions. A revised check needs a reviewed contract change and fresh evidence.
 
 ## Record
-6. Record every still-required pre-merge check (G1, G2, A/R rows) in verification.md for the exact revision: command or manual procedure, environment, target, observation time, exit status, evidence reference. Task owners update task-plan.json with status.py.
+6. Record every still-required pre-merge check (G1, G2, A/R rows) in verification.md for the exact revision: command or manual procedure, environment, target, observation time, exit status, evidence reference. Task owners update task-plan.json with status.py. Preserve visual-fidelity requirements where applicable.
 7. Run the builder's `gates.py --factory <root> --stage pre-merge --revision <revision>`; it validates records and runs nothing.
 8. If independent review finds a defect after a green suite, keep the reproducer, record FAILED or BLOCKED (or WAIVED with the failure for an optional row), repair on a new subject, review the final diff and rerun the relevant checks before restoring readiness.
 9. An authorized CI adapter (ci/README.md) assesses records at storage E against explicit tested S chosen from the real test job, never by finding a passing row.

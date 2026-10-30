@@ -38,7 +38,7 @@ It creates only `<target>/.software-factory/` — seven skills, boundaries.md, c
 
 ## 6. Prove and hand over
 
-Preflight phase discovery with the launch guidance in [scaffolding.md](references/scaffolding.md): pin the loaded source and version and confirm the helpers. Check that each selected research decision appears as an instruction and planned check in the right generated skill, with citations, and that excluded components have a reason. Run `scaffold.py --check`, inspect the brief, policy and task plan, and walk one representative task through the gates without external mutations; confirm every acceptance criterion has a planned check and every task an owner and dependencies. Distinguish scaffold integrity from application correctness. Deliver: created paths, how to invoke each skill, actual checks, blocked capabilities and the next human decision.
+Preflight phase discovery with the launch guidance in [scaffolding.md](references/scaffolding.md): pin the loaded source and version and confirm the helpers. Check that each selected research decision appears as an instruction and planned check in the right generated skill, with citations, and that excluded components have a reason. Audit source claims against pages actually read; the offline helper validates structure, not source truth. Run `scaffold.py --check`, inspect the brief, policy and task plan, and walk one representative task through the gates without external mutations; confirm every acceptance criterion has a planned check and every task an owner and dependencies. Distinguish scaffold integrity from application correctness. Deliver: created paths, how to invoke each skill, actual checks, blocked capabilities and the next human decision.
 
 ## Other situations
 

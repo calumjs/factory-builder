@@ -51,7 +51,7 @@ Continuous operation (`issue_intake.mode: continuous` with `autonomy.mode: bound
 
 ## Safety model
 
-Three mechanisms, enforced by code, not prose:
+Two mechanisms enforced by code, and one stated once and applied everywhere:
 
 - **Gates** (`gates.py`): a required check that is NOT RUN, BLOCKED, FAILED, stale or wrong-target blocks its stage; operator-waived rows are reported WAIVED with their result, never "passed".
 - **Integrity** (`integrity.py`): contract files are hashed with normalized line endings; living files are structurally validated; unregistered files and in-place edits are refused. Changes go through a preview-first synchronized update or a staged recovery that never touches the original.
