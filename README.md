@@ -34,6 +34,8 @@ After authorized local writes, the offline Python helper creates only `<project>
 
 Start Claude from the project root with `claude --add-dir .software-factory`, then use `/factory-intake`, `/factory-plan`, `/factory-build`, `/factory-verify`, `/factory-release` and `/factory-learn`. Confirm additional-directory skill discovery under the installed version and organization policy. See the builder's [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for helper commands and Windows interpreter selection.
 
+Every generated factory requires, by default, a pre-merge local smoke test against a production build (G1), change-targeted tests for what the change touched (G2) and a confirmatory smoke test against the deployed URL after merge (G3). They start NOT RUN; Verify and Release treat NOT RUN, BLOCKED or FAILED as blocking, and `scripts/gates.py` checks the recorded results for an exact revision. Scaffold hashes and "host build succeeded" are not substitutes.
+
 Contract files are integrity-checked using normalized text hashes. Living task/evidence, verification, tools, release and learning records may evolve. The status helper records status and revision-bound evidence together without executing or attesting the check. Existing schema 1 factories require a reviewed migration.
 
 ## Improve reusable components
@@ -51,6 +53,6 @@ claude plugin validate . --strict
 python -m unittest discover -s skills/build-software-factory/scripts -p "test_*.py" -v
 ```
 
-Tests use isolated temporary folders and synthetic research records. They cover preservation, draft/research mapping, contract checks, living records, line endings, status/evidence updates, provenance and disabled command execution. They do not claim an application passed tests or that mock sources were browsed.
+Tests use isolated temporary folders and synthetic research records. They cover preservation, default delivery gates, draft/research mapping, contract checks, living records, line endings, status/evidence updates, provenance and disabled command execution. They do not claim an application passed tests or that mock sources were browsed.
 
 Stage explicit reviewed source paths. Keep credentials, caches, backups, local feedback and downstream factory outputs out of this plugin repository. Optional operating patterns and adoption decisions are recorded in [design decisions](docs/design-decisions.md).

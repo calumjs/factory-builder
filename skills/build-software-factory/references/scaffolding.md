@@ -27,6 +27,17 @@ Schema 2 `manifest.json` hashes contract artifacts: phase skills, policy, accept
 
 Five living artifacts are listed but not hashed: `verification.md`, `task-plan.json`, `learning-log.md`, `release-handoff.md` and `tools.json`. These are expected to evolve. The checker validates file presence and basic text/JSON structure, not evidence truth or authorization. Review meaningful changes to permissions, enablement, tools and release decisions. Unexpected files, missing files and malformed living JSON are still errors.
 
+## Delivery gates
+
+`verification.md` starts with required G1 (pre-merge local smoke on a production build), G2 (change-targeted tests) and G3 (post-merge smoke on the deployed URL) rows, all NOT RUN. Record actual results in those rows, then check them:
+
+```sh
+python scripts/gates.py --factory /approved/project/.software-factory --stage pre-merge --revision actual-revision
+python scripts/gates.py --factory /approved/project/.software-factory --stage post-merge --revision merged-revision
+```
+
+Exit 0 only when every required gate for the stage is PASSED with evidence for that exact revision; NOT RUN, BLOCKED, FAILED, a stale revision or a removed gate exits 1. The helper reads records only; it executes no tests and grants no merge or deploy authority.
+
 Schema 1 factories need a separately reviewed migration; this helper does not rewrite their manifests. Intentional content changes are distinct from newline-only changes.
 
 ## Record status and evidence
@@ -50,6 +61,6 @@ The generated `upstream-provenance.json` deliberately leaves the repository URL 
 
 ## Offline tests
 
-`python -m unittest discover -s scripts -p "test_*.py" -v` exercises helpers in temporary directories, including preservation, integrity, line endings, living records, evidence updates and synthetic research mapping. It does not validate an application or prove online research occurred.
+`python -m unittest discover -s scripts -p "test_*.py" -v` exercises helpers in temporary directories, including preservation, integrity, line endings, living records, evidence updates, default delivery gates (NOT RUN blocks) and synthetic research mapping. It does not validate an application or prove online research occurred.
 
 Official format/discovery references: https://code.claude.com/docs/en/skills and https://code.claude.com/docs/en/plugins/create (checked 2026-10-29).

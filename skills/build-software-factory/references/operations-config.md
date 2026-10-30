@@ -41,6 +41,14 @@
       "enabled": false,
       "scope": "Not configured",
       "evidence": "No preference recorded"
+    },
+    "smoke_gates": {
+      "required": true,
+      "pre_merge": "unconfirmed: production build + local start + smoke over the critical user path",
+      "targeted": "Smallest suite covering the changed paths/behaviour, chosen per change",
+      "post_merge": "unconfirmed: same smoke suite against the deployed URL for the merged revision",
+      "deployed_url": "unconfirmed",
+      "exception": "none"
     }
   }
 }
@@ -52,4 +60,6 @@ Each identity and recipe record uses exactly the shown fields, with nonempty str
 
 Intake should verify existing Git author and authenticated platform account/scope when relevant before the first authorized commit or release. Report mismatches; do not silently change Git config, history, credentials, teams or security settings. A PATH binary alone is not available authentication. An authorized, harmless read-only probe is preferred; paid or mutating calls require their own authority. Recipes are unavailable for autonomous use until reviewed against the installed CLI version and observed authentication, cost, isolation and structured-output behavior.
 
-When `issue_intake.mode` is `continuous`, wire pickup only after autonomy controls, issue filters and scheduler authority are confirmed; the scaffold does not start a watcher. When `done_videos.enabled` is true, treat narrated demos as release evidence in Verify/Release and keep storage or upload within approved data boundaries.
+`smoke_gates` describes the default G1 pre-merge local smoke, G2 change-targeted tests and G3 post-merge deployed smoke. `required` defaults to true; setting it false is refused unless `exception` records a human-accepted reason other than `none`. Commands are descriptions to inspect and authorize, never executed by the helper. Omitting the section keeps the required defaults.
+
+When `issue_intake.mode` is `continuous`, wire pickup only after autonomy controls, issue filters and scheduler authority are confirmed; the scaffold does not start a watcher. When `done_videos.enabled` is true, run G3 post-merge smoke first and produce the demo only after it passes; treat narrated demos as release evidence in Verify/Release and keep storage or upload within approved data boundaries.

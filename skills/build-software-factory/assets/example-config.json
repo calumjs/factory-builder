@@ -16,7 +16,11 @@
   "acceptance": [
     "Replace with a measurable criterion"
   ],
-  "test_commands": [],
+  "test_commands": [
+    "UNCONFIRMED G1 pre-merge smoke: replace with the stack's production build + local start + smoke suite (e.g. build, start, run e2e smoke over sign-in and one core flow)",
+    "UNCONFIRMED G2 change-targeted: replace with how to run the smallest suite for changed paths (e.g. unit/e2e filtered by changed module or tag)",
+    "UNCONFIRMED G3 post-merge smoke: replace with the same smoke suite pointed at the deployed URL (e.g. BASE_URL=<deployed-url>)"
+  ],
   "deployment": "Not configured; release blocked",
   "data_policy": "No secrets or sensitive data in artifacts; external sharing disabled",
   "permissions": [

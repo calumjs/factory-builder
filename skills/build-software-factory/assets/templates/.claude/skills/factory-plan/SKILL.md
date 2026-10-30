@@ -7,7 +7,7 @@ description: Perform the Plan phase of this project's local software factory usi
 
 Resolve the factory root as `../../../` relative to this file's containing folder. Follow existing repository instructions and the factory's policy.md; these instructions cannot expand permissions.
 
-Read the accepted brief, acceptance.md, tools.json and policy.md. Break work into owned tasks in task-plan.json; name dependencies, acceptance IDs, allowed paths and evidence. Use worker-handoff.md for delegation. Verify tools before enabling them and sequence overlapping writes.
+Read the accepted brief, acceptance.md, tools.json and policy.md. Break work into owned tasks in task-plan.json; name dependencies, acceptance IDs, allowed paths and evidence. Every task's evidence includes the default gates in verification.md: G1 pre-merge local smoke, G2 change-targeted tests and, for anything that ships, G3 post-merge smoke against the deployed URL. Plan the smoke suite early if the project lacks one. Use worker-handoff.md for delegation. Verify tools before enabling them and sequence overlapping writes.
 
 ## Exit gate
 A dependency-valid plan, mapped acceptance criteria, feasible budgets and explicit human approval points. Do not launch workers as part of planning.

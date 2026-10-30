@@ -9,7 +9,13 @@ def operations(config):
         'review': {'required_approvals':0,'independent':False,'distinct_providers':False},
         'visual_checks': {'required':False,'reference':'Unconfirmed or not applicable','method':'Rendered comparison and human review when relevant'},
         'issue_intake': {'mode':'one_shot','github_scope':'Not applicable until continuous pickup is chosen','status':'disabled','evidence':'No preference recorded; factory runs only on explicit kickoff'},
-        'done_videos': {'enabled':False,'scope':'Not configured','evidence':'No preference recorded'}
+        'done_videos': {'enabled':False,'scope':'Not configured','evidence':'No preference recorded'},
+        'smoke_gates': {'required':True,
+                        'pre_merge':'unconfirmed: production build + local start + smoke over the critical user path',
+                        'targeted':'Smallest suite covering the changed paths/behaviour, chosen per change',
+                        'post_merge':'unconfirmed: same smoke suite against the deployed URL for the merged revision',
+                        'deployed_url':'unconfirmed',
+                        'exception':'none'}
     }
     supplied = config.get('operations',{})
     if not isinstance(supplied,dict) or not set(supplied) <= set(defaults):
@@ -52,4 +58,9 @@ def operations(config):
     d = result['done_videos']
     if type(d['enabled']) is not bool or any(not isinstance(d[k],str) or not d[k].strip() for k in ('scope','evidence')):
         raise ValueError('Invalid done-video policy')
+    s = result['smoke_gates']
+    if type(s['required']) is not bool or any(not isinstance(s[k],str) or not s[k].strip() for k in ('pre_merge','targeted','post_merge','deployed_url','exception')):
+        raise ValueError('Invalid smoke-gate policy')
+    if not s['required'] and s['exception'].strip().lower() == 'none':
+        raise ValueError('Disabling default smoke gates requires a recorded human-accepted exception')
     return result
