@@ -41,3 +41,13 @@ the final artifact, its exact revision and checks in the handoff; do not fabrica
 health telemetry. If automatic pickup exists, use its already-authorized pause/kill
 switch when needed, or request owner intervention; do not create or reconfigure a
 watcher as a recovery side effect.
+
+For Claude Code laptop fallback, use the installed builder's
+[launch preflight](../assets/templates/launch-guide.md) or the generated guide.
+Inspect the exact checkout before its human owner makes a normal workspace-trust
+decision. Keep affected work blocked and intake paused through authorized controls
+while waiting; otherwise request the owner's pause/decision. Non-interactive prompt
+absence is not proof of trust. After confirmation, recheck loaded source, discovery
+and exact helper permissions. No trust-state edits, permission-bypass mode or
+automatic security change is a fallback solution. Record the final worker/run and
+subject in the handoff; this guidance sends no notification itself.

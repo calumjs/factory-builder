@@ -10,6 +10,12 @@ Resolve the factory root as `../../../` relative to this file's containing folde
 Select one approved, dependency-ready task. Read repository instructions, permitted context and worker-handoff.md. Implement only within allowed paths/actions. Record revision, changes, assumptions and targeted checks. Name the change-targeted tests (G2) that cover the diff; add or update a test when none covers the changed behaviour. Run the still-required G1/G2 locally before handing to Verify when execution is authorized. Respect explicit optional rows without another approval; carry their WAIVED status and recorded result through the handoff, never claim they passed. Stop at budget/retry limits or missing authorization.
 
 ## Exit gate
+For an authorized laptop fallback, follow launch-guide.md's source/version,
+workspace-trust and exact-command preflight. Only the human owner accepts a required
+trust prompt in the normal UI; keep affected work blocked while pending and use
+only an already-authorized intake pause. Trust does not approve tools, providers
+or actions. Do not use alternate launch/permission modes to evade a barrier.
+
 Before retry/fallback, inspect the run's terminal state, permitted logs, expected artifact and branch/commit outcome. Empty output alone proves neither failure nor absence of work. Bound all attempts and providers by the same task budget; avoid concurrent writers, diagnose with a new hypothesis, and stop at missing authority or limits. A fallback must fit its own authorized provider/data/cost/action scope; no credential/security changes or new watcher is implied. Record worker/run provenance and uncertainty in worker-handoff.md.
 
 Update task progress and checks actually run for the tested subject revision. Preserve durable non-secret logs outside the factory and reference them from living records; never mark done/PASSED merely to unblock a handoff. If a reviewed contract changes, include only its selective manifest entry change in that review. Unexpected file/integrity failures need the builder's reviewed recovery procedure, not a force rebaseline or fabricated evidence.

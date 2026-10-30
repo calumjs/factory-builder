@@ -15,6 +15,13 @@ checks from [risk-focused-verification.md](risk-focused-verification.md). Resear
 version-compatible contracts rather than copying a sample's implementation or
 assuming successful smoke covers interrupted/partial writes and restart semantics.
 
+When relevant secret checks flag connection-string candidates, select a fitted
+detection/classification procedure using the [review guide](../assets/templates/connection-string-review.md).
+Explicit disposable-fixture provenance can support a non-secret classification;
+localhost/localtest.me, fixture usernames or docs paths alone cannot. Preserve
+negative/mixed-case coverage and fresh observations after a reviewed criterion
+change. Never search the web with candidate values or inspect secret files.
+
 ## 2. Read, compare and select
 Prefer official framework/harness/provider documentation, standards and original research. Open and read the actual source, not just a snippet. Check the project's installed version against the source's version and any deprecation or migration notices. Record URL, access date, source type, version scope and the observation actually supported. Use secondary material only where it adds necessary context, label it, and corroborate consequential claims. Compare conflicting advice and document the project-specific trade-off.
 

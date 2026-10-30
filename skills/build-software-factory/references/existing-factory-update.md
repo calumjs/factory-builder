@@ -4,6 +4,14 @@ Do not rerun the scaffolder over an existing factory. Do not directly edit hashe
 
 ## Preview and review
 
+First pin the actual loaded plugin source/version and required helper/dependency
+paths using the [launch preflight](../assets/templates/launch-guide.md). A missing
+gates.py in an older install is not fixed by a notice-only CI step. Update only
+within authorized installation scope; then separately review this factory's
+compatibility/migration. These guides are not automatically copied into existing
+contracts. Read them from the installed builder or review a selective addition
+with its manifest entry; do not rescaffold or rebaseline unrelated edits.
+
 For the optional structured assumptions replacement and advisory dashboard context,
 read [context-status.md](context-status.md). --assumptions accepts a private array;
 --context-runtime explicitly migrates known older dashboard code/dependencies,

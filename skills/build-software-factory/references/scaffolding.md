@@ -56,6 +56,14 @@ The preview writes nothing. `--apply` updates status and appends an evidence eve
 
 ## Claude Code integration
 
+Use the complete [launch preflight](../assets/templates/launch-guide.md) before
+commands are assigned: record the actual loaded plugin version/source identity,
+confirm helper/dependency availability, resolve required human workspace trust,
+then check six-phase discovery and exact execution permissions. An old install
+missing gates.py is a tooling blocker, not a notice-only passing gate. Updating
+the plugin does not migrate existing factory contracts; preserve those through
+the narrow reviewed update path. No launch, install or trust changes run here.
+
 New factories include launch-guide.md. For scoped/headless use, keep the project
 setting source: `claude --plugin-dir <trusted-plugin-root> --add-dir .software-factory --setting-sources project`.
 An empty source list can hide generated phases even though the plugin loads.

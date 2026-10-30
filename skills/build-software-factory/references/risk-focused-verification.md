@@ -44,6 +44,15 @@ rename pattern: use the actual filesystem/database durability guarantees and tes
 
 ## Discovery, repair and truthful re-gating
 
+For task-specific secret/connection-string checks, use the generated
+connection-string-review.md or [the bundled review guide](../assets/templates/connection-string-review.md).
+R1 is selected research, not a hardcoded secret rule. Separate detection from
+reviewed synthetic-fixture classification; hostnames, usernames and documentation
+paths never establish an exemption. Test mixed and unknown-provenance cases with
+invented values, preserve coverage and keep actual suspected credentials out of
+logs/evidence. Criterion changes need review and fresh exact-subject observations,
+not an old failure relabeled as passing or a silently dismissed scanner alert.
+
 Keep the reproducer, exact failing subject, expected/actual result and durable
 non-secret evidence. Record discovered required failures as FAILED/BLOCKED even
 if an earlier suite passed; do not hide them behind counts or rewrite them as PASS.
