@@ -169,6 +169,13 @@ class DashboardTests(unittest.TestCase):
         for value in ({'stale_after_minutes':0},{'stale_after_minutes':True},{'unknown':1},{'title':''},[]):
             with self.assertRaises(ValueError):profile({**self.config,'dashboard':value})
 
+    @unittest.skipUnless(os.name=='nt','Windows namespace alias regression')
+    def test_windows_namespace_output_alias_cannot_modify_factory(self):
+        before=self.snapshot()
+        for prefix in ('\\\\?\\','\\\\.\\'):
+            with self.assertRaises(ValueError):write_output(self.factory,Path(prefix+str(self.factory/'verification.md')),'replacement',True)
+        self.assertEqual(before,self.snapshot())
+
     def test_narrow_adoption_preview_apply_preserves_existing(self):
         self.legacy()
         before=self.snapshot()

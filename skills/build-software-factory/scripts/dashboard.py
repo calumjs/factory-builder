@@ -193,7 +193,15 @@ def write_output(factory, output, content, replace=False):
     # canonical lexical paths, including aliases with '..'.
     root = safe_path(os.path.abspath(safe_path(factory)))
     target = safe_path(os.path.abspath(safe_path(output)))
-    if target == root or root in target.parents:
+    # Device/extended namespaces and short/UNC aliases can differ lexically while
+    # identifying the same directory on Windows. Reject special namespaces and
+    # compare existing ancestor identities as well as normalized path spelling.
+    for path in (root, target):
+        if str(path).replace('/', '\\').startswith(('\\\\?\\', '\\\\.\\', '\\??\\')):
+            raise ValueError('Device/extended namespace paths are not supported')
+    if not root.is_dir():
+        raise ValueError('Factory must be an existing directory')
+    if target == root or root in target.parents or any(parent.exists() and parent.samefile(root) for parent in (target, *target.parents)):
         raise ValueError('Runtime dashboard output must be outside the factory')
     if not target.parent.is_dir():
         raise ValueError('Output parent must already exist')
