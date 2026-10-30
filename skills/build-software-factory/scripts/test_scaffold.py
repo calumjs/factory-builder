@@ -85,6 +85,44 @@ class ScaffoldTests(unittest.TestCase):
         r=subprocess.run([sys.executable,str(SCRIPT),'--check',str(out)],capture_output=True,text=True)
         self.assertNotEqual(r.returncode,0)
 
+    def test_extra_file_named_in_mismatch(self):
+        # Reconciled from PR15: added files stay blocked, but the diagnostic names them.
+        self.assertEqual(self.run_cli('--apply').returncode,0)
+        out=self.target/'.software-factory'
+        (out/'operations.md').write_text('SYNTHETIC private runtime note; never print its contents.')
+        before={p.relative_to(out).as_posix():p.read_bytes() for p in out.rglob('*') if p.is_file()}
+        result=subprocess.run([sys.executable,str(SCRIPT),'--check',str(out)],capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('unexpected: ["operations.md"]',result.stderr)
+        self.assertIn('docs/factory-operations.md',result.stderr)
+        self.assertNotIn('private runtime note',result.stderr+result.stdout)
+        self.assertEqual(before,{p.relative_to(out).as_posix():p.read_bytes() for p in out.rglob('*') if p.is_file()})
+
+    def test_missing_file_named_in_mismatch(self):
+        # Reconciled from PR15: missing contracts stay blocked without any rebaseline.
+        self.assertEqual(self.run_cli('--apply').returncode,0)
+        out=self.target/'.software-factory'
+        (out/'research.md').unlink()
+        result=subprocess.run([sys.executable,str(SCRIPT),'--check',str(out)],capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('missing: ["research.md"]',result.stderr)
+        self.assertNotIn('unexpected:',result.stderr)
+
+    def test_mixed_file_set_diagnostic_is_sorted_unambiguous_and_no_write(self):
+        self.assertEqual(self.run_cli('--apply').returncode,0)
+        out=self.target/'.software-factory'
+        (out/'z, runtime.md').write_text('SYNTHETIC note')
+        (out/'ci-workflows').mkdir()
+        (out/'ci-workflows/alpha.yml').write_text('SYNTHETIC inert workflow text')
+        (out/'research.md').unlink()
+        (out/'learning-log.md').unlink()
+        manifest=(out/'manifest.json').read_bytes()
+        result=subprocess.run([sys.executable,str(SCRIPT),'--check',str(out)],capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn('unexpected: ["ci-workflows/alpha.yml", "z, runtime.md"]',result.stderr)
+        self.assertIn('missing: ["learning-log.md", "research.md"]',result.stderr)
+        self.assertEqual((out/'manifest.json').read_bytes(),manifest)
+
     def test_check_reports_once_per_invocation(self):
         self.assertEqual(self.run_cli('--apply').returncode,0)
         result=subprocess.run([sys.executable,str(SCRIPT),'--check',str(self.target/'.software-factory')],capture_output=True,text=True)

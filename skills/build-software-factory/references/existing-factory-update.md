@@ -21,7 +21,7 @@ When step 1 fails because contracts were hand-edited or files were added, follow
 [reviewed integrity recovery](integrity-recovery.md) first. The optional
 [staged recovery helper](recovery-automation.md) creates a reviewed recovered copy;
 activation remains separate. `update_operations.py` cannot preview or approve an
-invalid source; PR #15 diagnostics do not change that boundary. No force switch exists.
+invalid source; detailed path diagnostics do not change that boundary. No force switch exists.
 
 1. Confirm the exact factory path and authorized local write scope. Run the integrity check. Unreviewed contract edits must be resolved first; the updater refuses them. Schema 1 is unsupported and needs a separate reviewed migration.
 2. In approved scratch, write an operations-change JSON object, such as `{"done_videos":{"enabled":true,"scope":"Agreed narrated release demonstration"}}`. This is a partial operations patch, not a complete product config. Existing omitted fields are preserved. No credentials belong here.
