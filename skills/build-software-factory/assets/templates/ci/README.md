@@ -85,8 +85,11 @@ under review. Do not broaden paths from untrusted PR inputs to make a job green.
 The helper binds up to 1024 factory files, 4 MiB each/32 MiB total and uses bounded
 Git timeouts. Stable checkout inputs are required; this is not an adversarial atomic
 snapshot or a proof of application execution.
-The selected Git must support --no-lazy-fetch/--no-optional-locks; unsupported tooling
-fails rather than falling back. Per-command filesystem-monitor execution is disabled.
+The selected Git must support --no-optional-locks and the protocol allowlist;
+unsupported tooling fails rather than silently permitting transport. The helper
+sets a no-lazy-fetch hint and independently denies all Git transport protocols,
+including on older Git; missing objects remain blocked. Per-command filesystem-
+monitor execution is disabled.
 Factory enumeration is capped at 2048 entries and 20 levels; oversized/custom layouts
 need a separately reviewed adaptation, not a bypass.
 

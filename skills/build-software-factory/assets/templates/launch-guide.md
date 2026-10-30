@@ -22,4 +22,4 @@ Before verification or release, record the interpreter's absolute path and the e
 
 ## 4. Headless runs
 
-For a scheduled or unattended pass, the command comes from the headless recipe recorded in `tools.json` (provider, command, structured output, restrictions, authentication evidence). `run.py schedule` uses the first recipe whose command is not marked unconfirmed; confirming its authentication, restrictions and output is the operator's review before enabling the schedule.
+For any separately authorized unattended pass, independently verify the intended harness command, authentication, output, restrictions and data boundary. `run.py schedule` produces only a non-executable proposal; it never selects a tools.json command or installs a scheduler. An explicitly supplied argv recipe can be shown as inert review data. Before dispatch or scheduling, establish and test exclusive admission, stop handling and budget enforcement.

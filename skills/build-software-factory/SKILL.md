@@ -5,7 +5,7 @@ description: Design and scaffold a project-specific AI software delivery factory
 
 # Build a software factory
 
-Build the smallest factory that fits the project, reusing its actual stack and constraints. A factory is a repeatable delivery loop with explicit context, tools, owners, evidence and human decisions. Its six phase skills are **Intake → Plan → Build → Verify → Release → Learn**, driven by a seventh, **Run**, which selects work, dispatches bounded parallel workers and can be scheduled. A solo worker is a valid default; do not add a platform, swarm or provider to look complete.
+Build the smallest factory that fits the project, reusing its actual stack and constraints. A factory is a repeatable delivery loop with explicit context, tools, owners, evidence and human decisions. Its six phase skills are **Intake -> Plan -> Build -> Verify -> Release -> Learn**, with a seventh, **Run**, which prepares an advisory pass plan; independently authorized dispatch and scheduling need verified coordination. A solo worker is a valid default; do not add a platform, swarm or provider to look complete.
 
 Invoke this skill with the project goal. Any harness that loads Agent Skills can run the factory it produces; no agent provider is required.
 
@@ -48,7 +48,7 @@ Preflight with the generated launch-guide.md: pin the loaded builder, confirm th
 - Enabled done videos: [done-videos.md](references/done-videos.md).
 - Reusable improvements to this builder: the bundled `contribute-upstream` skill.
 
-Read only the references the current task needs.
+The Run helper selects and plans only; scheduler output is a non-executable proposal and dispatch needs separately authorized, verified coordination. Read only the references the current task needs.
 
 ## Boundaries
 

@@ -8,8 +8,9 @@ import sys
 import tempfile
 import time
 import unittest
+from unittest.mock import patch
 
-from ci_evidence import assess_ci, bounded_run, full_sha, relative
+from ci_evidence import Git, assess_ci, bounded_run, full_sha, relative
 from scaffold import ROOT, render
 
 
@@ -26,6 +27,33 @@ class CIEvidenceTests(unittest.TestCase):
         with self.assertRaises(subprocess.TimeoutExpired):
             bounded_run([sys.executable,'-c',code],dict(os.environ),1024,timeout=0.2)
         self.assertLess(time.monotonic()-started,1.2)
+
+    def test_partial_clone_missing_object_cannot_use_any_transport(self):
+        # Simulate older Git ignoring the newer no-lazy-fetch environment flag.
+        # The only configured remote is this disposable local fixture.
+        self.git('config','extensions.partialClone','origin')
+        self.git('config','remote.origin.promisor','true')
+        self.git('config','remote.origin.url',self.repo.as_uri())
+        env=dict(os.environ,GIT_NO_LAZY_FETCH='0',GIT_ALLOW_PROTOCOL='',GIT_TERMINAL_PROMPT='0')
+        result=subprocess.run(['git','-C',str(self.repo),'cat-file','-e','1'*40],capture_output=True,env=env)
+        self.assertNotEqual(result.returncode,0)
+        self.assertIn(b'not allowed',result.stderr.lower())
+
+    def test_git_read_always_denies_transports_even_if_environment_allowed_them(self):
+        observed=[]
+        def fake(argv,env,limit):
+            observed.append(env)
+            return 0,b'synthetic'
+        with patch.dict(os.environ,{'GIT_ALLOW_PROTOCOL':'file:https'}):
+            with patch('ci_evidence.bounded_run',side_effect=fake):
+                self.assertEqual(Git(self.repo).read('status'),b'synthetic')
+        self.assertEqual(observed[0]['GIT_ALLOW_PROTOCOL'],'')
+        self.assertEqual(observed[0]['GIT_PROTOCOL_FROM_USER'],'0')
+
+    def test_generated_ci_guide_describes_transport_restriction(self):
+        guide=(self.factory/'ci/README.md').read_text(encoding='utf-8')
+        self.assertIn('independently denies all Git transport protocols',guide)
+        self.assertNotIn('must support --no-lazy-fetch',guide)
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.repo=Path(self.tmp.name)/'project';self.repo.mkdir()
         self.hooks=self.repo/'.fixture-empty-hooks';self.hooks.mkdir()

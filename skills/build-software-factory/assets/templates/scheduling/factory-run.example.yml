@@ -37,7 +37,7 @@ jobs:
         run: python .builder/skills/build-software-factory/scripts/run.py --factory .software-factory --runs .factory-runs select --issues "$RUNNER_TEMP/issues.json"
       - name: Run one factory pass
         run: |
-          # run.py schedule --kind github substitutes the headless recipe recorded in tools.json here.
+          # This placeholder is not populated by run.py; separately design and authorize dispatch.
           echo "headless pass not configured" && exit 1
       - name: Upload run records
         if: always()
