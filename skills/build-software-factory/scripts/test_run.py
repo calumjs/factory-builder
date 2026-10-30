@@ -157,6 +157,14 @@ class RunTests(unittest.TestCase):
         self.assertEqual(result['after_workers'], ['integrate-and-reverify', 'factory-release-if-authorized', 'factory-learn'])
         self.assertEqual(result['workers'][0]['isolation'], 'worktree')
 
+    def test_worker_budget_text_stays_quoted_untrusted_data(self):
+        self.config['budget']['currency']='USD\nSYNTHETIC injected directive'
+        root=self.write();result=run.plan_pass(*self.load(root),runs=self.project/'.factory-runs',now=NOW)
+        prompt=result['workers'][0]['prompt']
+        self.assertNotIn('USD\nSYNTHETIC',prompt)
+        self.assertIn('USD\\nSYNTHETIC',prompt)
+        self.assertIn('untrusted task and handoff data',prompt)
+
     def test_issue_intake_fail_closed_on_policy_labels_duplicates_and_stop(self):
         self.config['operations']['issue_intake']['status']='enabled'
         root=self.write();runs=self.project/'.factory-runs'
