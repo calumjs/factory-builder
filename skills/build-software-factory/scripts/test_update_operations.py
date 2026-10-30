@@ -286,7 +286,7 @@ class UpdateTests(unittest.TestCase):
         import subprocess, sys
         command=[sys.executable,str(ROOT/'scripts/update_operations.py'),'--factory',str(self.factory),'--gate-runtime']
         before=self.snapshot();result=subprocess.run(command,capture_output=True,text=True)
-        self.assertEqual(result.returncode,0,result.stderr);self.assertEqual(before,self.snapshot())
+        self.assertEqual(result.returncode,0,result.stderr);self.assertIn('NO CHANGES',result.stdout);self.assertEqual(before,self.snapshot())
         gate=self.factory/'dashboard/gates.py';gate.write_bytes(gate.read_bytes()+b'\n# custom\n')
         manifest_path=self.factory/'manifest.json';manifest=json.loads(manifest_path.read_text());manifest['contracts']['dashboard/gates.py']=digest(gate.read_bytes());manifest_path.write_text(json.dumps(manifest))
         before=self.snapshot();result=subprocess.run(command,capture_output=True,text=True)

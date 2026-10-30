@@ -310,9 +310,11 @@ def main():
         before=hashlib.sha256(original[name]).hexdigest() if original[name] is not None else 'missing'
         print('FILE '+name+' raw SHA256: '+before+' -> '+hashlib.sha256(data).hexdigest())
         print(''.join(difflib.unified_diff(original[name].decode('utf-8-sig').splitlines(True) if original[name] is not None else [],data.decode('utf-8').splitlines(True),fromfile=name+' (current)',tofile=name+' (proposed)')))
+    if not replacement:print('NO CHANGES: no supported differences were proposed; this does not attest current runtime behavior.')
     if args.apply:
         backup=apply(root,original,replacement,plan,args.approve_plan)
-        print('APPLIED narrow operations update; backup: '+str(backup)+'. No command, watcher, video or integration was run or enabled.')
+        if backup is None:print('NO FILES WRITTEN; the reviewed plan contained no changes.')
+        else:print('APPLIED narrow operations update; backup: '+str(backup)+'. No command, watcher, video or integration was run or enabled.')
     else:print('PREVIEW ONLY: no files written. Review the diff and local write scope before --apply --approve-plan '+plan)
 
 if __name__=='__main__':
