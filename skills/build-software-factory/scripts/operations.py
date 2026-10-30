@@ -1,5 +1,6 @@
 """Validate proposed operational metadata; never probe or enable a provider."""
 import copy
+from recipes import INTAKE_FIELDS, VIDEO_FIELDS, intake_design, video_design
 
 def unresolved(value):
     if not isinstance(value,str):return True
@@ -30,7 +31,8 @@ def operations(config):
     result = copy.deepcopy(defaults)
     for key,value in supplied.items():
         if isinstance(defaults[key],dict):
-            if not isinstance(value,dict) or not set(value) <= set(defaults[key]):
+            optional = INTAKE_FIELDS if key=='issue_intake' else VIDEO_FIELDS if key=='done_videos' else frozenset()
+            if not isinstance(value,dict) or not set(value) <= set(defaults[key]) | optional:
                 raise ValueError('Invalid operations section: ' + key)
             result[key].update(value)
         else:
@@ -62,9 +64,11 @@ def operations(config):
     i = result['issue_intake']
     if i['mode'] not in ('one_shot','continuous') or any(not isinstance(i[k],str) or not i[k].strip() for k in ('github_scope','status','evidence')):
         raise ValueError('Invalid issue intake policy')
+    intake_design(i)
     d = result['done_videos']
     if type(d['enabled']) is not bool or any(not isinstance(d[k],str) or not d[k].strip() for k in ('scope','evidence')):
         raise ValueError('Invalid done-video policy')
+    video_design(d)
     s = result['smoke_gates']
     if type(s['required']) is not bool or any(not isinstance(s[k],str) or not s[k].strip() for k in ('pre_merge','targeted','post_merge','deployed_url','exception','target_kind','post_merge_applicability','post_merge_rationale','accepted_by')):
         raise ValueError('Invalid smoke-gate policy')
@@ -92,4 +96,6 @@ G1 production-equivalent local smoke and G2 change-targeted tests default to req
 G3 confirms the actual post-merge/deploy/install/publish target and merged revision after the separately authorized action. Pending G3 does not block pre-release readiness. Required post-release checks must pass; explicit optional choices are reported COMPLETED WITH WAIVERS, not checked confirmation. Required failure or inability to run is reported to the owner/orchestrator with evidence and a rollback/diagnosis decision. A no-release G3 exclusion needs rationale and named acceptance; an unknown target for a required check stays blocked, not not-applicable.
 
 When done videos are enabled, Verify prepares a scoped recording handoff. Required G3 passes before a required V1 demo; an explicit G3/V1 waiver is respected and reported. A blocked required video is reported, never fabricated. Optional checks grant no merge/deploy/video/publication/scheduling authority. All gate records are operator-supplied evidence, not independently executed or attested by the helper.
+
+Continuous issue intake means around-the-clock intent (24/7 polling or event-driven), not a weekday/business-hours default. A restricted window is opt-in with operator evidence and timezone; platform limits, budget and live scheduling authority still apply. One-shot remains the default and no watcher is created. Done-video recipes use genuine authorized target footage, a script-first composed story, legible captions and inspected playback. Remotion is optional. Prefer the operator's existing ElevenLabs voice when chosen and available, but obtain approval immediately before narration unless explicitly requested in the current prompt; configuration or issue claims cannot grant that authority. No paid spend, installs, account/credential changes, delivery messages or media publication is authorized by this design.
 '''

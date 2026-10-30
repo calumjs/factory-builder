@@ -70,6 +70,34 @@ Each identity and recipe record uses exactly the shown fields, with nonempty str
 
 `issue_intake.mode` is `one_shot` (default) or `continuous`. Continuous mode is a design intent only until a watcher or scheduled routine is implemented with bounded `autonomy`, verified GitHub read scope and an authorized scheduler; record `github_scope` and `status` as unconfirmed/disabled until then. `done_videos.enabled` defaults to false; when true, record which ship events trigger narration, where artifacts may be stored and whether publication is authorized.
 
+Continuous intent means **24/7 polling or event-driven intake**, not a weekday or
+business-hours default. A time window is opt-in only. Optional flat issue_intake
+fields are `coverage` (around_the_clock default, or operator_window), `mechanism`
+(unconfirmed/polling/event_driven), `cadence`, `timezone`, `window`, `window_evidence`.
+All text must be nonempty and at most 2000 characters. Around-the-clock requires
+window=none. An operator_window needs a real window, timezone and evidence of the
+operator's choice. Verify the timezone/cadence with the actual scheduler before any
+authorized live action; the helper validates metadata, not cron syntax, IANA timezone
+availability or runtime coverage. Cadence remains unconfirmed until fitted to platform
+limits and budget. Event-driven does not invent a polling schedule. Unknown controls
+remain a valid disabled draft and activate nothing.
+
+```json
+{"issue_intake":{"mode":"continuous","status":"disabled","evidence":"Operator chose continuous intake; scheduling authority pending","coverage":"around_the_clock","mechanism":"polling","cadence":"Operator-selected interval within scheduler limits","timezone":"UTC","window":"none","window_evidence":"none"}}
+```
+
+An explicitly selected restricted window uses coverage=operator_window plus its
+window/timezone/source evidence; do not infer a window from business locale or a
+tool skill's defaults. Existing live schedules are not changed by this metadata.
+The marked proposed intake design in new policy files is refreshed by the reviewed
+operations updater. Custom marked blocks are preserved/refused for manual review.
+The normal config/policy controls remain authoritative; no new fields are injected
+into old controls solely by loading a newer helper.
+
+For composed video design and optional flat done_videos metadata, read
+[done-videos.md](done-videos.md). Enabled preference requests a recipe; it does not
+authorize narration, paid services, recording/data transfer or delivery messages.
+
 Intake should verify existing Git author and authenticated platform account/scope when relevant before the first authorized commit or release. Report mismatches; do not silently change Git config, history, credentials, teams or security settings. A PATH binary alone is not available authentication. An authorized, harmless read-only probe is preferred; paid or mutating calls require their own authority. Recipes are unavailable for autonomous use until reviewed against the installed CLI version and observed authentication, cost, isolation and structured-output behavior.
 
 `smoke_gates.required` sets the default requiredness for G1/G2/G3 and may be false by user choice without an exception or extra approval. Individual living verification rows may also explicitly use Required=no/n/false; this overrides the default for that row. Optional checks are visibly WAIVED with their recorded status, never tests-passed. Keep expected rows present: missing/malformed/duplicate rows are errors. The retained exception string is descriptive, not an authorization requirement. pre_merge/targeted/post_merge are designs or inspected recipes, never auto-executed commands. deployed_url is the planned actual target identity (also used for non-web artifacts); unconfirmed remains unresolved.

@@ -53,9 +53,23 @@ Record task status and revision-bound evidence together with the status helper. 
 
 ## Continuous issue pickup
 
+Continuous means 24/7 coverage by polling or event-driven delivery unless the
+operator explicitly opts into a documented window. Never infer weekday/business
+hours from location or another tool's defaults. Cadence is fitted to provider limits,
+budget and current authority; no live schedule is created or edited here. Inspect
+actual coverage during Learn: an unrequested time restriction is a design defect,
+not a reason to silently change a watcher. Record and propose the scoped correction.
+
 When intake records `operations.issue_intake.mode: continuous`, the factory is intended to watch a configured GitHub repository (scope in `github_scope`) for new eligible issues and enqueue work without a manual kickoff each time. Implement this as an authorized watcher or scheduled routine outside the default scaffold: bounded `autonomy` (submitters, rate limits, kill switch), read-only issue listing within verified scope, deterministic eligibility filters and explicit scheduler authority. One-shot mode (`one_shot`, the default) runs only when a human or an approved orchestrator starts a pass; do not imply a background watcher exists from the scaffold alone.
 
 ## Done videos
+
+Use [done-videos.md](done-videos.md) and the generated done-video-recipe.md when
+present. Prefer a composed, script-first story built around genuine target footage,
+project branding, captions and watched/listened-to output; Remotion is optional.
+An ElevenLabs preference is not narration permission: obtain approval immediately
+before narration unless explicitly requested in the current prompt. Keep proposed
+delivery distinct from authorized messages/uploads; no automatic coordinator FYI.
 
 Preview evidence and shipped-work evidence are independent. If a project explicitly
 wants a pre-merge demo, add a well-formed V2 pre-merge row with its actual design,

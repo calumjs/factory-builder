@@ -11,7 +11,8 @@ import sys
 import tempfile
 from gates import policy_controls, initial_table, requirements, gate_rows, ROW
 from integrity import check, digest, safe_path
-from operations import controls, DELIVERY_POLICY
+from operations import controls, operations, DELIVERY_POLICY
+from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS
 from scaffold import validate, ROOT
 
 def dumps(value):
@@ -51,13 +52,24 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False):
     gate_rows(result)  # Reject ambiguity or malformed legacy extra checks before writing.
     return result
 
-def prepare(factory, changes, delivery_update=False):
+# Exact normalized operations.py shipped in v1.2.0, main ba808cc.
+# Only this known source is upgraded automatically under explicit reviewed opt-in.
+LEGACY_DASHBOARD_OPERATIONS = 'ef2679811ecf0d340064a87facc2d1e693b9703a65e25c10aac030100ed2e4ef'
+
+
+def unchanged(root, name, expected):
+    path=root/name
+    return not path.exists() if expected is None else path.is_file() and path.read_bytes()==expected
+
+
+def prepare(factory, changes, delivery_update=False, recipe_runtime=False):
     root=safe_path(factory);check(root,quiet=True)
     if not isinstance(changes,dict):
         raise ValueError('Operations changes must be an object')
-    names=('config.json','policy.md','manifest.json','tools.json','verification.md')
+    names=('config.json','policy.md','manifest.json','tools.json','verification.md','release-handoff.md')
     original={name:(root/name).read_bytes() for name in names}
     config=json.loads(original['config.json'].decode('utf-8-sig'))
+    before_ops=operations(config)
     before=copy.deepcopy(config.get('operations',{}))
     updated=copy.deepcopy(before)
     for section,value in changes.items():
@@ -74,7 +86,32 @@ def prepare(factory, changes, delivery_update=False):
     scoped_delivery_update=delivery_update or any(key in changes for key in ('smoke_gates','done_videos'))
     if scoped_delivery_update and DELIVERY_POLICY not in policy:
         policy=policy.rstrip()+'\n\n## Reviewed delivery policy addendum\nThis reviewed addendum supersedes conflicting older gate instructions; custom project requirements remain in force.\n\n'+DELIVERY_POLICY
+    if 'issue_intake' in changes:
+        policy=refresh_proposal(policy,'intake',before_ops['issue_intake'],operations(config)['issue_intake'])
     replacement={'config.json':dumps(config).encode('utf-8'),'policy.md':policy.encode('utf-8')}
+    if 'done_videos' in changes:
+        handoff=refresh_proposal(original['release-handoff.md'].decode('utf-8-sig'),'video',before_ops['done_videos'],operations(config)['done_videos'])
+        replacement['release-handoff.md']=handoff.encode('utf-8')
+    new_metadata=any(set(changes.get(section,{})) & fields for section,fields in (('issue_intake',INTAKE_FIELDS),('done_videos',VIDEO_FIELDS)))
+    runtime='dashboard/operations.py'
+    if (new_metadata or recipe_runtime) and (root/runtime).is_file():
+        current=(root/runtime).read_bytes()
+        wanted=(ROOT/'scripts/operations.py').read_bytes()
+        if digest(current)!=digest(wanted):
+            if digest(current)!=LEGACY_DASHBOARD_OPERATIONS:
+                raise ValueError('Customized/unsupported dashboard runtime preserved; review a narrow manual compatibility migration')
+            if not recipe_runtime:
+                raise ValueError('New recipe metadata needs a reviewed v1.2 dashboard migration; preview with --recipe-runtime')
+            original[runtime]=current;replacement[runtime]=wanted
+        dependency='dashboard/recipes.py'
+        wanted=(ROOT/'scripts/recipes.py').read_bytes()
+        if (root/dependency).exists():
+            if digest((root/dependency).read_bytes())!=digest(wanted):
+                raise ValueError('Customized/unsupported dashboard recipe dependency preserved; review manually')
+        elif recipe_runtime:
+            original[dependency]=None;replacement[dependency]=wanted
+        else:
+            raise ValueError('Dashboard recipe dependency missing; preview a reviewed --recipe-runtime migration')
     if delivery_update or any(key in changes for key in ('smoke_gates','done_videos')):
         research=json.loads((root/'research.json').read_text(encoding='utf-8-sig'))
         reset_defaults=isinstance(changes.get('smoke_gates'),dict) and 'required' in changes['smoke_gates']
@@ -98,11 +135,11 @@ def prepare(factory, changes, delivery_update=False):
             replacement['tools.json']=dumps(tools).encode('utf-8')
     manifest=json.loads(original['manifest.json'].decode('utf-8-sig'))
     for name,data in replacement.items():
-        if name in manifest['contracts']:
+        if name in manifest['contracts'] or name.startswith('dashboard/'):
             manifest['contracts'][name]=digest(data)
     replacement['manifest.json']=dumps(manifest).encode('utf-8')
     replacement={k:v for k,v in replacement.items() if v!=original[k]}
-    fingerprint={name:{'before':hashlib.sha256(original[name]).hexdigest(),'after':hashlib.sha256(data).hexdigest()} for name,data in sorted(replacement.items())}
+    fingerprint={name:{'before':hashlib.sha256(original[name]).hexdigest() if original[name] is not None else None,'after':hashlib.sha256(data).hexdigest()} for name,data in sorted(replacement.items())}
     plan=hashlib.sha256(dumps({'factory':str(root),'files':fingerprint}).encode('utf-8')).hexdigest()
     return root,original,replacement,plan
 
@@ -110,7 +147,7 @@ def apply(root,original,replacement,plan,approved):
     if approved!=plan:
         raise ValueError('Apply requires the exact --approve-plan digest from the reviewed preview')
     check(root,quiet=True)
-    if any((root/name).read_bytes()!=data for name,data in original.items()):
+    if any(not unchanged(root,name,data) for name,data in original.items()):
         raise ValueError('Factory changed after preview; regenerate and review the plan')
     if not replacement:
         return None
@@ -122,12 +159,20 @@ def apply(root,original,replacement,plan,approved):
     temporary=None
     try:
         backup.mkdir(parents=True)
+        added=[name for name in replacement if original[name] is None]
+        if added:
+            with (backup/'added-files.json').open('x',encoding='utf-8') as stream:stream.write(dumps(added))
         for name in replacement:
+            if original[name] is None:continue
             (backup/name).parent.mkdir(parents=True,exist_ok=True)
             with (backup/name).open('xb') as stream:stream.write(original[name])
         for name in sorted(replacement,key=lambda n:n=='manifest.json'):
-            if (root/name).read_bytes()!=original[name]:
+            if not unchanged(root,name,original[name]):
                 raise ValueError('Concurrent edit preserved; inspect backup before recovery')
+            if original[name] is None:
+                with (root/name).open('xb') as stream:
+                    stream.write(replacement[name]);stream.flush();os.fsync(stream.fileno())
+                continue
             with tempfile.NamedTemporaryFile(dir=root,prefix='.operations-',suffix='.tmp',delete=False) as stream:
                 temporary=Path(stream.name);stream.write(replacement[name]);stream.flush();os.fsync(stream.fileno())
             os.replace(temporary,root/name);temporary=None
@@ -142,13 +187,14 @@ def main():
     parser.add_argument('--factory',required=True);parser.add_argument('--operations',required=True)
     parser.add_argument('--apply',action='store_true');parser.add_argument('--approve-plan')
     parser.add_argument('--delivery-gates',action='store_true',help='Opt in to a reviewed narrow gate/template migration; preserve other factory files')
+    parser.add_argument('--recipe-runtime',action='store_true',help='Opt in to a reviewed known-v1.2 dashboard validator/dependency migration for recipe metadata')
     args=parser.parse_args()
     if args.approve_plan and not args.apply:parser.error('--approve-plan requires --apply')
     changes=json.loads(Path(args.operations).read_text(encoding='utf-8-sig'))
-    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates)
+    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime)
     print('REVIEW PLAN: '+plan)
     for name,data in replacement.items():
-        print(''.join(difflib.unified_diff(original[name].decode('utf-8-sig').splitlines(True),data.decode('utf-8').splitlines(True),fromfile=name+' (current)',tofile=name+' (proposed)')))
+        print(''.join(difflib.unified_diff(original[name].decode('utf-8-sig').splitlines(True) if original[name] is not None else [],data.decode('utf-8').splitlines(True),fromfile=name+' (current)',tofile=name+' (proposed)')))
     if args.apply:
         backup=apply(root,original,replacement,plan,args.approve_plan)
         print('APPLIED narrow operations update; backup: '+str(backup)+'. No command, watcher, video or integration was run or enabled.')

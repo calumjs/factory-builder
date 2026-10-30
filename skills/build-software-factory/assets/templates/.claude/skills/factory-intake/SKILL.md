@@ -12,6 +12,8 @@ Read project-brief.md, config.json and policy.md. Validate outcome, users, scope
 Config, policy and acceptance are hashed contracts: do not edit config.operations in place or silently rebaseline. Put proposed operational answers in approved scratch, preview the builder's update_operations.py, review the complete synchronized config/policy/manifest diff and apply only the exact approved plan within local write scope. It starts no watcher, provider or video. Broader brief/acceptance changes need a separately reviewed synchronized diff; the operations helper does not change product scope. Preserve living evidence and custom policies.
 
 ## Exit gate
+For continuous intake, around-the-clock polling/event-driven coverage is the default intent; a business-hours or other window needs the operator's explicit choice, timezone and source evidence. Fit cadence to scheduler capability/budget without starting or changing a watcher. For enabled done videos, choose composition, voice, branding, captions and delivery scope; use done-video-recipe.md when present or the installed builder recipe. Configuration is not capture/narration/publication authority.
+
 A confirmed brief, measurable criteria and explicit unresolved decisions. Prepare a BLOCKED handoff for diagnosis when needed; unresolved checks do not make it release-ready.
 
 Return status, exact revisions, proposed/updated artifacts, actual checks, blockers and next owner/action.

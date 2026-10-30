@@ -21,6 +21,14 @@ Begin with what is known. For each answer record **confirmed / inferred / unknow
 
 ## Acting identities and autonomous tools
 
+For continuous issue pickup, define around-the-clock coverage (24/7 polling or
+event-driven) by default; ask only about consequential cadence/mechanism limits and
+any **explicitly desired** window. Do not inherit business-hours defaults from a
+tool's generic scheduling examples. Record operator evidence/timezone for a window;
+unknown scheduling authority keeps the design disabled. For enabled done videos,
+ask composition/voice/branding/captions/delivery preferences and use
+[done-videos.md](done-videos.md). No answer supplies action-time narration approval.
+
 When relevant, record Git author and authenticated platform account, team/org/repository scope before the first authorized commit. Report mismatches rather than silently changing Git configuration, history or credentials. A binary on PATH is not authentication. Prefer authorized read-only account probes; paid calls and mutations require separate authority.
 
 For autonomous use, record each installed-version headless command, structured-output flag/schema, sandbox/tool restrictions and auth probe/evidence. Establish the kill switch, permitted submitters, rate/concurrency limits and rejection handling. Missing controls block live scheduling. Record issue-intake mode (one-shot vs continuous GitHub scanning) and done-video preference when relevant. Use [operations-config.md](operations-config.md) for optional structured fields.
