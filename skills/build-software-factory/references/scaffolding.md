@@ -65,7 +65,7 @@ The preview writes nothing. `--apply` updates status and appends an evidence eve
 Use the complete [launch preflight](../assets/templates/launch-guide.md) before
 commands are assigned: record the actual loaded plugin version/source identity,
 confirm helper/dependency availability, resolve required human workspace trust,
-then check six-phase discovery and exact execution permissions. An old install
+then check seven-skill discovery and exact execution permissions. An old install
 missing gates.py is a tooling blocker, not a notice-only passing gate. Updating
 the plugin does not migrate existing factory contracts; preserve those through
 the narrow reviewed update path. No launch, install or trust changes run here.
@@ -73,7 +73,7 @@ the narrow reviewed update path. No launch, install or trust changes run here.
 New factories include launch-guide.md. For scoped/headless use, keep the project
 setting source: `claude --plugin-dir <trusted-plugin-root> --add-dir .software-factory --setting-sources project`.
 An empty source list can hide generated phases even though the plugin loads.
-Preflight all six names and a scoped actual Skill call before delivery; inspect the
+Preflight all seven names and a scoped actual Skill call before delivery; inspect the
 project customizations, installed-version bare/safe behavior and managed policy.
 Report discovery blocked rather than copying skills globally or bypassing policy.
 See [official added-directory loading](https://code.claude.com/docs/en/skills#load-skills-from-a-directory-outside-the-project)
@@ -88,7 +88,7 @@ process, never another launch route or broader global permissions. This task add
 guidance only and changes no allowlist. Passing consumer smoke does not complete
 Release, post-action evidence, status recording or a blocked dashboard refresh.
 
-The plugin builder is `/software-factory:build-software-factory`. Generated six-phase folders live at `.software-factory/.claude/skills/factory-<phase>/`. Start Claude from the project root with `claude --add-dir .software-factory`, then invoke `/factory-intake`, `/factory-plan`, `/factory-build`, `/factory-verify`, `/factory-release` or `/factory-learn`. Confirm discovery under the installed Claude version and organization policy. The phase instructions resolve their artifact root three levels above their containing folder.
+The plugin builder is `/software-factory:build-software-factory`. Generated phase and run folders live at `.software-factory/.claude/skills/factory-<phase>/`. Start Claude from the project root with `claude --add-dir .software-factory`, then invoke `/factory-intake`, `/factory-plan`, `/factory-build`, `/factory-verify`, `/factory-release` or `/factory-learn`. Confirm discovery under the installed Claude version and organization policy. The phase instructions resolve their artifact root three levels above their containing folder.
 
 No hooks, tool preapproval, MCP server or settings changes are bundled. `gitignore.fragment` is an optional root ignore fragment to review and merge manually; the helper never edits root ignore rules. Keep non-secret `.env.example` files if useful. Stage explicit reviewed paths; avoid blanket staging of caches, backups, credentials or factory outputs.
 

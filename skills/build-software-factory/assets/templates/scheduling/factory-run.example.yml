@@ -1,0 +1,49 @@
+# Inactive example: scheduled factory pass. Not installed by scaffolding.
+# Copy into .github/workflows/ only within authorized CI scope, with a pinned
+# builder checkout and the project's actual headless agent recipe.
+name: factory-run
+on:
+  schedule:
+    - cron: "0 * * * *"   # rendered from operations.issue_intake.cadence by run.py schedule --kind github
+  workflow_dispatch: {}
+permissions:
+  contents: read
+  issues: read
+concurrency:
+  group: factory-run
+  cancel-in-progress: false
+jobs:
+  pass:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60   # keep at or below budget.max_minutes
+    env:
+      FACTORY_STOP: ${{ vars.FACTORY_STOP }}   # repository variable acts as the kill switch
+    steps:
+      - uses: actions/checkout@v4
+      - name: Checkout pinned builder
+        uses: actions/checkout@v4
+        with:
+          repository: OWNER/software-factory-plugin   # replace; pin ref to a reviewed tag
+          ref: v1.8.0
+          path: .builder
+      - name: Export issue snapshot (read-only)
+        run: |
+          gh issue list --state open --json number,title,author,createdAt,labels \
+            --jq '[.[] | {id: (.number|tostring), title, submitter: .author.login, created_at: .createdAt, labels: [.labels[].name]}]' \
+            > "$RUNNER_TEMP/issues.json"
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Select work
+        run: python .builder/skills/build-software-factory/scripts/run.py --factory .software-factory --runs .factory-runs select --issues "$RUNNER_TEMP/issues.json"
+      - name: Run one factory pass
+        run: |
+          # Replace with the recorded headless recipe from tools.json. Example:
+          # claude -p "/factory-run" --add-dir .software-factory --output-format json
+          echo "headless pass not configured" && exit 1
+      - name: Upload run records
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: factory-runs
+          path: .factory-runs/
+          if-no-files-found: ignore

@@ -33,7 +33,7 @@ class ScaffoldTests(unittest.TestCase):
         self.assertEqual((self.target/'AGENTS.md').read_text(),'Do not change this file.\n')
         self.assertEqual((self.target/'.github'/'ci.yml').read_text(),'original CI\n')
         out=self.target/'.software-factory'
-        self.assertEqual(len(list((out/'.claude/skills').glob('*/SKILL.md'))),6)
+        self.assertEqual(len(list((out/'.claude/skills').glob('*/SKILL.md'))),7)
         r=subprocess.run([sys.executable,str(SCRIPT),'--check',str(out)],capture_output=True,text=True)
         self.assertEqual(r.returncode,0,r.stderr)
     def test_repeated_apply_refuses_no_changes(self):

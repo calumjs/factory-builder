@@ -1,6 +1,6 @@
 # Run a fitted factory
 
-The six phase skills are gates, not six mandatory agents. One worker can perform all phases; use an independent reviewer only where useful and available. Delegate only within the approved budget and data boundary.
+The six phase skills are gates, not six mandatory agents; `/factory-run` drives them (see [running.md](running.md)). One worker can perform all phases; use an independent reviewer only where useful and available. Delegate only within the approved budget and data boundary.
 
 ## Worker contract
 Each task handoff names the goal, input artifacts and exact revision, acceptance criteria, allowed files/actions, dependencies, output artifact, required verification, budget/time/retry limit and escalation owner. Send minimum necessary non-secret context. Workers do not grant one another new permissions. Do not parallelize tasks that edit the same files or depend on unmerged outputs; agree ownership or sequence them. Resolve conflicts deliberately and reverify integrated output.
@@ -60,7 +60,7 @@ budget and current authority; no live schedule is created or edited here. Inspec
 actual coverage during Learn: an unrequested time restriction is a design defect,
 not a reason to silently change a watcher. Record and propose the scoped correction.
 
-When intake records `operations.issue_intake.mode: continuous`, the factory is intended to watch a configured GitHub repository (scope in `github_scope`) for new eligible issues and enqueue work without a manual kickoff each time. Implement this as an authorized watcher or scheduled routine outside the default scaffold: bounded `autonomy` (submitters, rate limits, kill switch), read-only issue listing within verified scope, deterministic eligibility filters and explicit scheduler authority. One-shot mode (`one_shot`, the default) runs only when a human or an approved orchestrator starts a pass; do not imply a background watcher exists from the scaffold alone.
+When intake records `operations.issue_intake.mode: continuous`, the factory is intended to watch a configured GitHub repository (scope in `github_scope`) for new eligible issues and enqueue work without a manual kickoff each time. The run helper's `select --issues` and `schedule` commands implement the read-only selection and render the scheduler definition; enabling the schedule remains an authorized action outside the scaffold. Implement the watcher as an authorized scheduled routine: bounded `autonomy` (submitters, rate limits, kill switch), read-only issue listing within verified scope, deterministic eligibility filters and explicit scheduler authority. One-shot mode (`one_shot`, the default) runs only when a human or an approved orchestrator starts a pass; do not imply a background watcher exists from the scaffold alone.
 
 ## Done videos
 
