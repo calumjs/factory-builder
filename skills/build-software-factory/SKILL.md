@@ -5,7 +5,7 @@ description: Design and scaffold a project-specific AI software delivery factory
 
 # Build a software factory
 
-Build the smallest factory that fits this projectâ€”not a universal ideal, and not a product implementation disguised as setup. A factory is a repeatable delivery loop with explicit context, tools, owners, evidence, and human decisions. Its six skills are **Intake â†’ Plan â†’ Build â†’ Verify â†’ Release â†’ Learn**.
+Build the smallest factory that fits the project, reusing its actual stack and constraints. A factory is a repeatable delivery loop with explicit context, tools, owners, evidence and human decisions. Its six skills are **Intake -> Plan -> Build -> Verify -> Release -> Learn**.
 
 Invoke in Claude Code with `/software-factory:build-software-factory` followed by the project goal. This package does not require Codex tools or an agent provider. Default the harness to Claude Code unless the user requests something else.
 
@@ -39,7 +39,7 @@ The bundled `/software-factory:contribute-upstream` skill turns useful reusable 
 
 ## Prove and hand over
 
-Check that each relevant research decision is visible as a concrete instruction and planned check in the appropriate generated skillâ€”not just a citationâ€”and that irrelevant components have a reason for exclusion. Audit source claims against pages actually read; the offline helper validates structure, not source truth. Run the helper's integrity check, inspect the generated brief/policy/task plan, and walk one representative task through the six gates without external mutations. Verify each acceptance criterion has a planned check and each task has an owner/dependencies. Distinguish scaffold integrity from application correctness; do not claim product tests passed. Deliver created paths, how to invoke each phase, actual checks, blocked capabilities and the next human decision.
+Check that each relevant research decision is visible as a concrete instruction and planned check in the appropriate generated skill, with citations supporting the instruction, and that irrelevant components have a reason for exclusion. Audit source claims against pages actually read; the offline helper validates structure, not source truth. Run the helper's integrity check, inspect the generated brief/policy/task plan, and walk one representative task through the six gates without external mutations. Verify each acceptance criterion has a planned check and each task has an owner/dependencies. Distinguish scaffold integrity from application correctness; do not claim product tests passed. Deliver created paths, how to invoke each phase, actual checks, blocked capabilities and the next human decision.
 
 ## Boundaries
 

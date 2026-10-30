@@ -12,7 +12,7 @@ For greenfield, first design a non-secret representative fixture, production-equ
 
 Pre-merge readiness needs every still-required pre-merge check PASSED for the exact reviewed revision. G1/G2 default to required, but explicit user waivers are respected and visibly reported, not tests-passed. Future post-merge checks may remain NOT RUN at this point. A blocked diagnostic handoff can always be prepared; it is not release-ready.
 
-After the separately authorized action, G3 must confirm the actual deployed URL or installed/published artifact at the merged revision. Record failures or inability to run immediately for the release owner/orchestrator, retain evidence and request the rollback/diagnosis decision within existing authority. Do not report an unconfirmed release as done.
+After the separately authorized action, a still-required G3 confirms the actual deployed URL or installed/published artifact at the merged revision. If the user made G3 optional, report WAIVED rather than requiring execution or claiming it passed. Report failures or inability to run a required check immediately for the release owner/orchestrator, retain evidence and request the diagnosis/rollback decision within existing authority. An outcome with optional checks is COMPLETED WITH WAIVERS, not a tests-passed claim.
 
 ## Recording rules
 
