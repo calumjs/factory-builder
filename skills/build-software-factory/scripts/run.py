@@ -38,17 +38,18 @@ def load(factory):
     return root, config, plan
 
 
-def runs_dir(root, override):
-    if override:
-        path = safe_path(os.path.abspath(override))
-    else:
-        path = safe_path(root.parent / '.factory-runs')
+def outside_factory(root, value):
+    path = safe_path(os.path.abspath(value))
     for item in (root,path):
         if str(item).replace('/','\\').startswith(('\\\\?\\','\\\\.\\','\\??\\')):
             raise ValueError('Device/extended namespace paths are not supported')
     if path == root or root in path.parents or any(parent.exists() and parent.samefile(root) for parent in (path,*path.parents)):
-        raise ValueError('Run records must live outside the factory directory')
+        raise ValueError('Output must live outside the factory directory')
     return path
+
+
+def runs_dir(root, override):
+    return outside_factory(root,override if override else root.parent / '.factory-runs')
 
 
 def kill_switch(runs):
@@ -127,7 +128,7 @@ def issue_candidates(issues, autonomy, known_ids, policy):
         elif issue.get('depends_on'):
             rejected.append({'id': issue_id, 'reason': 'unresolved issue dependencies'})
         else:
-            accepted.append({'id': issue_id, 'title': str(issue.get('title', '')), 'reason': 'eligible; needs /factory-intake before a task exists'})
+            accepted.append({'id': issue_id, 'title': str(issue.get('title', '')), 'reason': 'candidate only; verify source, prior history and /factory-intake before a task exists'})
     return accepted, rejected
 
 
@@ -201,7 +202,7 @@ def select(root, config, plan, runs, issues=None, now=None, issue_policy=None):
     if stop or minutes==0 or available==0 or rate_remaining==0 or intake['mode']!='continuous' or intake['status'].strip().casefold()!='enabled':
         reason='kill switch active' if stop else 'time budget is zero' if minutes==0 else 'no available capacity or rate allowance' if available==0 or rate_remaining==0 else 'continuous issue intake is not enabled'
         accepted=[];rejected=[{'id':i.get('id') if isinstance(i,dict) else None,'reason':reason} for i in (issues or [])]
-    elif issues and (not isinstance(issue_policy,dict) or issue_policy.get('repository')!=intake['github_scope']):
+    elif issues and (not isinstance(issue_policy,dict) or issue_policy.get('repository')!=intake['github_scope'] or re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',intake['github_scope']) is None):
         accepted=[];rejected=[{'id':i.get('id') if isinstance(i,dict) else None,'reason':'explicit matching repository and label policy required'} for i in issues]
     else:
         accepted, rejected = issue_candidates(issues, autonomy, set(tasks), issue_policy) if issues else ([],[])
@@ -211,7 +212,7 @@ def select(root, config, plan, runs, issues=None, now=None, issue_policy=None):
                          'rate_limit_per_hour': rate_limit if autonomy['mode'] == 'bounded' else None,
                          'rate_remaining': rate_remaining, 'dispatched_last_hour': used},
             'candidates': chosen, 'blocked': blocked, 'issues': {'eligible': accepted, 'rejected': rejected},
-            'diagnostics': diagnostics+['Selection is advisory: no reservation, exclusive dispatcher or budget enforcement is provided.'], 'proceed': bool(chosen) and not stop}
+            'diagnostics': diagnostics+['Selection is advisory: no reservation, exclusive dispatcher or budget enforcement is provided.','Snapshot source and prior processed-issue history are not independently verified.'], 'proceed': bool(chosen) and not stop}
 
 
 def worker_prompt(root, config, task, selection):
@@ -337,11 +338,9 @@ def main():
     if args.command == 'schedule':
         text = schedule_text(root, config, args.kind, args.every, args.builder)
         if args.write:
-            target = safe_path(os.path.abspath(args.write))
-            if target == root or root in target.parents:
-                raise ValueError('Scheduler definitions must be written outside the factory directory')
+            target = outside_factory(root,args.write)
             workflows=safe_path(root.parent/'.github'/'workflows')
-            if target==workflows or workflows in target.parents:
+            if target==workflows or workflows in target.parents or (workflows.exists() and any(parent.exists() and parent.samefile(workflows) for parent in (target,*target.parents))):
                 raise ValueError('Do not write scheduler proposals to active workflow locations')
             print(('APPLY' if args.apply else 'DRY RUN — not written') + ': ' + str(target))
             if args.apply:

@@ -43,7 +43,7 @@ Run records live outside the factory. They are operator-supplied retrospective c
 
 ## Continuous operation
 
-A single session may loop passes only when `operations.issue_intake.mode` is `continuous`, `operations.autonomy.mode` is `bounded`, and the pass is within `budget.max_minutes`. Between passes, re-run `select`; stop when it reports the kill switch, no capacity or no candidates. For a possible 24/7 scheduler design, inspect this non-executable proposal:
+A single session may loop passes only with separate authority, enabled continuous intake, bounded autonomy, verified exclusive admission and remaining budget. Between passes, re-run `select`; stop when it reports the kill switch, no capacity or no candidates. For a possible 24/7 scheduler design, inspect this non-executable proposal:
 
 ```sh
 python <builder-skill-dir>/scripts/run.py --factory <root> schedule --kind cron
