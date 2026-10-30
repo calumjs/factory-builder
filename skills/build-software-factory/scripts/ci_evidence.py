@@ -79,7 +79,8 @@ class Git:
     def read(self,*args,limit=MAX_TOTAL):
         env=dict(os.environ,GIT_NO_REPLACE_OBJECTS='1',GIT_NO_LAZY_FETCH='1',
                  GIT_OPTIONAL_LOCKS='0',GIT_TERMINAL_PROMPT='0')
-        status,output=bounded_run([self.executable,'--no-lazy-fetch','--no-optional-locks','--literal-pathspecs',
+        # GIT_NO_LAZY_FETCH in env covers git < 2.46, which lacks the --no-lazy-fetch flag.
+        status,output=bounded_run([self.executable,'--no-optional-locks','--literal-pathspecs',
                                '-c','core.fsmonitor=false','-C',str(self.repo),*args],
                               env,limit)
         if status:

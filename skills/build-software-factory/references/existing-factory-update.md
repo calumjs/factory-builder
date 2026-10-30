@@ -10,7 +10,7 @@ and manifest additions. Use the trusted installed helper outside the change chec
 adopting any workflow/required-check policy remains separately authorized work.
 
 For optional structured smoke checks and explicit video triggers, read
-[structured-gates.md](structured-gates.md). --gate-runtime is a separate reviewed
+[gates.md](gates.md). --gate-runtime is a separate reviewed
 opt-in for known original dashboard operations.py/recipes.py/gates.py sources;
 new fields are refused against incompatible copied runtimes without it. Existing
 legacy-field recipe changes preserve known compatible helpers unless a runtime
@@ -31,13 +31,13 @@ diagnostics, with original bytes backed up and its selective manifest entry revi
 Customized/unknown code is still preserved and refused for a separate manual review.
 
 For the optional structured assumptions replacement and advisory dashboard context,
-read [context-status.md](context-status.md). --assumptions accepts a private array;
+read [operations-config.md](operations-config.md). --assumptions accepts a private array;
 --context-runtime explicitly migrates known older dashboard code/dependencies,
 including recipe compatibility. Custom content/runtimes are preserved/refused.
 
 When step 1 fails because contracts were hand-edited or files were added, follow
-[reviewed integrity recovery](integrity-recovery.md) first. The optional
-[staged recovery helper](recovery-automation.md) creates a reviewed recovered copy;
+[reviewed integrity recovery](recovery.md) first. The optional
+[staged recovery helper](recovery.md) creates a reviewed recovered copy;
 activation remains separate. `update_operations.py` cannot preview or approve an
 invalid source; detailed path diagnostics do not change that boundary. No force switch exists.
 

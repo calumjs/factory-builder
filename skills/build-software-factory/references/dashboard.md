@@ -73,7 +73,7 @@ limits are not consumption. Unavailable/proposed are different from zero.
 
 The optional `context` DTO extension shows advisory watcher design state and
 assumption position/status/blocker counts, with authority and liveness unverified.
-It excludes assumption text/source/blocker labels. See [context-status.md](context-status.md)
+It excludes assumption text/source/blocker labels. See [operations-config.md](operations-config.md)
 for validation and explicit older-runtime adoption. These context labels do not
 create gate results or permission to schedule workers.
 

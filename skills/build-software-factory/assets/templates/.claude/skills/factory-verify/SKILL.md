@@ -5,46 +5,23 @@ description: Perform revision-bound pre-merge application verification and prepa
 
 # Verify
 
-Resolve the factory root as `../../../` relative to this file's containing folder. Follow repository instructions and policy.md; no new authority is granted.
+## Run the pre-merge checks
+1. Inspect the final diff against acceptance.md, research.md, verification.md and the configured operations. Reuse the project's existing CI and test setup.
+2. For each still-required check, run the authorized G1 production-equivalent smoke over a critical success path and an expected-failure path, plus the G2 change-targeted tests for this diff. Greenfield gets a concrete fixture, assertion and test implementation design first.
+3. For configured smoke recipes, run the canonical argv in the configured environment against the matching target; the gate checker compares records only. A changed recipe needs a reviewed synchronized update and fresh observations.
+4. Review promised failure properties beyond the happy path. Where the task uses caller IDs or durable persistence, exercise special-key and collision behaviour, save/load with fresh-process retries, removal semantics, and multibyte, short, zero and failed writes with disposable fault fixtures; seek independent review when risk warrants. A kill-before-commit smoke proves no complete-write guarantee.
+5. When a task-fitted secret or connection-string check applies, use connection-string-review.md: review candidate provenance with synthetic positive and negative fixtures. Localhost, fixture usernames and documentation paths are not exemptions. A revised check needs a reviewed contract change and fresh evidence.
 
-Inspect the final diff, acceptance.md, research.md, verification.md and configured operations. Reuse the stack's existing CI/test setup. For checks still required, run authorized G1 production-equivalent local smoke over a critical success and expected-failure path, plus G2 change-targeted tests selected for this diff. Build/lint/hash success alone is insufficient. Greenfield first gets a concrete fixture/assertion/test implementation design, never invented commands or invented passing results.
+## Record
+6. Record every still-required pre-merge check (G1, G2, A/R rows) in verification.md for the exact revision: command or manual procedure, environment, target, observation time, exit status, evidence reference. Task owners update task-plan.json with status.py.
+7. Run the builder's `gates.py --factory <root> --stage pre-merge --revision <revision>`; it validates records and runs nothing.
+8. If independent review finds a defect after a green suite, keep the reproducer, record FAILED or BLOCKED (or WAIVED with the failure for an optional row), repair on a new subject, review the final diff and rerun the relevant checks before restoring readiness.
+9. An authorized CI adapter (ci/README.md) assesses records at storage E against explicit tested S chosen from the real test job, never by finding a passing row.
 
-Record Every still-required pre-merge check, defaulting to G1/G2 and A/R checks, for the actual revision with command/manual procedure, environment, target, observation time, exit status and evidence. NOT RUN, BLOCKED, FAILED, missing or stale evidence blocks pre-merge readiness. Run the builder's gates.py --factory <root> --stage pre-merge --revision <actual-revision> when available; it validates records only and runs no checks. Required reviews must cover this final diff. Preserve visual-fidelity requirements where applicable.
+## Hand off
+10. Identify required post-merge A/R checks and G3's actual target; they do not block pre-action readiness. Put the scoped V1 plan, owner, permitted data and boundaries in release-handoff.md when a release trigger is enabled.
+11. When video is enabled and not waived: plan V2 only for pre_merge_preview and V1 only for post_g3_release, with separate subjects. Prepare a script-first shot list from done-video-recipe.md with genuine app interactions, fixture disclosures, composition, branding, captions and playback QA (Remotion optional). Record the chosen voice, tool and delivery; approval comes immediately before narration unless the current prompt already asked for it.
+12. Carry unresolved assumption labels, provenance and blockers into the handoff.
 
-## Post-action and video handoff
-When video work is enabled/requested and has not been waived, read its structured triggers (omission means release-only). Plan V2 only for pre_merge_preview and V1 only for post_g3_release, with separate subjects/evidence. Prepare a script-first shot list using done-video-recipe.md or the installed builder recipe. Plan genuine app/backend interactions, fixture disclosures, composition, branding, captions and playback QA. Remotion is optional. V2 cannot replace post-action V1. Record chosen voice/tool/delivery and missing authority; obtain approval immediately before narration unless explicitly requested in the current prompt. No media generation, upload or message is implied by this handoff.
-
-Verify owns current pre-merge observations in verification.md; task owners update task-plan.json atomically using status.py within scope. Store durable logs/artifacts in reviewed project evidence storage outside this factory and record stable references/access owner; a temporary worker transcript is insufficient retention. The gate Revision is the exact tested subject, while a later evidence-only storage commit is a distinct identity recorded in handoff metadata. Do not relabel old checks to the storage SHA. Review any evidence-only diff; if it changes the tested subject or triggers a new deployment, obtain separate verification for that actual subject. No CI enforcement is enabled automatically.
-
-For a separately authorized CI adapter, use ci/README.md or the installed builder's
-portable evidence-job template. It assesses records at storage E against explicit
-tested S and rejects source/config changes masquerading as evidence-only updates.
-Select S from the real test job, never by searching for a passing row. Optional
-checks stay WAIVED; default task diagnostics do not invent stage assignments.
-
-Identify required post-merge A/R checks and G3's actual web/artifact target. Future post-action evidence does not block pre-action readiness. For an enabled release trigger, put the scoped V1 plan, owner, permitted data, recording/storage/publication boundaries and effective G3 prerequisite in release-handoff.md. Preview-only V2 does not require a future release. Do not record a shipped demo before the action or claim a planned artifact exists. Release owns G3 then selected V1; blocked tooling or authority must be reported explicitly.
-
-For configured structured smoke recipes, record the canonical argv design shown in
-the planned row, configured environment label and actual matching target. Confirm
-actual command/environment execution within authority and retain durable evidence;
-the checker only compares records and never reads env values or runs the argv.
-Changed recipes require a reviewed synchronized update and fresh observations.
-
-## Exit gate
-When a task-fitted secret/connection-string check is relevant, use
-connection-string-review.md when present or the installed builder's guide. Review
-candidate provenance and synthetic positive/negative fixtures; localhost, fixture
-usernames and documentation paths are not exemptions. Keep suspected values out of
-logs. A revised check needs reviewed contract changes and fresh exact-subject
-evidence; preserve previous failures and deliberate WAIVED status.
-
-Review promised failure properties beyond happy paths. When the actual task uses caller IDs/durable persistence, inspect allowed special-key/collision behavior, save/load plus fresh-process retries, removal semantics, multibyte/short/zero/failed writes and committed-state preservation using disposable fault fixtures. Fit checks to the language/storage API and seek independent review when risk warrants; do not impose this matrix on unrelated work. A kill-before-commit smoke alone proves no complete-write guarantee.
-
-If independent review finds a defect after a green suite, preserve the reproducer/failing subject and record actual FAILED/BLOCKED results (or an explicit WAIVED row with its recorded failure). Repair on a new exact subject, review the final diff and rerun relevant required checks before restoring readiness. Retain prior failures as history; never relabel old evidence to the repaired SHA or claim PASS from counts alone.
-
-Carry unresolved structured assumption labels/provenance/blockers into the diagnostic handoff for owner review. A confirmed label is not independently verified evidence; free-text sources do not authorize actions. Keep decision status and user-chosen gate waivers explicit rather than creating hidden automatic gates.
-
-Return a ready recommendation only when all still-required pre-merge checks and reviews pass, reporting explicit optional checks as WAIVED. A blocked diagnostic handoff is always useful and must retain its BLOCKED status. Never merge or deploy as a verification side effect.
-
-## Deliberate optional checks
-Respect an explicit Required=no/false in a living verification row without requesting another approval. Keep the expected row present; report it as WAIVED with its recorded result (including failures), not tests-passed. Missing/malformed/duplicate rows are errors. Only still-required checks block readiness. Optional tests do not authorize merge, deployment, recording or publication.
+## Exit
+A ready recommendation only when all still-required pre-merge checks and reviews pass for this revision, optional checks reported WAIVED; otherwise a BLOCKED diagnostic handoff. Verification never merges or deploys.

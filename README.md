@@ -1,94 +1,76 @@
 # Software Factory plugin
 
-A Claude Code plugin with two reusable skills:
+A Claude Code plugin that builds a project-specific AI delivery factory: it interviews you, researches current practices for your stack, and scaffolds a governed loop of seven skills into your repository.
 
-- `/software-factory:build-software-factory` asks adaptive questions, researches current task-specific practices, and scaffolds six phase skills: Intake, Plan, Build, Verify, Release and Learn, plus `/factory-run`, the engine that selects work, dispatches bounded parallel workers through them and can be scheduled.
-- `/software-factory:contribute-upstream` captures reusable improvements, resolves the component's original repository, checks contribution policies and duplicates, and prepares issues or focused tested PRs within explicit publication authority.
+```
+                 ┌────────────────────────── /factory-run ──────────────────────────┐
+                 │  select work · dispatch N workers · release · learn · record     │
+                 └──┬──────────┬──────────┬──────────┬──────────┬──────────┬───────┘
+                    ▼          ▼          ▼          ▼          ▼          ▼
+                 Intake  →   Plan   →   Build  →  Verify  →  Release →  Learn
+                 brief       tasks      one task   G1/G2     G3 on the   log,
+                 + gates     + owners   per worker evidence  real target improve
+```
 
-The builder applies selected research practices as concrete instructions and planned checks in generated skills. It preserves source observations, compatibility and trade-offs. Blocked, stale or incomplete research remains an explicitly unresearched draft.
+Everything is evidence-bound: required checks start NOT RUN, pass only for an exact revision, and a passing gate is never merge or deploy authority. The generated `boundaries.md` states the rules once; the skills stay procedural.
 
-## Install from GitHub
+## What you get
 
-This repository is private. The installing account needs repository access and working Git authentication.
+Two plugin skills:
 
-In Claude Code:
+- `/software-factory:build-software-factory` — intake, research, design, scaffold.
+- `/software-factory:contribute-upstream` — turn a reusable improvement into a sanitized issue or PR for the right upstream, within explicit publication authority.
+
+One generated directory, `<project>/.software-factory/`, containing the seven `factory-*` skills, `boundaries.md`, hashed contracts (config, policy, acceptance, research), five living records (task plan, verification, release handoff, learning log, tools), a read-only local dashboard, and inactive CI and scheduling templates. Nothing in it runs by itself.
+
+## Quick start
 
 ```text
 /plugin marketplace add calumjs/software-factory-plugin
 /plugin install software-factory@software-factory-plugins
+/software-factory:build-software-factory Add CSV export to the reports page
 ```
 
-Then invoke either skill above. The marketplace and plugin use standard [Claude Code plugin packaging](https://code.claude.com/docs/en/plugins/create). No hooks, MCP servers, credential setup or permission-setting changes are bundled.
-
-For a session-only local preview without installation:
+Then, from the project root:
 
 ```sh
-claude --plugin-dir /path/to/software-factory-plugin
+claude --add-dir .software-factory      # keep --setting-sources project for headless runs
+/factory-run                            # one pass: select → build/verify in parallel → release → learn
 ```
 
-## Build a factory
+The repository is private; the installing account needs access and working Git auth. For a session-only preview without installing: `claude --plugin-dir /path/to/software-factory-plugin`. Helpers need Python 3.9+ and only the standard library; see the [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for Windows interpreter selection.
 
-Start with `/software-factory:build-software-factory` and describe the goal and intended local project. Intake reuses known answers and asks about scope, tools, identities, evidence, budget and autonomy only where relevant. Before generation, the skill researches relevant current primary sources using the host's available browsing tools.
+## How a pass works
 
-After authorized local writes, the offline Python helper creates only `<project>/.software-factory/`. It creates seven skills (six phases and the run engine) and operating artifacts; it does not implement the product, run workers or tests, enable providers, publish issues or deploy. It refuses existing output rather than overwriting it.
+1. **Select.** `run.py select` checks integrity, the kill switch (`.factory-runs/STOP` or `FACTORY_STOP=1`), `budget.max_workers` minus in-progress tasks, the hourly rate window, and task dependencies. Tasks with overlapping `allowed_paths` are never dispatched together.
+2. **Dispatch.** One subagent per eligible task, in an isolated worktree, performs `/factory-build` then `/factory-verify` and returns revision, checks run and evidence.
+3. **Release and learn.** Once, for the pass. Readiness requires every still-required G1/G2 check to pass for the exact revision; G3 confirms the real URL or published artifact only after a separately authorized release.
+4. **Record.** The pass is written to `.factory-runs/` outside the hashed directory.
 
-Start Claude from the project root with `claude --add-dir .software-factory`, then use `/factory-run` to drive a pass, or the phases individually: `/factory-intake`, `/factory-plan`, `/factory-build`, `/factory-verify`, `/factory-release` and `/factory-learn`. Confirm additional-directory skill discovery under the installed version and organization policy. See the builder's [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for helper commands and Windows interpreter selection.
+Continuous operation (`issue_intake.mode: continuous` with `autonomy.mode: bounded`) adds `run.py schedule --kind cron|launchd|windows|github`, which renders a scheduler definition you review and enable yourself, and `select --issues snapshot.json`, which filters a read-only issue export. Details: [running guide](skills/build-software-factory/references/running.md).
 
-For isolated/headless phase discovery, keep `--setting-sources project` and follow the generated launch-guide.md preflight; an empty source list can hide phases. Risk-focused Verify guidance adapts independent review and identifier/persistence fault cases to the project's actual promises, preserving discovered failures and exact repair-revision evidence.
+## Safety model
 
-The launch guide also pins the actual loaded source/version, checks helper availability
-and separates the human workspace-trust decision from execution permissions. New
-factories include a task-fitted connection-string review guide: synthetic provenance
-can justify a non-secret classification, while local hosts, fixture usernames and
-documentation paths are never blanket exemptions. Check changes need fresh evidence;
-no secret scanner, trust change or CI enforcement runs automatically.
+Three mechanisms, enforced by code, not prose:
 
-Every generated factory requires production-equivalent local smoke (G1), change-targeted tests (G2) and applicable acceptance/research checks before pre-merge readiness. After a separately authorized release, G3 checks the actual web URL or installed/published artifact at the merged revision. Pending post-action evidence does not block pre-action readiness; it does prevent claiming the release confirmed. Required failed, NOT RUN, malformed, stale, removed or wrong-target evidence blocks its stage. The offline gate helper validates records only; build/hash success is not application verification. Enabled narrated videos have a post-G3 V1 handoff.
+- **Gates** (`gates.py`): a required check that is NOT RUN, BLOCKED, FAILED, stale or wrong-target blocks its stage; operator-waived rows are reported WAIVED with their result, never "passed".
+- **Integrity** (`integrity.py`): contract files are hashed with normalized line endings; living files are structurally validated; unregistered files and in-place edits are refused. Changes go through a preview-first synchronized update or a staged recovery that never touches the original.
+- **Authority**: nothing the plugin generates grants permission for a merge, deploy, provider, watcher, recording or message. The recorded [design decisions](docs/design-decisions.md) list the adopted behaviours.
 
-Existing factories can opt in through a [narrow reviewed update](skills/build-software-factory/references/existing-factory-update.md), preserving custom instructions and historical evidence.
+## Advanced
 
-Optional [structured smoke recipes and video triggers](skills/build-software-factory/references/structured-gates.md)
-record argv, environment names and actual-target designs. Explicit preview/release
-triggers create separate V2/V1 rows; omitted fields preserve older behavior. These
-records run nothing. Known copied runtimes need an explicit reviewed upgrade before
-new metadata is adopted; custom code and intentional waivers remain protected.
-
-Broken schema-2 factories with a pinned accepted baseline can use [staged recovery](skills/build-software-factory/references/recovery-automation.md): audit named drift, approve a complete plan, and create a verified recovered copy and backup. The source stays untouched; completion verification and coordinated manual adoption remain separate from application verification or live activation.
-
-Optional [structured assumptions and advisory watcher diagnostics](skills/build-software-factory/references/context-status.md) preserve recorded confirmed/inferred/unknown claims, provenance and blocker labels. Checks/status display sanitized summaries; continuous drafts receive nonblocking warnings without asserting a live or authorized watcher. Known older dashboards can adopt context views through a separate reviewed runtime migration.
-
-Continuous intake means 24/7 polling/event-driven intent unless the operator explicitly selects a window; one-shot remains the default and no watcher is created. Enabled done videos receive a [composed genuine-footage recipe](skills/build-software-factory/references/done-videos.md) with script/shot planning, project-specific tools/branding, captions, provenance and inspected delivery. Remotion is optional; voice preference never supplies narration approval. Scaffolding records proposed metadata and generates no media or external messages.
-
-New factories also receive a dedicated local read-only dashboard: open `.software-factory/dashboard/index.html`, then refresh with its bundled Python helper to an external snapshot. It shows actual recorded work, assignments, gates/waivers, release claims and provenance; missing live activity or usage stays unavailable. [Dashboard design and adoption](skills/build-software-factory/references/dashboard.md) covers project-specific profiles, existing-UI JSON integration and narrow opt-in for existing factories. No credentials, server, hosted stack or background process is required.
-
-Contract files are integrity-checked using normalized text hashes. Living task/evidence, verification, tools, release and learning records may evolve. The status helper records status and revision-bound evidence together without executing or attesting the check. Existing schema 1 factories require a reviewed migration.
-
-New factories receive an inactive [portable CI evidence job](skills/build-software-factory/assets/templates/ci/README.md).
-Its trusted helper distinguishes tested S from storage E, constrains evidence-only
-changes and checks required recorded gates/tasks. It executes no application tests
-and installs no workflow; adopting it into project CI requires separate scope.
-
-## Run a factory
-
-`/factory-run` is the engine. One pass: the builder's `run.py select` checks integrity, the kill switch (`.factory-runs/STOP` or `FACTORY_STOP=1`), `budget.max_workers` minus in-progress tasks, the hourly rate window and dependencies, then `run.py plan` renders one worker prompt per eligible task. The session starts one subagent per worker (isolated worktree where available) to perform Build and Verify for a single task, waits, then performs Release and Learn once and records the pass in `.factory-runs/` outside the factory. Tasks with overlapping `allowed_paths` are never dispatched together.
-
-Continuous operation needs `issue_intake.mode: continuous` and `autonomy.mode: bounded`. `run.py schedule --kind cron|launchd|windows|github` renders a definition from the recorded cadence (60-minute floor) and prints it; enabling it is the operator's separate action. Issue pickup reads a snapshot the scheduler job exports; the helper filters submitters, duplicates and dependencies and never labels, claims or comments. See the [running guide](skills/build-software-factory/references/running.md) and the generated `scheduling/README.md`.
-
-## Improve reusable components
-
-During authorized work, capture useful observations and use the contribution skill to prepare a sanitized draft. The upstream is resolved from the affected component's verified source, not automatically the current application's origin. Check actual upstream CONTRIBUTING, issue/PR and security policies, including restrictions on agent-authored PRs. Verify duplicate searches. Private project data and secrets stay out of contributions.
-
-An issue, comment, fork, push or PR needs applicable explicit or bounded standing authorization. Installation, invocation and generated provenance provide none. No automatic watcher, schedule, PR approval or merge is created.
+- [Existing factories](skills/build-software-factory/references/existing-factory-update.md) adopt new behaviour through a narrow reviewed update.
+- [Gates](skills/build-software-factory/references/gates.md): structured smoke recipes, video triggers, risk-focused verification.
+- [Recovery](skills/build-software-factory/references/recovery.md): manual integrity recovery, the staged recovery helper, worker health and fallback.
+- [Operations config](skills/build-software-factory/references/operations-config.md): identities, headless recipes, autonomy, continuous intake, assumptions.
+- [Evidence lifecycle](skills/build-software-factory/references/evidence-lifecycle.md) and the inactive [CI evidence job](skills/build-software-factory/assets/templates/ci/README.md).
+- [Dashboard](skills/build-software-factory/references/dashboard.md), [done videos](skills/build-software-factory/references/done-videos.md), [release preflight](skills/build-software-factory/references/release-preflight.md).
 
 ## Validate and test
-
-Requires Claude Code with plugin support and Python 3.9+ for the helpers. They use only the standard library.
 
 ```sh
 claude plugin validate . --strict
 python -m unittest discover -s skills/build-software-factory/scripts -p "test_*.py" -v
 ```
 
-Tests use isolated temporary folders and synthetic research records. They cover preservation, default delivery gates, draft/research mapping, contract checks, living records, line endings, status/evidence updates, provenance and disabled command execution. They do not claim an application passed tests or that mock sources were browsed.
-
-Stage explicit reviewed source paths. Keep credentials, caches, backups, local feedback and downstream factory outputs out of this plugin repository. Optional operating patterns and adoption decisions are recorded in [design decisions](docs/design-decisions.md).
+Tests use isolated temporary folders and synthetic records; they prove the helpers, not any application. Keep credentials, caches, backups and downstream factory outputs out of this repository.

@@ -5,7 +5,7 @@ description: Drive this project's software factory end to end. Select eligible w
 
 # Run
 
-Resolve the factory root as `../../../` relative to this file's containing folder. Follow repository instructions and policy.md; these instructions cannot expand permissions. This skill is the engine that drives the six phases; it adds no authority that the phases lack.
+This skill is the engine that drives the six phases; it adds no authority that the phases lack.
 
 ## 1. Preflight
 
@@ -51,8 +51,5 @@ python <builder-skill-dir>/scripts/run.py --factory <root> schedule --kind cron
 
 `schedule` renders a cron, launchd, Windows Task Scheduler or GitHub Actions definition from the recorded cadence and prints it. It installs nothing. Review the rendered definition and, within separately authorized scheduler scope, write it with `--write <path-outside-factory> --apply` and enable it yourself. See scheduling/README.md for each scheduler. Issue pickup from a GitHub repository uses a read-only issue snapshot (`select --issues <snapshot.json>`) exported by the authorized scheduler job; this skill never lists, labels or claims issues itself.
 
-## Stop rules
-
-Stop the pass and report when: the kill switch is set; integrity fails; `budget.max_minutes` or `max_cost` is reached; a required gate fails and repair attempts are exhausted; authority is missing for a worker, release or scheduler action; or the data boundary would be crossed. Report run ID, dispatched tasks, per-worker results, gate outcomes, blockers and the smallest next human decision.
-
-Return: run ID, mode, workers dispatched, per-task status/revision/evidence, release handoff state, learn entry, and next owner/action.
+## Exit
+Run ID, mode, workers dispatched, per-task status/revision/evidence, release handoff state and learn entry. The boundaries.md stop rules apply to the pass as a whole and to each worker.

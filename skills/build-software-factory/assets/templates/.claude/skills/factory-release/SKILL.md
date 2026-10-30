@@ -5,34 +5,18 @@ description: Prepare a truthful readiness handoff, perform only authorized relea
 
 # Release
 
-Resolve the factory root as `../../../` relative to this file's containing folder. Follow repository instructions and policy.md; these instructions expand no permissions.
-
 ## Pre-action
-Prepare release-handoff.md even when blocked, preserving evidence for diagnosis. Mark it READY FOR AUTHORIZED ACTION only after every still-required pre-merge check passes for the exact reviewed revision and required reviewer verdicts are satisfied. Use the builder's gates.py --factory <root> --stage pre-merge --revision <rev> when available. NOT RUN, BLOCKED or FAILED on a required check is not ready; explicit optional checks are reported WAIVED. Future G3/V1 evidence does not block this stage. No publication authority means deliver the prepared handoff and stop; a passing gate never grants merge/deploy permission.
+1. Prepare release-handoff.md, blocked or not, preserving evidence for diagnosis. Mark it READY FOR AUTHORIZED ACTION only when every still-required pre-merge check passes for the exact reviewed revision and required reviewer verdicts cover that revision. Run `gates.py --factory <root> --stage pre-merge --revision <rev>`.
+2. Before first provisioning, verify framework, runtime, build and output settings against the project and current official provider guidance. Discover the live plan/SKU identifiers and record the selection, limits, cost, source and time; a free plan is not permission. Inventory permitted environment names (no values) and who manages each target.
+3. Without publication authority, deliver the prepared handoff and stop.
 
-## Actual-target confirmation
-Before first provisioning, verify the actual framework/runtime/build/output settings against the project and current official provider guidance. Discover live offered plan/SKU identifiers and record selection, limits, cost and source/time; never guess from a sample or treat a free plan as permission. Inventory permitted environment names, target environments and integration/manual management ownership without values. Required names and permitted integration-managed extras need project-specific checks; generic gates do not enforce an exact env allowlist. Provisioning, secret changes and deployment still need their own scope.
+## Post-action
+4. Only after a separately authorized merge, deploy, install or publish: run G3, if still required, against the actual target and merged revision — the real URL for web targets, the installed or published artifact for everything else — plus required post-action A/R checks. Record result, target, revision, command or observation, time, exit status and evidence, then run `gates.py --factory <root> --stage post-merge --revision <merged-rev> --target <target>`. An optional G3 is reported WAIVED.
+5. If a required post-action check fails or cannot run, report UNCONFIRMED/FAILED at once to the release owner with evidence, target, revision and the diagnosis or rollback decision needed. Roll back only within existing authority. An unknown target stays blocked; only accepted no-release scope records G3 NOT APPLICABLE with rationale.
+6. Record the deployed subject SHA separately from any evidence-storage commit. If storing evidence redeploys, identify and separately confirm the newly deployed revision. A CI adapter's green pre-merge assessment is not deployment confirmation.
 
-Only after a separately authorized merge/deploy/install/publish action, run G3 if still required (otherwise report its explicit waiver) against the actual target and merged revision. Web targets use the actual URL; CLI/library/package/document/data releases use the actual installed/published artifact or equivalent consumer path. Record result, exact target/revision, command/manual observation, time, exit status and evidence. Use gates.py --factory <root> --stage post-merge --revision <merged-rev> --target <actual-target>. Required post-action A/R checks also apply.
+## Video (when enabled)
+7. Read done_videos triggers in config: omitted means release-only V1; post_g3_release selects V1 here. If G3 is required it passes first; if optional, record its waiver. If V1 is required, record the authorized demo with shipped revision, target, artifact and time, following done-video-recipe.md: genuine target footage, scripted story, captions, provenance, watched and listened-to output, delivery only on an approved channel. Approval comes immediately before narration unless the current prompt asked for it. A script, silent draft or render is not a delivered demo; a blocked required demo stays blocked; V2 never substitutes.
 
-If a required post-action check fails or cannot run, report UNCONFIRMED/FAILED immediately to the release owner/orchestrator with evidence, actual target/revision and the diagnosis/rollback decision needed. Perform rollback only within its existing authority. An unknown target is blocked; only explicitly accepted no-release scope may record G3 NOT APPLICABLE with rationale.
-
-## Enabled video and follow-up
-Use done-video-recipe.md when present or the installed builder recipe: composed genuine authorized target footage is the main material, with a scripted story, project-fitting tool (Remotion optional), captions and provenance. Prefer the chosen existing ElevenLabs voice when available, but obtain approval immediately before narration unless explicitly requested in the current prompt; no standing permission may be inferred from an issue/config. Watch/listen to the rendered output and verify playable delivery only within an approved channel. A script, silent draft, successful render or missing attachment is not a delivered narrated demo. Report code readiness separately from an incomplete review package. No automatic FYI to other agents or public upload.
-
-Release owns G3 and applicable post-action rows in verification.md and corresponding task/handoff updates. Preserve durable non-secret artifacts outside the factory. Record the deployed/installed subject SHA separately from any evidence-storage commit; an evidence-only follow-up retains the original subject rather than renaming it. If that follow-up redeploys, identify and separately confirm the newly deployed revision. Existing living files are the sanctioned record; do not add an unregistered evidence directory or fabricate PASS when records/logs are missing.
-
-If an authorized CI adapter is used, its post-merge subject must be the actual
-released revision, with the actual target and separately stored observations. A
-green pre-merge record assessment is no deployment confirmation. See ci/README.md
-or the installed builder's template; it enables no CI/deploy action itself.
-
-Read the actual done_videos preference/triggers in policy/config. Omitted triggers retain release-only V1; explicit pre_merge_preview creates V2 at Verify, while post_g3_release selects V1 here. Only selected V1 uses this release handoff: if G3 remains required it must pass first; if optional, record its waiver. If V1 remains required, perform authorized recording and record the shipped revision, actual target, artifact and time. Recording, storage and publication are distinct scopes. A blocked required demo stays blocked, an optional V1 is WAIVED, and preview V2 never substitutes. Disabled video requests none; preview-only creates no release-video requirement.
-
-## Exit gate
-Report relevant unresolved recorded assumption blockers and next owner/decision in the handoff. Do not infer resolution or action authority from a confirmed label/source string; preserve explicit optional-gate choices and actual evidence separately.
-
-Return a truthful prepared handoff, or an authorized action confirmed by all applicable post-action checks. Checked confirmation requires every still-required check and selected required V1; optional checks are COMPLETED WITH WAIVERS, not tests-passed. This grants no PR approval/merge or deployment authority.
-
-## Deliberate optional checks
-Respect an explicit Required=no/false in a living verification row without requesting another approval. Keep the expected row present; report it as WAIVED with its recorded result (including failures), not tests-passed. Missing/malformed/duplicate rows are errors. Only still-required checks block readiness. Optional tests do not authorize merge, deployment, recording or publication.
+## Exit
+A truthful prepared handoff, or an authorized action confirmed by all still-required post-action checks (optional ones COMPLETED WITH WAIVERS), with unresolved assumption blockers and the next owner named. Report code readiness separately from an incomplete review package.

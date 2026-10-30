@@ -166,6 +166,7 @@ class CIEvidenceTests(unittest.TestCase):
     def test_executable_log_and_unrelated_subject_are_rejected(self):
         self.record();path=self.repo/'docs/factory-evidence'/self.subject/'smoke.txt'
         path.parent.mkdir(parents=True);path.write_text('SYNTHETIC inert text')
+        path.chmod(path.stat().st_mode|0o111)  # keep the working tree clean where core.fileMode is true
         self.git('add','--all');self.git('update-index','--chmod=+x',path.relative_to(self.repo).as_posix())
         self.git('commit','-qm','Synthetic executable mode fixture');storage=self.git('rev-parse','HEAD')
         with self.assertRaisesRegex(ValueError,'non-executable regular data'):self.assess(storage)

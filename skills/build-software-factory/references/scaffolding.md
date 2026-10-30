@@ -62,46 +62,13 @@ The preview writes nothing. `--apply` updates status and appends an evidence eve
 
 ## Claude Code integration
 
-Use the complete [launch preflight](../assets/templates/launch-guide.md) before
-commands are assigned: record the actual loaded plugin version/source identity,
-confirm helper/dependency availability, resolve required human workspace trust,
-then check seven-skill discovery and exact execution permissions. An old install
-missing gates.py is a tooling blocker, not a notice-only passing gate. Updating
-the plugin does not migrate existing factory contracts; preserve those through
-the narrow reviewed update path. No launch, install or trust changes run here.
+Generated skills live at `.software-factory/.claude/skills/factory-<name>/` and resolve their artifact root three levels up. Start Claude from the project root with `claude --add-dir .software-factory` (for scoped or headless use add `--setting-sources project`; an empty source list can hide generated skills even though the plugin loads) and invoke `/factory-run` or any phase directly. See [added-directory loading](https://code.claude.com/docs/en/skills#load-skills-from-a-directory-outside-the-project) and the [CLI reference](https://code.claude.com/docs/en/cli-reference) (read 2026-10-30).
 
-New factories include launch-guide.md. For scoped/headless use, keep the project
-setting source: `claude --plugin-dir <trusted-plugin-root> --add-dir .software-factory --setting-sources project`.
-An empty source list can hide generated phases even though the plugin loads.
-Preflight all seven names and a scoped actual Skill call before delivery; inspect the
-project customizations, installed-version bare/safe behavior and managed policy.
-Report discovery blocked rather than copying skills globally or bypassing policy.
-See [official added-directory loading](https://code.claude.com/docs/en/skills#load-skills-from-a-directory-outside-the-project)
-and [CLI options](https://code.claude.com/docs/en/cli-reference) (read 2026-10-30).
-This documents verified dogfood behavior; the builder does not launch a model call.
+Before commands are assigned, run the generated [launch preflight](../assets/templates/launch-guide.md): record the loaded plugin version and source, confirm helper availability (an old install missing gates.py or run.py is a tooling blocker, not a passing gate), let the human owner resolve any workspace-trust prompt, confirm all seven skills are discovered with an actual scoped Skill call, and check the exact resolved interpreter plus helper argv against the task's execution permissions — a wrapper can pick a binary an allowlist does not cover. Report a blocked command and keep its checks pending; use the normal bounded approval process rather than another launch route or broader permissions. Updating the plugin does not migrate existing factory contracts; use the narrow reviewed update.
 
-Also preflight the exact resolved interpreter plus trusted helper argv/target/subject
-against task-specific execution permissions. A wrapper can select a binary that a
-dontAsk allowlist does not permit even when Python is installed. Report that exact
-blocked command and keep its checks pending; use the normal bounded task approval
-process, never another launch route or broader global permissions. This task adds
-guidance only and changes no allowlist. Passing consumer smoke does not complete
-Release, post-action evidence, status recording or a blocked dashboard refresh.
+No hooks, tool preapproval, MCP server or settings changes are bundled. `gitignore.fragment` is an optional root ignore fragment to review and merge by hand; it adds Next.js/TypeScript/Vercel/Playwright patterns only when the configured stack, target or test commands name them (current Next.js docs say `next-env.d.ts` is regenerated and should be ignored — see [Next.js TypeScript](https://nextjs.org/docs/app/api-reference/config/typescript#next-envdts), read 2026-10-30). The helper never edits root ignore rules, deletes or untracks files. Dashboard snapshots use `factory-overview.html/json` by convention, outside the factory.
 
-The plugin builder is `/software-factory:build-software-factory`. Generated phase and run folders live at `.software-factory/.claude/skills/factory-<phase>/`. Start Claude from the project root with `claude --add-dir .software-factory`, then invoke `/factory-intake`, `/factory-plan`, `/factory-build`, `/factory-verify`, `/factory-release` or `/factory-learn`. Confirm discovery under the installed Claude version and organization policy. The phase instructions resolve their artifact root three levels above their containing folder.
-
-No hooks, tool preapproval, MCP server or settings changes are bundled. `gitignore.fragment` is an optional root ignore fragment to review and merge manually; the helper never edits root ignore rules. Keep non-secret `.env.example` files if useful. Stage explicit reviewed paths; avoid blanket staging of caches, backups, credentials or factory outputs.
-
-The fragment adds Next.js/TypeScript/Vercel/Playwright patterns only when named in
-the configured stack, target or test commands. Confirm actual installed tooling
-before adopting inferred patterns. Current Next.js documentation says next-env.d.ts
-is regenerated and should be ignored; older tracked-file conventions may differ.
-The helper neither deletes nor untracks files or overwrites root ignore policy.
-See [Next.js TypeScript](https://nextjs.org/docs/app/api-reference/config/typescript#next-envdts)
-(read 2026-10-30). Snapshots use factory-overview.html/json by convention; review
-additional runtime/adapter paths separately and keep them outside the factory.
-
-The generated `upstream-provenance.json` deliberately leaves the repository URL unverified/null. Resolve the reusable component's source from installed plugin metadata, then use the bundled contribution skill; never copy a private repository identity into shared output or infer posting authority from provenance.
+`upstream-provenance.json` deliberately leaves the repository URL null: resolve the component's source from installed plugin metadata, then use the contribution skill; never copy a private repository identity into shared output.
 
 ## Offline tests
 

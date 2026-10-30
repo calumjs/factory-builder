@@ -98,8 +98,22 @@ def ignore_fragment(c):
         text += 'playwright-report/\n'
     return text
 
+PREAMBLE = ("Resolve the factory root as `../../../` relative to this file's containing folder. Follow repository "
+            "instructions, policy.md and boundaries.md at that root; these instructions cannot expand permissions.")
+RETURN = ("Return: status, input/output revision, artifacts, checks actually run, blockers and risks, next owner/action. "
+          "A template, plan or config proves nothing ran.")
+
+def phase_skill(text):
+    """Wrap a phase-skill template body in the shared preamble and return contract."""
+    front, body = text.split('---', 2)[1], text.split('---', 2)[2].lstrip('\n')
+    title, _, rest = body.partition('\n')
+    return '---' + front + '---\n\n' + title + '\n\n' + PREAMBLE + '\n' + rest.rstrip('\n') + '\n'
+
 def render(c, research):
     files = {str(f.relative_to(ROOT/'assets/templates')).replace('\\','/'): f.read_text(encoding='utf-8') for f in sorted((ROOT/'assets/templates').rglob('*')) if f.is_file()}
+    for name in files:
+        if name.startswith('.claude/skills/factory-') and name.endswith('/SKILL.md'):
+            files[name] = phase_skill(files[name])
     files['config.json'] = dumps(c)
     lines = ['# '+c['project'], '', 'Status: proposed intake snapshot; confirm assumptions before execution.', '']
     for k in TEXT[1:] + LISTS:
@@ -128,6 +142,9 @@ def render(c, research):
     files['.gitattributes'] = '* text=auto eol=lf\n'
     files['gitignore.fragment'] = ignore_fragment(c)
     apply_research(files, research)
+    for name in files:
+        if name.startswith('.claude/skills/factory-') and name.endswith('/SKILL.md'):
+            files[name] = files[name].rstrip('\n') + '\n\n' + RETURN + '\n'
     files['verification.md'] += '\n## Delivery gate records (required checks start NOT RUN)\n' + initial_table(c,research)
     files.update(bundle(files))
     files['manifest.json'] = dumps(manifest_for(files))

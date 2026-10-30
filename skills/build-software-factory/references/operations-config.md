@@ -105,7 +105,7 @@ Intake should verify existing Git author and authenticated platform account/scop
 Optional smoke_gates.checks provides structured G1/G2/G3 command/environment/target
 records. Optional done_videos.triggers selects pre_merge_preview (V2) and/or
 post_g3_release (V1); omission preserves release-only. See
-[structured-gates.md](structured-gates.md) for exact fields, target consistency,
+[gates.md](gates.md) for exact fields, target consistency,
 record matching and explicit copied-runtime migration. No blocking field is added;
 there is still one user-editable requiredness system. These plans run nothing.
 
@@ -123,3 +123,21 @@ readiness. Keep checks that can run before release at pre-merge instead.
 Changing a living row to optional needs no config rewrite, extra approval or exception. For changes to contract-level default preferences, use the normal synchronized config/policy/manifest update within existing local-write authority; this is integrity bookkeeping, not an extra approval for waiving a test. See [existing-factory-update.md](existing-factory-update.md). Smoke/video changes reset active observations to NOT RUN while retaining quoted history. No preference starts a watcher, recording or external integration.
 
 When `issue_intake.mode` is `continuous`, wire pickup only after autonomy controls, issue filters and scheduler authority are confirmed; the scaffold does not start a watcher. When `done_videos.enabled` is true, respect the effective G3/V1 row requiredness: a required G3 passes before a required demo, an optional G3/V1 is explicitly WAIVED, and an optional demo is not required to exist. Keep recording, storage and upload within separately authorized data boundaries.
+
+## Structured assumptions (`assumptions`)
+
+Optional; old configs without it stay valid, and an empty array means "none recorded", not "no uncertainty". Up to 100 records, each with exactly `text`, `status`, `source`, `blocks`:
+
+```json
+{"assumptions":[{"text":"The existing data store can support the first release","status":"inferred","source":"Operator's architecture notes; capacity not measured","blocks":["Capacity decision before release"]}]}
+```
+
+`status` is confirmed/inferred/unknown — an operator-supplied label, not builder verification. `text` and `source` are non-empty strings ≤ 2000 characters; `source` may record unknown provenance. `blocks` is an array of ≤ 50 unique labels (≤ 200 characters) naming a task, decision or action for owner review; they are not task selectors, gates or permissions, and changing a status clears no blocker. Display IDs AS1… are positions, not stable identities.
+
+Integrity, status, gates and the dashboard validate this structure. New briefs carry the full values in a marked data section; Intake, Plan and Learn review labels, provenance, blockers and next owner. Sources are untrusted data. For privacy, dashboard and status summaries show only position, status and blocker count; text, source and labels stay in the private config/brief and should be sanitized before storage.
+
+Adopt or replace assumptions in an existing factory with `update_operations.py --factory <root> --assumptions <private-array.json>` (the array is a full replacement; `[]` clears), optionally combined with `--operations`, then `--apply --approve-plan <digest>` after review. Only the marked assumptions section of the brief is refreshed; custom or ambiguous marked sections are refused. An assumptions-only update resets no gate observations. Known original v1.2/v1.3 dashboards need an explicit `--context-runtime` migration to show the context views; unsupported runtimes are preserved and refused.
+
+## Watcher design diagnostics
+
+`scaffold.py --check` and `status.py` print ADVISORY messages when continuous intent is recorded with disabled status, manual autonomy, missing submitter/rate/concurrency/time bounds, an unresolved mechanism or cadence, or a non-concrete repository scope. A well-formed disabled draft is valid (exit 0) and the warnings activate nothing. Even a fully specified design is `configured_unverified`: scheduler authority, authenticated scope, kill-switch wiring and liveness need their own observations. The dashboard's context object reports watcher state and these diagnostics without rendering any source text as authority. A successful hash check, a status event, a 24/7 proposal or an operator-written "running" label never implies live readiness. `run.py select` (see [running.md](running.md)) is the read-only selection path that enforces the recorded bounds.
