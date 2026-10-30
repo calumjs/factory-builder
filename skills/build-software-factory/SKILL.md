@@ -5,7 +5,7 @@ description: Design and scaffold a project-specific AI software delivery factory
 
 # Build a software factory
 
-Build the smallest factory that fits the project, reusing its actual stack and constraints. A factory is a repeatable delivery loop with explicit context, tools, owners, evidence and human decisions. Its six phase skills are **Intake -> Plan -> Build -> Verify -> Release -> Learn**, driven by a seventh, **Run**, which selects work, dispatches bounded parallel workers and can be scheduled.
+Build the smallest factory that fits the project, reusing its actual stack and constraints. A factory is a repeatable delivery loop with explicit context, tools, owners, evidence and human decisions. Its six phase skills are **Intake -> Plan -> Build -> Verify -> Release -> Learn**, with a seventh, **Run**, which prepares an advisory pass plan; independently authorized dispatch and scheduling need verified coordination.
 
 Invoke in Claude Code with `/software-factory:build-software-factory` followed by the project goal. This package does not require Codex tools or an agent provider. Default the harness to Claude Code unless the user requests something else.
 
@@ -42,7 +42,7 @@ video triggers generate V2 preview and V1 post-G3 release rows; omission preserv
 legacy release-only behavior. Respect row-level optional choices and use the
 explicit known-runtime migration before adopting new metadata in older dashboards.
 
-If integrity already fails after manual edits or added files, read [integrity-recovery.md](references/integrity-recovery.md) and the bounded [staged recovery helper](references/recovery-automation.md). Preserve the accepted baseline/current evidence, review named deltas and verify completion. The helper creates a recovered copy, never edits/activates the damaged original; unsupported cases stay manual and no force rebaseline exists. To drive passes, parallel workers, issue snapshots and scheduler definitions, read [running.md](references/running.md); the run helper selects and plans only, and renders schedules without installing them. For factory operation, use [evidence-lifecycle.md](references/evidence-lifecycle.md) to distinguish tested subject from evidence-storage revision, [worker-recovery.md](references/worker-recovery.md) for bounded diagnosis/fallback, and [release-preflight.md](references/release-preflight.md) for task-specific first provisioning. Read only the references relevant to the current task.
+If integrity already fails after manual edits or added files, read [integrity-recovery.md](references/integrity-recovery.md) and the bounded [staged recovery helper](references/recovery-automation.md). Preserve the accepted baseline/current evidence, review named deltas and verify completion. The helper creates a recovered copy, never edits/activates the damaged original; unsupported cases stay manual and no force rebaseline exists. To drive passes, parallel workers, issue snapshots and scheduler definitions, read [running.md](references/running.md); the run helper selects and plans only, and emits non-executable schedule proposals. For factory operation, use [evidence-lifecycle.md](references/evidence-lifecycle.md) to distinguish tested subject from evidence-storage revision, [worker-recovery.md](references/worker-recovery.md) for bounded diagnosis/fallback, and [release-preflight.md](references/release-preflight.md) for task-specific first provisioning. Read only the references relevant to the current task.
 
 ## Reusable improvements
 

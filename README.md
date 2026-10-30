@@ -2,7 +2,7 @@
 
 A Claude Code plugin with two reusable skills:
 
-- `/software-factory:build-software-factory` asks adaptive questions, researches current task-specific practices, and scaffolds six phase skills: Intake, Plan, Build, Verify, Release and Learn, plus `/factory-run`, the engine that selects work, dispatches bounded parallel workers through them and can be scheduled.
+- `/software-factory:build-software-factory` asks adaptive questions, researches current task-specific practices, and scaffolds six phase skills: Intake, Plan, Build, Verify, Release and Learn, plus `/factory-run` for an advisory pass plan.
 - `/software-factory:contribute-upstream` captures reusable improvements, resolves the component's original repository, checks contribution policies and duplicates, and prepares issues or focused tested PRs within explicit publication authority.
 
 The builder applies selected research practices as concrete instructions and planned checks in generated skills. It preserves source observations, compatibility and trade-offs. Blocked, stale or incomplete research remains an explicitly unresearched draft.
@@ -70,9 +70,12 @@ and installs no workflow; adopting it into project CI requires separate scope.
 
 ## Run a factory
 
-`/factory-run` is the engine. One pass: the builder's `run.py select` checks integrity, the kill switch (`.factory-runs/STOP` or `FACTORY_STOP=1`), `budget.max_workers` minus in-progress tasks, the hourly rate window and dependencies, then `run.py plan` renders one worker prompt per eligible task. The session starts one subagent per worker (isolated worktree where available) to perform Build and Verify for a single task, waits, then performs Release and Learn once and records the pass in `.factory-runs/` outside the factory. Tasks with overlapping `allowed_paths` are never dispatched together.
-
-Continuous operation needs `issue_intake.mode: continuous` and `autonomy.mode: bounded`. `run.py schedule --kind cron|launchd|windows|github` renders a definition from the recorded cadence (60-minute floor) and prints it; enabling it is the operator's separate action. Issue pickup reads a snapshot the scheduler job exports; the helper filters submitters, duplicates and dependencies and never labels, claims or comments. See the [running guide](skills/build-software-factory/references/running.md) and the generated `scheduling/README.md`.
+`/factory-run` can propose a pass using recorded task status and controls. Selection
+is advisory: it creates no reservation or execution authority. Before dispatch,
+verify a project-specific exclusive dispatcher, paths, budget and stop controls.
+`run.py schedule` emits a non-executable design proposal; no scheduler is installed
+or ready to activate. Issue snapshots require an explicit project-specific label
+and repository policy and are treated as untrusted data. See the [running guide](skills/build-software-factory/references/running.md).
 
 ## Improve reusable components
 
