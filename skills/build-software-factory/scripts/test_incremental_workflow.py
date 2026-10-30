@@ -33,6 +33,40 @@ class IncrementalTests(unittest.TestCase):
         for key,value in [('acceptance_ids',['A999']),('depends_on',['missing']),('allowed_paths',['../escape'])]:
             task=self.task();task['id']='T3';task[key]=value
             with self.assertRaises(ValueError):preview(root,'task',task)
+    def test_duplicate_living_keys_refuse_without_losing_prior_failure(self):
+        path=self.root/'task-plan.json';plan=json.loads(path.read_text())
+        event={'id':'event-S1','task_id':'T1','timestamp':'2026-10-30T00:00:00Z',
+               'revision':'S1','environment':'synthetic','check':'G1','result':'failed',
+               'evidence':'prior failure S1','old_status':'blocked','status':'blocked'}
+        plan['events']=[event]
+        raw=json.dumps(plan);raw=raw[:-1]+', "events": []}'
+        path.write_text(raw,encoding='utf-8');before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'Duplicate JSON object key'):
+            preview(self.root,'task',self.task())
+        self.assertEqual(before,self.snapshot());self.assertIn('prior failure S1',path.read_text())
+        self.assertIn('Duplicate JSON object key',subprocess.run([sys.executable,str(ROOT/'scripts/status.py'),
+            '--factory',str(self.root),'--task','T1','--status','blocked','--result','failed',
+            '--evidence','synthetic','--revision','S2','--environment','fixture','--check','G1'],
+            capture_output=True,text=True).stderr)
+        self.assertEqual(before,self.snapshot())
+        nested=json.dumps(plan).replace('"id": "T1"','"id": "T1", "id": "T1"',1)
+        path.write_text(nested,encoding='utf-8');before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'Duplicate JSON object key'):preview(self.root,'task',self.task())
+        self.assertEqual(before,self.snapshot())
+
+    def test_duplicate_cli_input_keys_refuse_without_writes(self):
+        for name,raw,script,args in (
+            ('gate.json','{"gate":"G1","result":"FAILED","result":"PASSED"}',
+             'incremental_records.py',['--kind','gate','--input']),
+            ('scope.json','{"purpose":"S","gates":["G1"],"gates":["G2"],"tasks":["T1"]}',
+             'scoped_assessment.py',['--scope'])):
+            path=Path(self.temp.name)/name;path.write_text(raw,encoding='utf-8');before=self.snapshot()
+            cmd=[sys.executable,str(ROOT/'scripts'/script),'--factory',str(self.root),*args,str(path)]
+            if script=='scoped_assessment.py':cmd+=['--stage','pre-merge','--revision','S1']
+            result=subprocess.run(cmd,capture_output=True,text=True)
+            self.assertNotEqual(result.returncode,0);self.assertIn('Duplicate JSON object key',result.stderr)
+            self.assertEqual(before,self.snapshot())
+
     def test_concurrent_edit_rejects_digest_and_preserves_data(self):
         root,name,old,new,token=preview(self.root,'task',self.task())
         path=root/'task-plan.json';source=path.read_text();path.write_text(source+'\n')

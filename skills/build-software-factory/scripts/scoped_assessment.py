@@ -5,20 +5,20 @@ import json
 from pathlib import Path
 import sys
 from gates import gate_rows, problems, requirements, policy_controls, ROW
-from integrity import check, safe_path
+from integrity import check, safe_path, strict_json
 from operations import controls, operations, smoke_checks, unresolved
 
 
 def load(factory):
     root=safe_path(factory);check(root,quiet=True)
     def read(name):return (root/name).read_bytes()
-    config=json.loads(read('config.json').decode('utf-8-sig'))
-    research=json.loads(read('research.json').decode('utf-8-sig'))
+    config=strict_json(read('config.json').decode('utf-8-sig'))
+    research=strict_json(read('research.json').decode('utf-8-sig'))
     policy=policy_controls(read('policy.md').decode('utf-8-sig').replace('\r\n','\n').replace('\r','\n'))
     if json.dumps(policy,sort_keys=True)!=json.dumps(controls(config),sort_keys=True):
         raise ValueError('Configuration and policy controls disagree')
     text=read('verification.md').decode('utf-8-sig')
-    plan=json.loads(read('task-plan.json').decode('utf-8-sig'))
+    plan=strict_json(read('task-plan.json').decode('utf-8-sig'))
     return root,config,research,text,plan
 
 
@@ -88,7 +88,7 @@ def assess_scope(factory, scope, stage, revision, target=None):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--factory',required=True);p.add_argument('--scope',required=True);p.add_argument('--stage',choices=('pre-merge','post-merge'),required=True);p.add_argument('--revision',required=True);p.add_argument('--target');a=p.parse_args()
-    scope=json.loads(safe_path(a.scope).read_text(encoding='utf-8-sig'))
+    scope=strict_json(safe_path(a.scope).read_text(encoding='utf-8-sig'))
     result=assess_scope(a.factory,scope,a.stage,a.revision,a.target)
     print(json.dumps(result,ensure_ascii=True,indent=2));return 1 if result['problems'] else 0
 

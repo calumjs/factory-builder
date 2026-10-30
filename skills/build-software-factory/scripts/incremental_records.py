@@ -13,7 +13,7 @@ import tempfile
 from gates import gate_rows, problems, requirements, ROW
 from scoped_assessment import load
 from operations import operations, smoke_checks, unresolved
-from integrity import check
+from integrity import check, strict_json
 
 
 def _clean(value, label):
@@ -139,7 +139,7 @@ def apply(root,name,before,after,token,approved):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__);p.add_argument('--factory',required=True);p.add_argument('--kind',choices=('task','gate'),required=True);p.add_argument('--input',required=True);p.add_argument('--apply',action='store_true');p.add_argument('--approve-plan');a=p.parse_args()
-    data=json.loads(Path(a.input).read_text(encoding='utf-8-sig'))
+    data=strict_json(Path(a.input).read_text(encoding='utf-8-sig'))
     root,name,before,after,token=preview(a.factory,a.kind,data)
     if a.apply:
         apply(root,name,before,after,token,a.approve_plan);print('RECORDED operator-supplied data; no checks were executed or attested.')
