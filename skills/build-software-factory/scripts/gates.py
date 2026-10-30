@@ -7,7 +7,8 @@ from pathlib import Path
 import re
 import sys
 from integrity import check, safe_path
-from operations import controls, operations, unresolved
+from operations import controls, operations, unresolved, smoke_checks, smoke_design
+from recipes import video_triggers
 
 STAGES = ('pre-merge', 'post-merge')
 ROW = re.compile(r'^\|\s*([A-Z]\d+)\s*\|')
@@ -23,6 +24,8 @@ def requirements(config, research):
                'rationale':smoke['post_merge_rationale'],'accepted_by':smoke['accepted_by']}
     }
     for spec in required.values():spec['required']=smoke['required']
+    for gate,recipe in smoke_checks(smoke).items():
+        required[gate].update(design=smoke_design(recipe),recipe=recipe)
     for i, criterion in enumerate(config['acceptance'], 1):
         required['A'+str(i)] = {'stage':'pre-merge','design':criterion,'applicability':'applicable'}
     selected = [p for p in research['practices'] if p['decision']=='selected']
@@ -33,8 +36,11 @@ def requirements(config, research):
         if gate not in required:
             raise ValueError('Unknown additional-check stage override: '+gate)
         required[gate]['stage']=override['stage']
-    if ops['done_videos']['enabled']:
+    triggers=video_triggers(ops['done_videos'])
+    if 'post_g3_release' in triggers:
         required['V1'] = {'stage':'post-merge','design':'After G3, record the authorized narrated done-video and artifact for the shipped revision; scope: '+ops['done_videos']['scope'],'applicability':'applicable'}
+    if 'pre_merge_preview' in triggers:
+        required['V2'] = {'stage':'pre-merge','design':'Record the authorized genuine preview demo for the reviewed local/preview subject; scope: '+ops['done_videos']['scope'],'applicability':'applicable'}
     return required
 
 def initial_table(config, research):
@@ -42,7 +48,7 @@ def initial_table(config, research):
     for gate, spec in requirements(config, research).items():
         na = spec['applicability']=='not_applicable'
         evidence = spec['rationale']+'; accepted by '+spec['accepted_by'] if na else ''
-        cells = [gate,spec['stage'],spec['design'],'unconfirmed','yes' if spec.get('required',True) else 'no','',
+        cells = [gate,spec['stage'],spec['design'],spec.get('recipe',{}).get('environment','unconfirmed'),'yes' if spec.get('required',True) else 'no','',
                  'NOT APPLICABLE' if na else 'NOT RUN',evidence,'','','']
         lines.append('| '+' | '.join(str(c).replace('|','/') for c in cells)+' |')
     return '\n'.join(lines)+'\n'
@@ -82,6 +88,8 @@ def problems(text, stage, revision, required=None, target=None):
         'G3':{'stage':'post-merge','applicability':'applicable'}}
     rows = gate_rows(text)
     out = []
+    if 'V1' in rows and rows['V1']['stage']!='post-merge':
+        out.append('Reserved release video V1 must remain post-merge')
     for gate, spec in required.items():
         row = rows.get(gate)
         if row is None:
@@ -101,6 +109,10 @@ def problems(text, stage, revision, required=None, target=None):
             continue
         if row['revision'] != revision.strip():
             out.append(gate+' has stale or missing revision')
+        if 'recipe' in spec:
+            if row['design']!=spec['design']:out.append(gate+' command record differs from the configured argv recipe')
+            if row['environment']!=spec['recipe']['environment']:out.append(gate+' environment differs from the configured recipe')
+            if row['target']!=spec['recipe']['target']['value']:out.append(gate+' target differs from the configured recipe')
         if unresolved(row['design']) or row['design'].lower().startswith(('unconfirmed','replace with','design (not a command)')) or unresolved(row['environment']) or unresolved(row['evidence']) or row['evidence'].lower() in ('not run','todo'):
             out.append(gate+' lacks concrete check, environment or evidence')
         if unresolved(row['target']):
@@ -115,7 +127,7 @@ def problems(text, stage, revision, required=None, target=None):
             observed_time(row['checked_at'])
         except (ValueError,TypeError):
             out.append(gate+' lacks a valid observation timestamp with timezone')
-    if stage=='post-merge' and 'V1' in required:
+    if stage=='post-merge' and 'V1' in rows:
         smoke,video = rows.get('G3'),rows.get('V1')
         if smoke and video and smoke['required']=='yes' and video['required']=='yes' and video['result']=='PASSED':
             try:
@@ -149,9 +161,12 @@ def assess(factory, stage, revision, target=None):
     s = operations(config)['smoke_gates']
     rows=gate_rows((root/'verification.md').read_text(encoding='utf-8-sig'))
     if stage=='post-merge' and s['post_merge_applicability']=='applicable' and rows.get('G3',{}).get('required')=='yes':
-        if s['target_kind']=='unconfirmed' or unresolved(target):
+        recipe=smoke_checks(s).get('G3')
+        kind=recipe['target']['kind'] if recipe else s['target_kind']
+        planned_target=recipe['target']['value'] if recipe else s['deployed_url']
+        if kind=='unconfirmed' or unresolved(target):
             return ['Actual post-release target or target kind is unresolved']
-        if not unresolved(s['deployed_url']) and target!=s['deployed_url']:
+        if not unresolved(planned_target) and target!=planned_target:
             return ['Actual post-release target differs from the configured target']
     return problems((root/'verification.md').read_text(encoding='utf-8-sig'),stage,revision,expected,target)
 

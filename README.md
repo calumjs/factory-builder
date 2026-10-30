@@ -47,6 +47,12 @@ Every generated factory requires production-equivalent local smoke (G1), change-
 
 Existing factories can opt in through a [narrow reviewed update](skills/build-software-factory/references/existing-factory-update.md), preserving custom instructions and historical evidence.
 
+Optional [structured smoke recipes and video triggers](skills/build-software-factory/references/structured-gates.md)
+record argv, environment names and actual-target designs. Explicit preview/release
+triggers create separate V2/V1 rows; omitted fields preserve older behavior. These
+records run nothing. Known copied runtimes need an explicit reviewed upgrade before
+new metadata is adopted; custom code and intentional waivers remain protected.
+
 Broken schema-2 factories with a pinned accepted baseline can use [staged recovery](skills/build-software-factory/references/recovery-automation.md): audit named drift, approve a complete plan, and create a verified recovered copy and backup. The source stays untouched; completion verification and coordinated manual adoption remain separate from application verification or live activation.
 
 Optional [structured assumptions and advisory watcher diagnostics](skills/build-software-factory/references/context-status.md) preserve recorded confirmed/inferred/unknown claims, provenance and blocker labels. Checks/status display sanitized summaries; continuous drafts receive nonblocking warnings without asserting a live or authorized watcher. Known older dashboards can adopt context views through a separate reviewed runtime migration.

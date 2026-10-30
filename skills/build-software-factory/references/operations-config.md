@@ -102,7 +102,14 @@ Intake should verify existing Git author and authenticated platform account/scop
 
 `smoke_gates.required` sets the default requiredness for G1/G2/G3 and may be false by user choice without an exception or extra approval. Individual living verification rows may also explicitly use Required=no/n/false; this overrides the default for that row. Optional checks are visibly WAIVED with their recorded status, never tests-passed. Keep expected rows present: missing/malformed/duplicate rows are errors. The retained exception string is descriptive, not an authorization requirement. pre_merge/targeted/post_merge are designs or inspected recipes, never auto-executed commands. deployed_url is the planned actual target identity (also used for non-web artifacts); unconfirmed remains unresolved.
 
-target_kind is unconfirmed, web, artifact or no_release. Post-merge applicability is applicable by default. A not_applicable G3 requires target_kind no_release, a specific post_merge_rationale and named accepted_by. An unknown target is not an exclusion. Enabled shipped-work videos conflict with a no-release exclusion and must be resolved explicitly.
+Optional smoke_gates.checks provides structured G1/G2/G3 command/environment/target
+records. Optional done_videos.triggers selects pre_merge_preview (V2) and/or
+post_g3_release (V1); omission preserves release-only. See
+[structured-gates.md](structured-gates.md) for exact fields, target consistency,
+record matching and explicit copied-runtime migration. No blocking field is added;
+there is still one user-editable requiredness system. These plans run nothing.
+
+target_kind is unconfirmed, web, artifact or no_release. Post-merge applicability is applicable by default. A not_applicable G3 requires target_kind no_release, a specific post_merge_rationale and named accepted_by. An unknown target is not an exclusion. A selected shipped-work video conflicts with a no-release exclusion; explicitly preview-only video does not require a release.
 
 check_stages optionally maps A/R IDs to a stage and nonempty rationale, e.g. {"A2":{"stage":"post-merge","rationale":"Needs the actual published artifact"}}. Unknown IDs are rejected. Acceptance defaults pre-merge; research checks mapped only to Release/Learn default post-merge, with explicit overrides available. Keep G1/G2 pre-merge and G3/V1 post-merge. Requiredness is independently user-editable and is not locked by these stage defaults.
 

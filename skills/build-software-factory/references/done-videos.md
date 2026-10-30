@@ -24,6 +24,13 @@ step and any explicitly agreed alternative/draft honestly.
 
 ## Optional metadata (old configs remain valid)
 
+Optional triggers selects pre_merge_preview, post_g3_release, or both, generating
+V2 pre-merge and V1 post-merge respectively. Enabled with omitted triggers retains
+release-only V1; disabled creates neither. Explicit preview-only can use an accepted
+no-release scope. No natural-language trigger guessing occurs. See
+[structured-gates.md](structured-gates.md) for validation, independent subjects,
+waivers, row retirement/history and reviewed --gate-runtime adoption.
+
 Flat optional `operations.done_videos` fields: `composition`, `voice_provider`,
 `delivery_channel`, `branding` (nonempty text up to 2000 characters), `duration_seconds`
 (integer 1..600; default 60), `captions` (boolean; default true), `media_format`

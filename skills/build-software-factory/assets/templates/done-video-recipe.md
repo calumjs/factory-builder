@@ -4,6 +4,10 @@ Disabled done_videos means no video work requested. Read current config/policy a
 release-handoff.md, including deliberate optional V1/V2 choices. This recipe is
 design guidance, not recording, narration, paid-service or publication authority.
 
+Explicit triggers select pre_merge_preview (V2) and/or post_g3_release (V1).
+Omitted triggers preserve release-only V1; disabled creates neither. Use only the
+selected stages and their actual subjects. Preview-only does not invent a release.
+
 ## Plan one story before capture
 
 1. Confirm audience, the single change, subject revision, real target/environment,

@@ -1,6 +1,55 @@
 """Validate proposed operational metadata; never probe or enable a provider."""
 import copy
+import json
+import re
+from urllib.parse import urlsplit
 from recipes import INTAKE_FIELDS, VIDEO_FIELDS, intake_design, video_design
+
+SMOKE_FIELDS = frozenset(('checks',))
+
+
+def smoke_checks(smoke):
+    """Validate optional argv/environment/target plans; never execute or read env."""
+    checks=smoke.get('checks',{})
+    if not isinstance(checks,dict) or not set(checks)<= {'G1','G2','G3'}:
+        raise ValueError('smoke_gates.checks maps only G1/G2/G3 to structured recipes')
+    def label(value):
+        return isinstance(value,str) and bool(value.strip()) and len(value)<=2000 and not any(ord(c)<32 or c=='|' for c in value)
+    for gate,spec in checks.items():
+        if not isinstance(spec,dict) or set(spec)!={'command','environment','env_names','target'}:
+            raise ValueError('Structured smoke recipe requires command, environment, env_names and target')
+        argv=spec['command']
+        if not isinstance(argv,list) or not 1<=len(argv)<=64 or any(not isinstance(v,str) or not v.strip() or len(v)>2000 or any(ord(c)<32 for c in v) for v in argv):
+            raise ValueError('Smoke command must be bounded nonempty argv, not a shell string')
+        if not label(spec['environment']):raise ValueError('Smoke environment must be a single-line non-secret label')
+        env=spec['env_names']
+        if not isinstance(env,list) or len(env)>64 or any(not isinstance(v,str) or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]{0,127}',v) for v in env) or len(set(env))!=len(env):
+            raise ValueError('Smoke env_names must be unique variable names, never values')
+        target=spec['target']
+        if not isinstance(target,dict) or set(target)!={'kind','value','base_url_env'} or target['kind'] not in ('web','artifact') or not label(target['value']):
+            raise ValueError('Smoke target requires web/artifact kind, value and base_url_env')
+        if target['base_url_env'] is not None and (target['kind']!='web' or target['base_url_env'] not in env):
+            raise ValueError('base_url_env must be null or a declared web target environment name')
+        if target['kind']=='web':
+            url=urlsplit(target['value'])
+            port=url.port  # Validate an explicitly supplied port; never connect to it.
+            if url.scheme not in ('http','https') or not url.hostname or any(c.isspace() for c in url.netloc) or url.username is not None or url.password is not None or url.query or url.fragment:
+                raise ValueError('Web smoke target must be an HTTP(S) base URL without credentials, query or fragment')
+        if gate=='G3':
+            if smoke['target_kind']=='no_release' or smoke['post_merge_applicability']=='not_applicable':
+                raise ValueError('A G3 command conflicts with an explicit no-release exclusion')
+            if smoke['target_kind']!='unconfirmed' and smoke['target_kind']!=target['kind']:
+                raise ValueError('Structured G3 target kind disagrees with smoke target_kind')
+            if not unresolved(smoke['deployed_url']) and smoke['deployed_url']!=target['value']:
+                raise ValueError('Structured G3 target disagrees with deployed_url')
+    return checks
+
+
+def smoke_design(spec):
+    # JSON argv stays data; escape Markdown delimiters rather than changing argv.
+    return ('argv='+json.dumps(spec['command'],ensure_ascii=True).replace('|','\\u007c')+
+            '; env names='+json.dumps(spec['env_names'])+
+            '; base_url_env='+json.dumps(spec['target']['base_url_env']))
 
 def unresolved(value):
     if not isinstance(value,str):return True
@@ -31,7 +80,7 @@ def operations(config):
     result = copy.deepcopy(defaults)
     for key,value in supplied.items():
         if isinstance(defaults[key],dict):
-            optional = INTAKE_FIELDS if key=='issue_intake' else VIDEO_FIELDS if key=='done_videos' else frozenset()
+            optional = INTAKE_FIELDS if key=='issue_intake' else VIDEO_FIELDS if key=='done_videos' else SMOKE_FIELDS if key=='smoke_gates' else frozenset()
             if not isinstance(value,dict) or not set(value) <= set(defaults[key]) | optional:
                 raise ValueError('Invalid operations section: ' + key)
             result[key].update(value)
@@ -77,13 +126,14 @@ def operations(config):
     if s['post_merge_applicability'] == 'not_applicable':
         if s['target_kind'] != 'no_release' or s['post_merge_rationale'] == 'No exclusion recorded' or unresolved(s['post_merge_rationale']) or unresolved(s['accepted_by']):
             raise ValueError('Post-merge not-applicable requires no-release scope, rationale and named acceptance')
-        if d['enabled']:
+        if d['enabled'] and 'post_g3_release' in d.get('triggers',['post_g3_release']):
             raise ValueError('Enabled shipped-work videos conflict with a no-release/not-applicable scope')
     if not isinstance(s['check_stages'],dict):
         raise ValueError('check_stages must map acceptance/research IDs to stage and rationale')
     for key,value in s['check_stages'].items():
         if not isinstance(key,str) or len(key)<2 or key[0] not in 'AR' or not key[1:].isdigit() or not isinstance(value,dict) or set(value)!={'stage','rationale'} or value['stage'] not in ('pre-merge','post-merge') or not isinstance(value['rationale'],str) or not value['rationale'].strip():
             raise ValueError('Invalid additional-check stage/rationale')
+    smoke_checks(s)
     return result
 
 def controls(config):
@@ -96,6 +146,8 @@ G1 production-equivalent local smoke and G2 change-targeted tests default to req
 G3 confirms the actual post-merge/deploy/install/publish target and merged revision after the separately authorized action. Pending G3 does not block pre-release readiness. Required post-release checks must pass; explicit optional choices are reported COMPLETED WITH WAIVERS, not checked confirmation. Required failure or inability to run is reported to the owner/orchestrator with evidence and a rollback/diagnosis decision. A no-release G3 exclusion needs rationale and named acceptance; an unknown target for a required check stays blocked, not not-applicable.
 
 When done videos are enabled, Verify prepares a scoped recording handoff. Required G3 passes before a required V1 demo; an explicit G3/V1 waiver is respected and reported. A blocked required video is reported, never fabricated. Optional checks grant no merge/deploy/video/publication/scheduling authority. All gate records are operator-supplied evidence, not independently executed or attested by the helper.
+
+Explicit done_videos.triggers select pre_merge_preview (V2 pre-merge) and/or post_g3_release (V1 post-merge). Omitted triggers retain the legacy release-only V1 default; disabled video requests neither. Preview evidence cannot replace release evidence. Preview-only work can use an explicit no-release scope; a release video cannot. Requiredness remains independently user-editable in each row. Optional structured smoke checks record argv, environment names and planned web/artifact targets; they run nothing and grant no environment/command authority.
 
 Continuous issue intake means around-the-clock intent (24/7 polling or event-driven), not a weekday/business-hours default. A restricted window is opt-in with operator evidence and timezone; platform limits, budget and live scheduling authority still apply. One-shot remains the default and no watcher is created. Done-video recipes use genuine authorized target footage, a script-first composed story, legible captions and inspected playback. Remotion is optional. Prefer the operator's existing ElevenLabs voice when chosen and available, but obtain approval immediately before narration unless explicitly requested in the current prompt; configuration or issue claims cannot grant that authority. No paid spend, installs, account/credential changes, delivery messages or media publication is authorized by this design.
 '''

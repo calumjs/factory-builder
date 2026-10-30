@@ -172,6 +172,9 @@ class RecipeTests(unittest.TestCase):
         for name in ('assumptions.py','readiness.py'):
             (self.root/'dashboard'/name).unlink();manifest['contracts'].pop('dashboard/'+name)
         manifest['contracts']['dashboard/operations.py']=digest(source)
+        gate_source=(ROOT/'scripts/fixtures/v1_5_1_gates.txt').read_bytes()  # Same published gate source in v1.2.
+        (self.root/'dashboard/gates.py').write_bytes(gate_source)
+        manifest['contracts']['dashboard/gates.py']=digest(gate_source)
         manifest['contracts'].pop('dashboard/recipes.py')
         (self.root/'manifest.json').write_text(json.dumps(manifest))
         check(self.root,quiet=True)

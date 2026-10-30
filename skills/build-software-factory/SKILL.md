@@ -35,6 +35,13 @@ The scaffold includes `dashboard/index.html` and a standalone refresh helper. Op
 
 For existing factories or changed operational preferences, read [existing-factory-update.md](references/existing-factory-update.md). Use the preview-first synchronized update rather than directly editing hashed config or silently rebaselining policy.
 
+When inspected commands/targets or video-event preferences are known, read
+[structured-gates.md](references/structured-gates.md). Optional per-gate argv,
+environment names and web/artifact targets remain nonexecuting plans. Explicit
+video triggers generate V2 preview and V1 post-G3 release rows; omission preserves
+legacy release-only behavior. Respect row-level optional choices and use the
+explicit known-runtime migration before adopting new metadata in older dashboards.
+
 If integrity already fails after manual edits or added files, read [integrity-recovery.md](references/integrity-recovery.md) and the bounded [staged recovery helper](references/recovery-automation.md). Preserve the accepted baseline/current evidence, review named deltas and verify completion. The helper creates a recovered copy, never edits/activates the damaged original; unsupported cases stay manual and no force rebaseline exists. For factory operation, use [evidence-lifecycle.md](references/evidence-lifecycle.md) to distinguish tested subject from evidence-storage revision, [worker-recovery.md](references/worker-recovery.md) for bounded diagnosis/fallback, and [release-preflight.md](references/release-preflight.md) for task-specific first provisioning. Read only the references relevant to the current task.
 
 ## Reusable improvements

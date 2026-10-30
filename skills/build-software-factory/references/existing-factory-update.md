@@ -4,6 +4,13 @@ Do not rerun the scaffolder over an existing factory. Do not directly edit hashe
 
 ## Preview and review
 
+For optional structured smoke checks and explicit video triggers, read
+[structured-gates.md](structured-gates.md). --gate-runtime is a separate reviewed
+opt-in for known original dashboard operations.py/recipes.py/gates.py sources;
+new fields are refused against incompatible copied runtimes without it. Existing
+legacy-field recipe changes preserve known compatible helpers unless a runtime
+migration is explicitly selected. Customized/unknown code remains refused.
+
 First pin the actual loaded plugin source/version and required helper/dependency
 paths using the [launch preflight](../assets/templates/launch-guide.md). A missing
 gates.py in an older install is not fixed by a notice-only CI step. Update only
