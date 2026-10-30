@@ -14,6 +14,7 @@ from integrity import check, digest, safe_path
 from operations import controls, operations, DELIVERY_POLICY
 from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS
 from scaffold import validate, ROOT
+from assumptions import refresh as refresh_assumptions
 
 def dumps(value):
     return json.dumps(value,indent=2,ensure_ascii=False)+'\n'
@@ -55,6 +56,21 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False):
 # Exact normalized operations.py shipped in v1.2.0, main ba808cc.
 # Only this known source is upgraded automatically under explicit reviewed opt-in.
 LEGACY_DASHBOARD_OPERATIONS = 'ef2679811ecf0d340064a87facc2d1e693b9703a65e25c10aac030100ed2e4ef'
+LEGACY_CONTEXT = {'dashboard.py':'9e785051fe9cc6a7dba5c4022992878066c264711fca1404e2a75237f49b34f1',
+                  'integrity.py':'87c4d45bd1291f74aa468341c6820f82a66cdfd0bf719f5dd42553bc0e7fa576'}
+
+
+def context_runtime_plan(root, original, replacement, opted_in):
+    for filename in ('dashboard.py','integrity.py','assumptions.py','readiness.py'):
+        name='dashboard/'+filename
+        path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
+        current=path.read_bytes() if path.exists() else None
+        if current is not None and digest(current)==digest(wanted):continue
+        if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename):
+            raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')
+        if not opted_in:
+            raise ValueError('Assumptions need updated dashboard context; preview with --context-runtime')
+        original[name]=current;replacement[name]=wanted
 
 
 def unchanged(root, name, expected):
@@ -62,13 +78,14 @@ def unchanged(root, name, expected):
     return not path.exists() if expected is None else path.is_file() and path.read_bytes()==expected
 
 
-def prepare(factory, changes, delivery_update=False, recipe_runtime=False):
+def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False):
     root=safe_path(factory);check(root,quiet=True)
     if not isinstance(changes,dict):
         raise ValueError('Operations changes must be an object')
-    names=('config.json','policy.md','manifest.json','tools.json','verification.md','release-handoff.md')
+    names=('config.json','policy.md','manifest.json','tools.json','verification.md','release-handoff.md','project-brief.md')
     original={name:(root/name).read_bytes() for name in names}
     config=json.loads(original['config.json'].decode('utf-8-sig'))
+    before_config=copy.deepcopy(config)
     before_ops=operations(config)
     before=copy.deepcopy(config.get('operations',{}))
     updated=copy.deepcopy(before)
@@ -77,7 +94,9 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False):
             updated[section].update(value)
         else:
             updated[section]=value
-    config['operations']=updated;validate(config)
+    if changes or (assumptions_update is None and not context_runtime):config['operations']=updated
+    if assumptions_update is not None:config['assumptions']=copy.deepcopy(assumptions_update)
+    validate(config)
     policy=original['policy.md'].decode('utf-8-sig').replace('\r\n','\n')
     policy_controls(policy)  # Refuse a missing/ambiguous/malformed source section.
     header='## Proposed autonomy and review controls (not execution authority)'
@@ -89,6 +108,13 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False):
     if 'issue_intake' in changes:
         policy=refresh_proposal(policy,'intake',before_ops['issue_intake'],operations(config)['issue_intake'])
     replacement={'config.json':dumps(config).encode('utf-8'),'policy.md':policy.encode('utf-8')}
+    if not changes and not delivery_update:
+        replacement['policy.md']=original['policy.md']
+    if assumptions_update is not None:
+        replacement['project-brief.md']=refresh_assumptions(original['project-brief.md'].decode('utf-8-sig'),before_config,config).encode('utf-8')
+    if (assumptions_update is not None or context_runtime) and (root/'dashboard').is_dir():
+        context_runtime_plan(root,original,replacement,context_runtime)
+    recipe_runtime=recipe_runtime or context_runtime
     if 'done_videos' in changes:
         handoff=refresh_proposal(original['release-handoff.md'].decode('utf-8-sig'),'video',before_ops['done_videos'],operations(config)['done_videos'])
         replacement['release-handoff.md']=handoff.encode('utf-8')
@@ -184,14 +210,19 @@ def apply(root,original,replacement,plan,approved):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--factory',required=True);parser.add_argument('--operations',required=True)
+    parser.add_argument('--factory',required=True);parser.add_argument('--operations')
+    parser.add_argument('--assumptions',help='Optional JSON array replacing recorded assumptions; previews selective config/brief changes')
     parser.add_argument('--apply',action='store_true');parser.add_argument('--approve-plan')
     parser.add_argument('--delivery-gates',action='store_true',help='Opt in to a reviewed narrow gate/template migration; preserve other factory files')
     parser.add_argument('--recipe-runtime',action='store_true',help='Opt in to a reviewed known-v1.2 dashboard validator/dependency migration for recipe metadata')
+    parser.add_argument('--context-runtime',action='store_true',help='Opt in to a reviewed known-v1.2/v1.3 dashboard context migration; includes recipe compatibility')
     args=parser.parse_args()
     if args.approve_plan and not args.apply:parser.error('--approve-plan requires --apply')
-    changes=json.loads(Path(args.operations).read_text(encoding='utf-8-sig'))
-    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime)
+    if not args.operations and not args.assumptions:parser.error('--operations or --assumptions is required')
+    changes=json.loads(Path(args.operations).read_text(encoding='utf-8-sig')) if args.operations else {}
+    assumption_rows=json.loads(Path(args.assumptions).read_text(encoding='utf-8-sig')) if args.assumptions else None
+    if args.assumptions and assumption_rows is None:raise ValueError('Assumptions input must be an array, not null')
+    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime)
     print('REVIEW PLAN: '+plan)
     for name,data in replacement.items():
         print(''.join(difflib.unified_diff(original[name].decode('utf-8-sig').splitlines(True) if original[name] is not None else [],data.decode('utf-8').splitlines(True),fromfile=name+' (current)',tofile=name+' (proposed)')))

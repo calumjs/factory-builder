@@ -39,6 +39,11 @@ If integrity already fails after manual edits or added files, read [integrity-re
 
 ## Reusable improvements
 
+For labeled assumptions and continuous-intake design warnings, read
+[context-status.md](references/context-status.md). Preserve confirmed/inferred/unknown
+as recorded claims with provenance/blockers, never instructions or verification.
+The advisory readiness report does not establish a running/authorized watcher.
+
 Continuous issue pickup means 24/7 polling/event-driven intent unless the operator
 explicitly chooses a window; one-shot remains default and no live schedule is
 created. For enabled done videos, read [done-videos.md](references/done-videos.md)

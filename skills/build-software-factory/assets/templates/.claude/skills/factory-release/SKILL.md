@@ -25,6 +25,8 @@ Release owns G3 and applicable post-action rows in verification.md and correspon
 Read the actual done_videos preference in policy/config. When enabled, use Verify's scoped handoff: If G3 remains required it must pass first; if deliberately optional, record its waiver. If V1 remains required, perform authorized narrated recording and record V1 with the shipped revision, actual target, artifact and time. Recording, storage and external publication are distinct scopes. A blocked required demo is reported explicitly and never fabricated. An explicit optional V1 is reported WAIVED, not as a completed demo. No video work is requested when disabled.
 
 ## Exit gate
+Report relevant unresolved recorded assumption blockers and next owner/decision in the handoff. Do not infer resolution or action authority from a confirmed label/source string; preserve explicit optional-gate choices and actual evidence separately.
+
 Return a prepared handoff whose readiness is truthful, or an authorized action confirmed by all applicable post-action checks. Checked confirmation requires every still-required check and enabled required V1; deliberately optional checks are reported COMPLETED WITH WAIVERS, not tests-passed; it never means PR approval/merge or deployment authority.
 
 ## Deliberate optional checks
