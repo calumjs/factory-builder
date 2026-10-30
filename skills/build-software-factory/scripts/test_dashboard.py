@@ -4,12 +4,13 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import struct
 import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 from add_dashboard import prepare, apply
-from dashboard import page, read, summarize, observations, profile, write_output
+from dashboard import page, read, run_records, parse_run_record, validate_run_record, summarize, observations, profile, write_output, windows_directory_entries
 from integrity import check, manifest_for
 from scaffold import ROOT, render
 
@@ -62,8 +63,156 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('Contract hashes/basic structure checked', output.read_text(encoding='utf-8'))
         self.assertEqual(before, self.snapshot())
         check(self.factory, quiet=True)
-        again = subprocess.run([sys.executable, str(self.factory/'dashboard/dashboard.py'), '--output', str(output)], capture_output=True)
+        old = output.read_bytes()
+        again = subprocess.run([sys.executable, str(self.factory/'dashboard/dashboard.py'), '--output', str(output)], capture_output=True, text=True)
         self.assertNotEqual(again.returncode, 0)
+        self.assertIn('output already exists', again.stderr)
+        self.assertIn('--replace', again.stderr)
+        self.assertEqual(old, output.read_bytes())
+        replaced = subprocess.run([sys.executable, str(self.factory/'dashboard/dashboard.py'), '--output', str(output), '--replace'], capture_output=True, text=True)
+        self.assertEqual(replaced.returncode, 0, replaced.stderr)
+        self.assertEqual(before, self.snapshot())
+
+    def test_untrusted_run_notes_are_never_exported(self):
+        runs=self.base/'.factory-runs';runs.mkdir()
+        (runs/'run-test.json').write_text(json.dumps({'run_id':'run-test','outcome':'failed','started':self.now.isoformat(),'finished':self.now.isoformat(),'dispatched':['T1'],'notes':'PRIVATE-SECRET-SENTINEL'}))
+        records,errors=run_records(runs,self.now,60)
+        self.assertNotIn('PRIVATE-SECRET-SENTINEL',json.dumps([records,errors]))
+        if os.name != 'nt' and (not hasattr(os,'O_NOFOLLOW') or os.open not in os.supports_dir_fd):
+            self.assertEqual(records,[]);self.assertIn('unsupported',errors[0])
+        else:
+            self.assertEqual(records[0]['outcome'],'failed');self.assertNotIn('notes',records[0])
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_valid_malformed_oversized_and_hardlink(self):
+        runs=self.base/'.factory-runs';runs.mkdir()
+        stamp=(self.now-timedelta(days=2)).isoformat()
+        record={'run_id':'run-good','outcome':'failed','started':stamp,'finished':stamp,'dispatched':['T1'],'notes':'PRIVATE'}
+        (runs/'run-good.json').write_text(json.dumps(record),encoding='utf-8')
+        (runs/'run-bad.json').write_text('{malformed',encoding='utf-8')
+        (runs/'run-large.json').write_bytes(b'x'*65537)
+        outside=self.base/'hard-source';outside.write_text('PRIVATE',encoding='utf-8')
+        os.link(outside,runs/'run-hard.json')
+        records,errors=run_records(runs,self.now,60)
+        self.assertEqual(len(records),1);self.assertEqual(records[0]['freshness'],'stale')
+        self.assertEqual(records[0]['outcome'],'failed');self.assertTrue(errors)
+        self.assertNotIn('PRIVATE',json.dumps([records,errors]))
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_absent_empty_and_reparse_entry(self):
+        runs=self.base/'.factory-runs'
+        self.assertEqual(run_records(runs,self.now,60),([],[]))
+        runs.mkdir();self.assertEqual(run_records(runs,self.now,60),([],[]))
+        target=self.base/'target';target.mkdir();link=runs/'run-link.json'
+        result=subprocess.run(['cmd','/c','mklink','/J',str(link),str(target)],capture_output=True,text=True)
+        if result.returncode:self.skipTest('Junction creation unavailable')
+        try:
+            records,errors=run_records(runs,self.now,60)
+            self.assertEqual(records,[]);self.assertTrue(errors)
+        finally:
+            os.rmdir(link)
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_handles_multiple_enumeration_buffers(self):
+        runs=self.base/'.factory-runs';runs.mkdir()
+        for index in range(180): (runs/(str(index)+'x'*200)).write_text('')
+        record={'run_id':'run-good','outcome':'completed','started':self.now.isoformat(),
+                'finished':self.now.isoformat(),'dispatched':[]}
+        (runs/'run-good.json').write_text(json.dumps(record),encoding='utf-8')
+        records,errors=run_records(runs,self.now,60)
+        self.assertEqual(errors,[]);self.assertEqual([r['run_id'] for r in records],['run-good'])
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_refuses_device_and_unc_paths(self):
+        from dashboard import windows_run_records
+        for path in (r'\\?\C:\outside',r'\\.\C:\outside',r'\\server\share\outside'):
+            records,errors=windows_run_records(Path(path),self.now,60)
+            self.assertEqual(records,[]);self.assertTrue(errors)
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_directory_limit_fails_closed(self):
+        runs=self.base/'.factory-runs';runs.mkdir()
+        for index in range(201):(runs/f'run-{index}.json').write_text('{}')
+        records,errors=run_records(runs,self.now,60)
+        self.assertEqual(records,[]);self.assertIn('limit exceeded',errors[0])
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_rejects_existing_write_handle(self):
+        runs=self.base/'.factory-runs';runs.mkdir()
+        name=runs/'run-busy.json';name.write_text('{}',encoding='utf-8')
+        with name.open('w',encoding='utf-8') as open_writer:
+            open_writer.write('unchanged private value');open_writer.flush()
+            records,errors=run_records(runs,self.now,60)
+            self.assertEqual(records,[]);self.assertTrue(errors)
+        self.assertEqual(name.read_text(encoding='utf-8'),'unchanged private value')
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_rejects_directory_junction(self):
+        runs=self.base/'.factory-runs';target=self.base/'outside';target.mkdir()
+        result=subprocess.run(['cmd','/c','mklink','/J',str(runs),str(target)],capture_output=True,text=True)
+        if result.returncode: self.skipTest('Junction creation unavailable')
+        try:
+            records,errors=run_records(runs,self.now,60)
+            self.assertEqual(records,[]);self.assertTrue(errors)
+        finally:
+            os.rmdir(runs)
+
+    def test_windows_directory_buffer_validation(self):
+        name_offset=104; length_offset=60
+        def entry(name,next_offset=0):
+            data=bytearray(256);encoded=name.encode('utf-16-le')
+            struct.pack_into('<I',data,0,next_offset)
+            struct.pack_into('<I',data,length_offset,len(encoded))
+            data[name_offset:name_offset+len(encoded)]=encoded
+            return data
+        self.assertEqual(windows_directory_entries(bytes(entry('run-test.json')),name_offset,length_offset),['run-test.json'])
+        for mutate in ('empty','nul','odd','oversized','overlap','unaligned','short'):
+            data=entry('run-test.json')
+            if mutate=='empty':struct.pack_into('<I',data,length_offset,0)
+            if mutate=='nul':data[name_offset:name_offset+2]=b'\x00\x00'
+            if mutate=='odd':struct.pack_into('<I',data,length_offset,3)
+            if mutate=='oversized':struct.pack_into('<I',data,length_offset,400)
+            if mutate=='overlap':struct.pack_into('<I',data,0,104)
+            if mutate=='unaligned':struct.pack_into('<I',data,0,129)
+            if mutate=='short':data=data[:10]
+            with self.subTest(mutate=mutate),self.assertRaises(ValueError):
+                windows_directory_entries(bytes(data),name_offset,length_offset)
+
+    def test_run_record_rejects_nonstring_and_naive_timestamps(self):
+        valid={'run_id':'run-test','outcome':'failed','started':self.now.isoformat(),'finished':self.now.isoformat(),'dispatched':[]}
+        for field in ('started','finished'):
+            for value in (None,1,{},'2026-01-01T00:00:00'):
+                with self.subTest(field=field,value=value),self.assertRaises(ValueError):
+                    validate_run_record({**valid,field:value},'run-test.json',self.now,60)
+        with self.assertRaisesRegex(ValueError,'nesting'):
+            parse_run_record(('['*15000+']'*15000).encode(),'run-test.json',self.now,60)
+        with self.assertRaisesRegex(ValueError,'UTC range'):
+            validate_run_record({**valid,'started':'0001-01-01T00:00:00+01:00'},'run-test.json',self.now,60)
+
+    def test_waived_failed_result_and_observation_are_visible(self):
+        data=summarize(self.files,now=self.now)
+        row=data['gates'][0];row.update(state='WAIVED',required=False,recorded_result='FAILED',observed_at='2026-01-01T00:00:00Z')
+        html=page(data)
+        for term in ('WAIVED','FAILED','2026-01-01T00:00:00Z'):self.assertIn(term,html)
+
+    @unittest.skipUnless(hasattr(os,'O_NOFOLLOW') and hasattr(os,'O_DIRECTORY') and os.open in os.supports_dir_fd,'secure directory-relative reads unavailable')
+    def test_run_records_report_stale_malformed_and_redirected_inputs(self):
+        runs=self.base/'.factory-runs';runs.mkdir();stamp=(self.now-timedelta(days=2)).isoformat()
+        record={'run_id':'run-good','outcome':'failed','started':stamp,'finished':stamp,'dispatched':['T1'],'notes':'PRIVATE'}
+        (runs/'run-good.json').write_text(json.dumps(record))
+        (runs/'run-bad.json').write_text('{malformed')
+        target=self.base/'outside.json';target.write_text(json.dumps(record))
+        (runs/'run-link.json').symlink_to(target)
+        records,errors=run_records(runs,self.now,60)
+        self.assertEqual(len(records),1);self.assertEqual(records[0]['freshness'],'stale')
+        self.assertTrue(errors);self.assertNotIn('PRIVATE',json.dumps([records,errors]))
+
+    @unittest.skipUnless(hasattr(os,'O_NOFOLLOW') and hasattr(os,'O_DIRECTORY') and os.open in os.supports_dir_fd,'secure directory-relative reads unavailable')
+    def test_run_record_limit_fails_closed_before_partial_history(self):
+        runs=self.base/'.factory-runs';runs.mkdir()
+        for index in range(201):(runs/f'run-{index}.json').write_text('{}')
+        records,errors=run_records(runs,self.now,60)
+        self.assertEqual(records,[]);self.assertIn('limit exceeded',errors[0])
 
     def test_empty_tasks_are_unavailable_not_fabricated_activity(self):
         self.files['task-plan.json'] = json.dumps({'tasks': [], 'events': []})

@@ -24,6 +24,24 @@ class ScaffoldTests(unittest.TestCase):
     def run_cli(self,*args):
         self.cfg.write_text(json.dumps(self.config))
         return subprocess.run([sys.executable,str(SCRIPT),'--config',str(self.cfg),'--target',str(self.target),*args],capture_output=True,text=True)
+    def test_release_identity_and_generated_provenance_do_not_invent_source(self):
+        from scaffold import render
+        plugin=json.loads((ROOT.parents[1]/'.claude-plugin/plugin.json').read_text(encoding='utf-8'))
+        version=tuple(int(x) for x in plugin['version'].split('.'))
+        self.assertGreater(version,(1,9,0))
+        research=json.loads((ROOT/'assets/example-research.json').read_text(encoding='utf-8'))
+        files=render(self.config,research)
+        provenance=json.loads(files['upstream-provenance.json'])
+        self.assertEqual(provenance['component']['version'],plugin['version'])
+        self.assertIsNone(provenance['component']['source_revision'])
+        self.assertEqual(provenance['verification']['status'],'unverified')
+        schedule=files['scheduling/factory-run.example.yml']
+        self.assertIn('<verified-full-commit-sha>',schedule)
+        self.assertNotIn('ref: v1.10.0',schedule)
+        guide=files['launch-guide.md']
+        for phrase in ('per-file SHA-256','source commit SHA','version label', 'does not prove', 'source_revision'):
+            self.assertIn(phrase,guide)
+
     def test_preview_writes_nothing(self):
         before=sorted(str(x) for x in self.target.rglob('*'))
         r=self.run_cli();self.assertEqual(r.returncode,0,r.stderr)

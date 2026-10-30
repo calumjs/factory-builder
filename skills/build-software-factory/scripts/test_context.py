@@ -42,6 +42,19 @@ class ContextTests(unittest.TestCase):
 
     def run_check(self):return subprocess.run([sys.executable,str(ROOT/'scripts/scaffold.py'),'--check',str(self.root)],capture_output=True,text=True)
 
+    def test_v19_dashboard_is_preserved_or_reviewedly_upgraded(self):
+        from update_operations import COMPATIBLE_CONTEXT
+        original=(ROOT/'scripts/fixtures/v1_9_dashboard.txt').read_bytes()
+        self.assertEqual(digest(original),COMPATIBLE_CONTEXT['dashboard.py'])
+        path=self.root/'dashboard/dashboard.py';path.write_bytes(original);self.rehash('dashboard/dashboard.py')
+        _,_,changed,_=prepare(self.root,{},assumptions_update=self.rows)
+        self.assertNotIn('dashboard/dashboard.py',changed)
+        root,old,changed,plan=prepare(self.root,{},assumptions_update=self.rows,context_runtime=True)
+        backup=apply(root,old,changed,plan,plan)
+        self.assertEqual((backup/'dashboard/dashboard.py').read_bytes(),original)
+        self.assertEqual(path.read_bytes(),(ROOT/'scripts/dashboard.py').read_bytes())
+        check(root,quiet=True)
+
     def test_old_config_without_assumptions_remains_valid(self):
         self.config.pop('assumptions',None);validate(self.config);self.write()
         self.assertEqual(assumptions(self.config),[])

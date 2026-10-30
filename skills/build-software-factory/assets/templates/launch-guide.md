@@ -6,6 +6,18 @@ Do this once per session before assigning helper commands, in whatever harness i
 
 Record the builder plugin's name, version and the directory it was loaded from (for a Git checkout, the full commit and whether the tree is dirty; for an archive, its trusted revision or checksum). A version string alone does not identify code. Resolve `<trusted-skill-root>` to `skills/build-software-factory` inside that directory and confirm `scripts/scaffold.py`, `scripts/status.py`, `scripts/gates.py` and `scripts/run.py` are present. A missing helper is a BLOCKED tooling preflight, not a passing gate; do not substitute a copied or improvised script, and manual observations recorded meanwhile do not satisfy a still-required automated check. Do not read credentials while pinning, and do not assume the application's Git origin is the plugin source. Updating the plugin is a separate authorized action, and it does not migrate this factory's contracts — use the builder's reviewed update for that.
 
+For a fresh install or update, verify the content actually loaded: resolve the real
+installed plugin directory, then compare its complete relevant file inventory and
+per-file SHA-256 bytes with a trusted, independently identified release checkout or
+published checksum manifest. Record the full source commit SHA, actual loaded path,
+comparison result and any extra, missing or changed files in approved evidence.
+A version label, a Git HEAD with unreviewed local changes, or the checksum of an
+archive alone does not prove the extracted cache matches that commit. If the source
+or comparison is unavailable or differs, record the revision as unverified and stop
+claims that a particular update was loaded. Do not assume updating refreshed a cache.
+`upstream-provenance.json` initially leaves `source_revision` null; updating the
+hashed provenance contract requires a reviewed, selective migration.
+
 ## 2. Load the skills
 
 Load the seven skills in `.software-factory/.claude/skills/` using your harness's mechanism for an additional skills directory, keeping the project's own settings and instructions in effect. Confirm all seven are discovered by invoking one scoped skill, not by reading its text. If discovery is blocked, report the version, path and policy and stop; do not copy the skills elsewhere, change settings or bypass a policy to make it work.
