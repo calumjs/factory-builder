@@ -35,6 +35,8 @@ The scaffold includes `dashboard/index.html` and a standalone refresh helper. Op
 
 For existing factories or changed operational preferences, read [existing-factory-update.md](references/existing-factory-update.md). Use the preview-first synchronized update rather than directly editing hashed config or silently rebaselining policy.
 
+If integrity already fails after manual edits or added files, read [integrity-recovery.md](references/integrity-recovery.md). Preserve the current state and accepted baseline, review a selective recovery diff, and keep checks blocked until recovery succeeds. No force/rebaseline helper is provided. For factory operation, use [evidence-lifecycle.md](references/evidence-lifecycle.md) to distinguish tested subject from evidence-storage revision, [worker-recovery.md](references/worker-recovery.md) for bounded diagnosis/fallback, and [release-preflight.md](references/release-preflight.md) for task-specific first provisioning. Read only the references relevant to the current task.
+
 ## Reusable improvements
 
 The bundled `/software-factory:contribute-upstream` skill turns useful reusable ideas into sanitized issues or focused tested PRs when publication is authorized. Generated `upstream-provenance.json` records component identity without automatically copying a potentially private repository URL. Resolve the builder's source from installed plugin metadata, verify its identity/visibility and contribution policies, and record only permitted non-secret provenance. The application's origin is not automatically the plugin upstream. Application-specific changes remain with the application. Neither this handoff nor generated provenance grants posting, approval or merge authority.

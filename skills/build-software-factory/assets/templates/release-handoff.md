@@ -5,6 +5,8 @@ A diagnostic handoff may always be prepared. Preparation grants no authority.
 ## Pre-action readiness
 Status: BLOCKED (initial; not release-ready)
 Reviewed artifact and pre-merge revision:
+Evidence-storage revision (separate from tested subject; record after storage commit exists):
+Durable evidence location, retention/access owner and availability check:
 G1 production-equivalent local smoke, G2 change-targeted checks and required A/R evidence:
 Outstanding failed / BLOCKED / NOT RUN checks:
 Review verdict and exact revision:
@@ -16,6 +18,7 @@ Only mark READY FOR AUTHORIZED ACTION after all still-required pre-merge gates p
 ## Post-action confirmation
 Status: PENDING / UNCONFIRMED (initial; no action performed)
 Actual authorized action, merged revision and target:
+Actual deployed/installed subject versus evidence-storage commit; any follow-up redeployment:
 G3 actual-target smoke result, evidence, time and exit/manual observation:
 Other required post-action acceptance/research checks:
 Failure/unavailable-check report to release owner/orchestrator and diagnosis/rollback decision:
