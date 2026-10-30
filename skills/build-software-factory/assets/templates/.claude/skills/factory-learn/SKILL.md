@@ -19,5 +19,14 @@ observations as history, select the subject being assessed and rerun the applica
 checks for that subject. A status writer's lock coordinates cooperating writes only;
 it does not guarantee Git merges or exclude arbitrary concurrent editors.
 
+For each reported test run, record the intended scope and what actually executed,
+the subject, command or report, and passed, failed, skipped and not-run counts
+separately. Record retries or flaky outcomes with their counting convention; do not
+count retries as additional unique tests. If the runner does not provide a count,
+record unknown rather than zero. A serial failure can leave later cases unexecuted:
+report the incomplete scope, preserve the failure, and rerun the applicable checks
+after repair before claiming the whole scope passed. A smaller smoke count does not
+prove the full suite or a production check passed.
+
 ## Exit
 A reviewed improvement proposal. No policy, permission, provider or production change is made here.

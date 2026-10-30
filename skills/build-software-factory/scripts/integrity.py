@@ -25,6 +25,16 @@ def manifest_for(files):
             'contracts': {name: digest(body) for name, body in sorted(files.items()) if name not in LIVING},
             'living': sorted(name for name in files if name in LIVING)}
 
+def strict_json(text):
+    """Reject duplicate object keys at every depth before interpreting records."""
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result: raise ValueError('Duplicate JSON object key')
+            result[key] = value
+        return result
+    return json.loads(text, object_pairs_hook=unique)
+
 def validate_task_plan(plan):
     if not isinstance(plan, dict) or not isinstance(plan.get('tasks'), list) or not isinstance(plan.get('events', []), list):
         raise ValueError('Invalid living task-plan structure')
@@ -70,7 +80,7 @@ def check(path, *, quiet=False):
     for name in m['living']:
         body = (p/name).read_text(encoding='utf-8-sig')
         if name.endswith('.json'):
-            value = json.loads(body)
+            value = strict_json(body)
             if name == 'task-plan.json':
                 validate_task_plan(value)
             elif not isinstance(value, dict):
