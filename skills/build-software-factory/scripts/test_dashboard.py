@@ -9,7 +9,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 from add_dashboard import prepare, apply
-from dashboard import page, read, summarize, observations, profile, write_output
+from dashboard import page, read, run_records, parse_run_record, validate_run_record, summarize, observations, profile, write_output
 from integrity import check, manifest_for
 from scaffold import ROOT, render
 
@@ -62,32 +62,61 @@ class DashboardTests(unittest.TestCase):
         self.assertIn('Contract hashes/basic structure checked', output.read_text(encoding='utf-8'))
         self.assertEqual(before, self.snapshot())
         check(self.factory, quiet=True)
-        again = subprocess.run([sys.executable, str(self.factory/'dashboard/dashboard.py'), '--output', str(output)], capture_output=True)
+        old = output.read_bytes()
+        again = subprocess.run([sys.executable, str(self.factory/'dashboard/dashboard.py'), '--output', str(output)], capture_output=True, text=True)
         self.assertNotEqual(again.returncode, 0)
+        self.assertIn('output already exists', again.stderr)
+        self.assertIn('--replace', again.stderr)
+        self.assertEqual(old, output.read_bytes())
+        replaced = subprocess.run([sys.executable, str(self.factory/'dashboard/dashboard.py'), '--output', str(output), '--replace'], capture_output=True, text=True)
+        self.assertEqual(replaced.returncode, 0, replaced.stderr)
+        self.assertEqual(before, self.snapshot())
 
-    def test_run_records_render_and_malformed_ones_are_skipped(self):
-        runs = self.base/'.factory-runs'
-        runs.mkdir()
-        (runs/'run-20261030T120000Z-aaa.json').write_text(json.dumps({'run_id': 'run-20261030T120000Z-aaa', 'started': '2026-10-30T12:00:00+00:00',
-            'finished': '2026-10-30T12:05:00+00:00', 'dispatched': ['T1'], 'outcome': 'completed', 'notes': 'SYNTHETIC pass'}))
-        (runs/'run-20261030T110000Z-bbb.json').write_text('{not json')
-        (runs/'run-20261030T100000Z-ccc.json').write_text(json.dumps({'run_id': 'x', 'outcome': 'nonsense'}))
-        data = read(self.factory, now=self.now)
-        self.assertEqual([r['run_id'] for r in data['runs']], ['run-20261030T120000Z-aaa'])
-        html = page(data)
-        self.assertIn('Factory passes', html)
-        self.assertIn('SYNTHETIC pass', html)
-        self.assertNotIn('not json', html)
-        self.assertNotIn('<script', html)
-        self.assertIn('@media(prefers-color-scheme:dark)', html)
-        check(self.factory, quiet=True)
+    def test_untrusted_run_notes_are_never_exported(self):
+        runs=self.base/'.factory-runs';runs.mkdir()
+        (runs/'run-test.json').write_text(json.dumps({'run_id':'run-test','outcome':'failed','started':self.now.isoformat(),'finished':self.now.isoformat(),'dispatched':['T1'],'notes':'PRIVATE-SECRET-SENTINEL'}))
+        records,errors=run_records(runs,self.now,60)
+        self.assertNotIn('PRIVATE-SECRET-SENTINEL',json.dumps([records,errors]))
+        if not hasattr(os,'O_NOFOLLOW') or os.open not in os.supports_dir_fd:
+            self.assertEqual(records,[]);self.assertIn('unsupported',errors[0])
+        else:
+            self.assertEqual(records[0]['outcome'],'failed');self.assertNotIn('notes',records[0])
 
-    def test_page_renders_flow_pills_and_timelines_with_escaping(self):
-        data = summarize(self.files)
-        data['runs'] = []
-        html = page(data)
-        for needle in ('class="flow"', 'Intake', 'Learn', 'class="ring"', 'G1 NOT RUN', 'No run records', 'Required gates passed'):
-            self.assertIn(needle, html)
+    def test_run_record_rejects_nonstring_and_naive_timestamps(self):
+        valid={'run_id':'run-test','outcome':'failed','started':self.now.isoformat(),'finished':self.now.isoformat(),'dispatched':[]}
+        for field in ('started','finished'):
+            for value in (None,1,{},'2026-01-01T00:00:00'):
+                with self.subTest(field=field,value=value),self.assertRaises(ValueError):
+                    validate_run_record({**valid,field:value},'run-test.json',self.now,60)
+        with self.assertRaisesRegex(ValueError,'nesting'):
+            parse_run_record(('['*15000+']'*15000).encode(),'run-test.json',self.now,60)
+        with self.assertRaisesRegex(ValueError,'UTC range'):
+            validate_run_record({**valid,'started':'0001-01-01T00:00:00+01:00'},'run-test.json',self.now,60)
+
+    def test_waived_failed_result_and_observation_are_visible(self):
+        data=summarize(self.files,now=self.now)
+        row=data['gates'][0];row.update(state='WAIVED',required=False,recorded_result='FAILED',observed_at='2026-01-01T00:00:00Z')
+        html=page(data)
+        for term in ('WAIVED','FAILED','2026-01-01T00:00:00Z'):self.assertIn(term,html)
+
+    @unittest.skipUnless(hasattr(os,'O_NOFOLLOW') and hasattr(os,'O_DIRECTORY') and os.open in os.supports_dir_fd,'secure directory-relative reads unavailable')
+    def test_run_records_report_stale_malformed_and_redirected_inputs(self):
+        runs=self.base/'.factory-runs';runs.mkdir();stamp=(self.now-timedelta(days=2)).isoformat()
+        record={'run_id':'run-good','outcome':'failed','started':stamp,'finished':stamp,'dispatched':['T1'],'notes':'PRIVATE'}
+        (runs/'run-good.json').write_text(json.dumps(record))
+        (runs/'run-bad.json').write_text('{malformed')
+        target=self.base/'outside.json';target.write_text(json.dumps(record))
+        (runs/'run-link.json').symlink_to(target)
+        records,errors=run_records(runs,self.now,60)
+        self.assertEqual(len(records),1);self.assertEqual(records[0]['freshness'],'stale')
+        self.assertTrue(errors);self.assertNotIn('PRIVATE',json.dumps([records,errors]))
+
+    @unittest.skipUnless(hasattr(os,'O_NOFOLLOW') and hasattr(os,'O_DIRECTORY') and os.open in os.supports_dir_fd,'secure directory-relative reads unavailable')
+    def test_run_record_limit_fails_closed_before_partial_history(self):
+        runs=self.base/'.factory-runs';runs.mkdir()
+        for index in range(201):(runs/f'run-{index}.json').write_text('{}')
+        records,errors=run_records(runs,self.now,60)
+        self.assertEqual(records,[]);self.assertIn('limit exceeded',errors[0])
 
     def test_empty_tasks_are_unavailable_not_fabricated_activity(self):
         self.files['task-plan.json'] = json.dumps({'tasks': [], 'events': []})

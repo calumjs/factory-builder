@@ -12,9 +12,9 @@ Every phase skill follows these rules. They are stated once here so the skills c
 
 - Evidence binds to the exact tested revision. A required check that is NOT RUN, BLOCKED, FAILED, missing, stale, malformed or pointed at the wrong target blocks its stage. Build, lint, hash or render success is not application verification.
 - A row the operator marked optional is reported WAIVED with its recorded result, failures included, and needs no further approval; it is never "tests passed". Missing, malformed or duplicate rows are errors, not waivers.
-- The tested subject S and a later evidence-only storage commit E are distinct identities; old evidence is never relabelled to a new SHA. Failures stay as history; repair happens on a new subject with a new hypothesis.
+- The tested subject S and a later evidence-only storage commit E are distinct identities. Never relabel old evidence to a new SHA, claim PASS from counts, invent commands or results, or mark a task done to unblock a handoff. Preserve failures as history; repair on a new subject with a new hypothesis.
 - Durable logs and artifacts live in reviewed project evidence storage outside this directory, with a stable reference and access owner. A worker transcript is not retention.
-- Report what actually ran. A plan, template, recipe or generated file is not a run.
+- A plan, template, recipe or generated file proves nothing ran. Report commands actually run and their results.
 
 ## Contracts
 

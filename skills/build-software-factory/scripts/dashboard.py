@@ -6,10 +6,12 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 import hashlib
 from html import escape
+import itertools
 import json
 import math
 import os
 import re
+import stat
 from pathlib import Path
 import tempfile
 from gates import gate_rows, requirements
@@ -18,6 +20,8 @@ from readiness import report
 
 INPUTS = ('config.json', 'task-plan.json', 'verification.md', 'research.json')
 MAX_BYTES = 2_000_000
+MAX_RUN_BYTES = 65536
+MAX_RUN_ENTRIES = 200
 
 
 def profile(config):
@@ -129,25 +133,62 @@ def summarize(files, *, now=None, sources=None, integrity='not checked: initial 
             'usage': 'Unavailable: no measured usage source supplied. Configured budget is a proposed limit, not spending.'}
 
 
-def run_records(runs, limit=20):
-    """Recent factory-run records, read-only; an unreadable record is skipped, never guessed."""
-    result = []
-    if not runs.is_dir():
-        return result
-    for path in sorted(runs.glob('run-*.json'), reverse=True)[:limit]:
-        if path.stat().st_size > MAX_BYTES:
-            continue
-        try:
-            record = json.loads(path.read_text(encoding='utf-8-sig'))
-        except (OSError, ValueError):
-            continue
-        if not isinstance(record, dict) or not isinstance(record.get('run_id'), str) or record.get('outcome') not in ('completed', 'blocked', 'stopped', 'failed'):
-            continue
-        dispatched = record.get('dispatched')
-        result.append({'run_id': record['run_id'], 'started': str(record.get('started', '')), 'finished': str(record.get('finished', '')),
-                       'outcome': record['outcome'], 'dispatched': [str(x) for x in dispatched] if isinstance(dispatched, list) else [],
-                       'notes': str(record.get('notes', ''))[:200]})
-    return result
+def validate_run_record(item, name, now, minutes):
+    if not isinstance(item,dict) or item.get('run_id')!=name[:-5] or item.get('outcome') not in ('completed','blocked','stopped','failed'):raise ValueError('malformed record')
+    tasks=item.get('dispatched')
+    if not isinstance(tasks,list) or len(tasks)>100 or any(not isinstance(t,str) or not t or len(t)>100 or not t.isprintable() for t in tasks):raise ValueError('malformed tasks')
+    if any(not isinstance(item.get(k),str) or not item[k] or len(item[k])>64 for k in ('started','finished')):raise ValueError('malformed timestamps')
+    started=iso(item['started']);finished=iso(item['finished'])
+    try:started.astimezone(timezone.utc);finished.astimezone(timezone.utc)
+    except OverflowError as exc:raise ValueError('timestamp outside UTC range') from exc
+    if finished<started:raise ValueError('invalid time order')
+    freshness='future timestamp' if finished>now+timedelta(minutes=5) else 'stale' if now-finished>timedelta(minutes=minutes) else 'recent'
+    return {'run_id':item['run_id'],'started':item['started'],'finished':item['finished'],'outcome':item['outcome'],'dispatched':tasks,'freshness':freshness}
+
+
+def parse_run_record(data, name, now, minutes):
+    try:item=json.loads(data.decode('utf-8-sig'))
+    except RecursionError as exc:raise ValueError('excessive JSON nesting') from exc
+    return validate_run_record(item,name,now,minutes)
+
+
+def run_records(path, now, minutes):
+    """Bounded no-follow read of recorded claims; private notes are never exported."""
+    if not path.exists() and not path.is_symlink():return [], []
+    if not hasattr(os,'O_NOFOLLOW') or not hasattr(os,'O_DIRECTORY') or os.open not in os.supports_dir_fd:
+        return [], ['Run records unavailable: secure no-follow directory reads are unsupported on this platform']
+    errors=[]; records=[]; directory=None
+    try:
+        safe_path(path)
+        directory=os.open(path,os.O_RDONLY|os.O_DIRECTORY|os.O_NOFOLLOW)
+        with os.scandir(directory) as entries:
+            names=[entry.name for entry in itertools.islice(entries,MAX_RUN_ENTRIES+1)]
+        if len(names)>MAX_RUN_ENTRIES:
+            return [], ['Run records unavailable: directory entry limit exceeded']
+        for name in names:
+            if not re.fullmatch(r'run-[A-Za-z0-9T\-]+\.json',name):continue
+            fd=None
+            try:
+                fd=os.open(name,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK,dir_fd=directory)
+                before=os.fstat(fd)
+                if not stat.S_ISREG(before.st_mode) or before.st_size>MAX_RUN_BYTES:raise ValueError('unsafe record')
+                chunks=[];remaining=MAX_RUN_BYTES+1
+                while remaining:
+                    chunk=os.read(fd,remaining)
+                    if not chunk:break
+                    chunks.append(chunk);remaining-=len(chunk)
+                data=b''.join(chunks);after=os.fstat(fd)
+                final=os.stat(name,dir_fd=directory,follow_symlinks=False)
+                if not stat.S_ISREG(final.st_mode) or len(data)>MAX_RUN_BYTES or len(data)!=before.st_size or (before.st_dev,before.st_ino,before.st_size,before.st_mtime_ns)!=(after.st_dev,after.st_ino,after.st_size,after.st_mtime_ns) or (before.st_dev,before.st_ino)!=(final.st_dev,final.st_ino):raise ValueError('changed record')
+                records.append(parse_run_record(data,name,now,minutes))
+            except (OSError,ValueError,KeyError,TypeError,UnicodeError,OverflowError):errors.append('A run record is malformed, unsafe, changed or unreadable')
+            finally:
+                if fd is not None:os.close(fd)
+    except (OSError,ValueError):errors.append('Run-record directory unavailable or unsafe')
+    finally:
+        if directory is not None:os.close(directory)
+    records.sort(key=lambda r:iso(r['started']).astimezone(timezone.utc),reverse=True)
+    return records[:20], sorted(set(errors))
 
 
 def read(factory, extra=None, now=None):
@@ -171,7 +212,8 @@ def read(factory, extra=None, now=None):
                         'modified_at': modified.isoformat(), 'freshness': state})
     result = summarize(files, now=now, sources=sources,
                        integrity='Contract hashes/basic structure checked; evidence truth not attested', extra=extra)
-    result['runs'] = run_records(root.parent/'.factory-runs')
+    result['runs'],run_errors=run_records(root.parent/'.factory-runs',now,minutes)
+    result['errors'].extend(run_errors)
     # Detect ordinary concurrent changes instead of silently mixing generations.
     if any(hashlib.sha256((root/s['artifact']).read_bytes()).hexdigest()!=s['sha256'] for s in sources):
         raise ValueError('Factory changed while reading; retry the snapshot')
@@ -295,7 +337,7 @@ def page(data):
     body += panel(profile_data['work_item_label'], 'From task-plan.json.', table([('id','ID'),('state','State'),('owner','Owner')], data['tasks'],
                    {'state': lambda v, r: pill(v.replace('_',' '), TASK_CLASS.get(v, ''))}))
     body += panel('Gates and waivers', 'WAIVED keeps its recorded result and never counts as passed.',
-                  table([('id','Gate'),('stage','Stage'),('state','State'),('revision','Revision'),('freshness','Freshness')], gates,
+                  table([('id','Gate'),('stage','Stage'),('state','State'),('recorded_result','Recorded result'),('revision','Revision'),('observed_at','Observation time'),('freshness','Freshness')], gates,
                         {'stage': lambda v, r: '<span style="white-space:nowrap">'+text(v)+'</span>', 'state': lambda v, r: pill(v, GATE_CLASS.get(v, 'warn')),
                          'freshness': lambda v, r: '<span class="dot '+{'recent':'ok','stale':'warn'}.get(v, 'bad' if v in ('invalid timestamp','future timestamp') else '')+'"></span>'+text(v)}))
     body += '</div>'
@@ -303,11 +345,11 @@ def page(data):
     # Runs and events
     body += '<div class="grid g2" style="margin-bottom:16px">'
     if runs:
-        items = ''.join('<li class="'+RUN_CLASS.get(r['outcome'], '')+'"><div class="when">'+when(r['started'])+(' → '+when(r['finished']) if r.get('finished') and r['finished']!=r['started'] else '')+'</div><div class="what">'+text(r['run_id'])+' '+pill(r['outcome'], RUN_CLASS.get(r['outcome'], ''))+'</div><div>'+(text(', '.join(r['dispatched'])) if r['dispatched'] else '<mark>nothing dispatched</mark>')+(' · '+text(r['notes']) if r.get('notes') else '')+'</div></li>' for r in runs)
+        items = ''.join('<li class="'+RUN_CLASS.get(r['outcome'], '')+'"><div class="when">'+when(r['started'])+(' → '+when(r['finished']) if r.get('finished') and r['finished']!=r['started'] else '')+' · '+text(r['freshness'])+'</div><div class="what">'+text(r['run_id'])+' '+pill(r['outcome'], RUN_CLASS.get(r['outcome'], ''))+'</div><div>'+(text(', '.join(r['dispatched'])) if r['dispatched'] else '<mark>nothing dispatched</mark>')+'</div></li>' for r in runs)
         runs_html = '<ul class="tl">'+items+'</ul>'
     else:
-        runs_html = '<p class="empty">No run records in .factory-runs/ yet.</p>'
-    body += panel('Factory passes', 'Run records written by factory-run.', runs_html)
+        runs_html = '<p class="empty">No readable run records; activity may be unavailable.</p>'
+    body += panel('Factory passes', 'Recorded claims; not verified worker activity. Private notes are excluded.', runs_html)
     if data['events']:
         items = ''.join('<li class="'+{'passed':'ok','failed':'bad','blocked':'warn'}.get(e['result'], '')+'"><div class="when">'+when(e['time'])+' · '+text(e['freshness'])+'</div><div class="what">'+text(e['task'])+' → '+text(e['state'].replace('_',' '))+' '+pill(e['result'], {'passed':'ok','failed':'bad','blocked':'warn'}.get(e['result'], ''))+'</div><div><mark>'+text(e['revision'])+'</mark></div></li>' for e in data['events'])
         events_html = '<ul class="tl">'+items+'</ul>'
@@ -328,6 +370,10 @@ def page(data):
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; base-uri \'none\'; form-action \'none\'"><title>'+title+'</title><style>'+STYLE+'</style></head><body><main>'+body+'</main></body></html>\n'
 
 
+class OutputExistsError(ValueError):
+    """A snapshot already exists and replacement was not selected."""
+
+
 def write_output(factory, output, content, replace=False):
     # Reject redirects before normalizing traversal; containment must compare
     # canonical lexical paths, including aliases with '..'.
@@ -346,7 +392,7 @@ def write_output(factory, output, content, replace=False):
     if not target.parent.is_dir():
         raise ValueError('Output parent must already exist')
     if target.exists() and not replace:
-        raise ValueError('Output exists; review it and explicitly use --replace')
+        raise OutputExistsError('Output exists')
     temporary = None
     try:
         with tempfile.NamedTemporaryFile(dir=target.parent, delete=False, mode='w', encoding='utf-8', newline='\n') as stream:
@@ -356,8 +402,11 @@ def write_output(factory, output, content, replace=False):
             os.replace(temporary, target)
         else:
             # Exclusive final create prevents an unnoticed concurrent overwrite.
-            with target.open('x', encoding='utf-8', newline='\n') as stream:
-                stream.write(content)
+            try:
+                with target.open('x', encoding='utf-8', newline='\n') as stream:
+                    stream.write(content)
+            except FileExistsError as exc:
+                raise OutputExistsError('Output exists') from exc
     finally:
         if temporary is not None and temporary.exists():
             temporary.unlink()
@@ -387,6 +436,9 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+    except OutputExistsError:
+        print('ERROR: Dashboard output already exists; review it and explicitly use --replace to replace it. No output was changed.', file=sys.stderr)
+        sys.exit(1)
     except (ValueError, OSError, KeyError, TypeError, OverflowError) as exc:
         # Avoid echoing raw malformed data or private file content.
         print('ERROR: Dashboard unavailable ('+type(exc).__name__+'); source integrity/schema or output path failed. No live actions executed.', file=sys.stderr)

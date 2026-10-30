@@ -1,6 +1,6 @@
 # Gates: structured recipes, video triggers and risk-focused verification
 
-There is one requiredness system: `smoke_gates.required` sets the G1/G2/G3 defaults, and an explicit Required=no/false on a living row is the operator's waiver. Legacy `not_run_is_blocking` is not a second setting; in a reviewed migration keep required NOT RUN blocking or express the operator's optional choice, never drop or convert the key. Configuring any of the metadata below establishes no tool permission, CI execution, env allowlist or application truth.
+There is one requiredness system: `smoke_gates.required` sets the G1/G2/G3 defaults, and an explicit Required=no/false on a living row is the operator's waiver. Legacy `not_run_is_blocking` is not a second setting; in a reviewed migration keep required NOT RUN blocking or express the operator's optional choice, preserve the original and its context during review; never silently discard the field or convert it to PASSED. Configuring any of the metadata below establishes no tool permission, CI execution, env allowlist or application truth.
 
 ## Structured smoke recipes (`smoke_gates.checks`)
 

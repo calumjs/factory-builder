@@ -4,7 +4,7 @@ The six phase skills are gates, not six mandatory agents: one worker can perform
 
 ## Worker contract
 
-Each handoff names the goal, input artifacts and exact revision, acceptance criteria, allowed files and actions, dependencies, output artifact, required verification, budget/time/retry limit and escalation owner, with the minimum necessary non-secret context. Tasks that edit the same files or depend on unmerged outputs are sequenced, never parallelized (`run.py` enforces this through `allowed_paths`). Resolve integration conflicts deliberately and re-verify the merged result.
+Each handoff names the goal, input artifacts and exact revision, acceptance criteria, allowed files and actions, dependencies, output artifact, required verification, budget/time/retry limit and escalation owner, with the minimum necessary non-secret context. Tasks that edit the same files or depend on unmerged outputs are sequenced, never parallelized (the advisory `run.py` compares recorded lexical paths; it cannot prove isolation or prevent concurrent dispatch). Resolve integration conflicts deliberately and re-verify the merged result.
 
 ## Evidence chain
 

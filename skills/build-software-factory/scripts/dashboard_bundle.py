@@ -19,8 +19,9 @@ project root to a file outside the factory:
 Add `--replace` to overwrite a previous snapshot. The page is self-contained:
 no server, dependencies, network, credentials or scripts, and it adapts to light
 and dark mode. It reads config, task plan, verification, research and the run
-records in `../.factory-runs/`; a failed read exits nonzero and leaves the old
-output alone.
+records in `../.factory-runs/` where secure no-follow reads are supported; on
+unsupported platforms run history is unavailable and explicitly reported. Integrity
+errors refuse the refresh.
 
 What it shows: the six-phase flow with derived counts, task progress, the
 required-gate ring and gate pills, work items, gates and waivers, factory passes,
@@ -34,8 +35,8 @@ Project metrics: pass `--observations <file.json>` (outside the factory) with
 Statuses are measured, unavailable, proposed or error; only measured carries a
 number. Budget usage needs a measured source; configured limits are not spending.
 
-Privacy: the HTML and JSON contain task IDs, owner labels, revisions, run notes
-and supplied metric labels, but no goals, commands, evidence bodies, URLs,
+Privacy: the HTML and JSON contain task IDs, owner labels, revisions, run identifiers
+and supplied metric labels, but no run notes, goals, commands, evidence bodies, URLs,
 budgets, handoff prose or credentials. Escaping is not redaction, so sanitize
 those fields at source and keep snapshots and adapter inputs untracked. An
 existing UI that consumes the JSON must keep the freshness and WAIVED semantics.

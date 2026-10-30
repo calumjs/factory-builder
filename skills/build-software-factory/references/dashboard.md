@@ -1,6 +1,6 @@
 # Dashboard
 
-Every factory gets `dashboard/index.html` plus a stdlib refresh helper: a self-contained, read-only page with no server, scripts, network or credentials, in light or dark mode. It renders the six-phase flow with derived counts, task progress, the required-gate ring and pills, work items, gates and waivers, factory passes from `.factory-runs/`, recent evidence events, and collapsed details (intake design, assumptions, workers, observations, provenance). Every value is a recorded claim with its freshness; it computes no readiness — `gates.py` does that for one revision.
+Every factory gets `dashboard/index.html` plus a stdlib refresh helper: a self-contained, read-only page with no server, scripts, network or credentials, in light or dark mode. It renders the six-phase flow with derived counts, task progress, the required-gate ring and pills, work items, gates and waivers, factory passes from `.factory-runs/` where secure no-follow reads are supported, recent evidence events, and collapsed details (intake design, assumptions, workers, observations, provenance). Every value is a recorded claim with its freshness; it computes no readiness — `gates.py` does that for one revision.
 
 ## Fit the project
 
@@ -28,8 +28,10 @@ Project metrics come from an adapter built in the project's own stack, outside t
 
 ## Privacy and rendering
 
-The DTO carries task IDs, owner labels, revisions, run notes and supplied metric labels; it excludes goals, commands, evidence bodies, URLs, budgets, handoff prose, assumption text and sources (only position, status and blocker count appear). Evidence paths are never followed. Sanitize identifiers at source and keep snapshots and adapter inputs untracked; escaping is not redaction. All values render as escaped text under a CSP of `default-src 'none'` with inline styles only ([CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy), read 2026-10-30).
+The DTO carries task IDs, owner labels, revisions, run identifiers and supplied metric labels; it excludes run notes, goals, commands, evidence bodies, URLs, budgets, handoff prose, assumption text and sources (only position, status and blocker count appear). Evidence paths are never followed. Sanitize identifiers at source and keep snapshots and adapter inputs untracked; escaping is not redaction. All values render as escaped text under a CSP of `default-src 'none'` with inline styles only ([CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy), read 2026-10-30).
 
 ## Adding the dashboard to an existing factory
 
 `scripts/add_dashboard.py --factory <root>` checks schema-2 integrity and prints the generated bundle and hashes without writing; repeat with `--apply --approve-plan <digest>` within local-write authority. The digest binds every current factory file and bundle byte; drift, concurrent edits or an existing dashboard are refused, and only the new dashboard contracts and manifest entries are added. The original manifest is backed up under `.factory-update-backups/`. Writes are not atomic: on interruption, preserve the partial files and backup, inspect the diff, then restore the original manifest and remove only the reviewed partial additions, or finish a newly reviewed recovery. Schema 1 needs its own migration. For known older dashboards, `update_operations.py`'s runtime flags migrate the bundled code ([existing-factory-update.md](existing-factory-update.md)).
+
+Run-history discovery is unavailable on Windows with this implementation; the dashboard reports the limitation rather than treating missing history as empty. Records remain operator-supplied claims and run notes are excluded.

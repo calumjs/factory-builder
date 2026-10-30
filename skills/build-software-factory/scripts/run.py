@@ -1,5 +1,5 @@
 """Drive a factory pass: select eligible work, plan bounded parallel workers,
-render scheduler definitions and record runs. Read-only against the factory;
+describe non-executable scheduler proposals and record runs. Read-only against the factory;
 run records live outside it. Executes no worker, scheduler, agent or GitHub call."""
 import argparse
 from datetime import datetime, timedelta, timezone
@@ -380,7 +380,7 @@ def main():
             workflows=safe_path(root.parent/'.github'/'workflows')
             if target==workflows or workflows in target.parents or (workflows.exists() and any(parent.exists() and parent.samefile(workflows) for parent in (target,*target.parents))):
                 raise ValueError('Do not write scheduler proposals to active workflow locations')
-            print(('APPLY' if args.apply else 'DRY RUN ÔÇö not written') + ': ' + str(target))
+            print(('APPLY' if args.apply else 'DRY RUN - not written') + ': ' + str(target))
             if args.apply:
                 target.parent.mkdir(parents=True, exist_ok=True)
                 with target.open('x', encoding='utf-8', newline='\n') as stream:
@@ -389,7 +389,7 @@ def main():
         sys.stdout.write(text)
         return
     record = record_run(runs, args.run_id, args.dispatched.split(','), args.outcome, args.notes, args.started)
-    print(('APPLY' if args.apply else 'DRY RUN ÔÇö not written') + ': ' + str(runs / (record['run_id'] + '.json')))
+    print(('APPLY' if args.apply else 'DRY RUN - not written') + ': ' + str(runs / (record['run_id'] + '.json')))
     emit(record)
     if args.apply:
         runs.mkdir(parents=True, exist_ok=True)
