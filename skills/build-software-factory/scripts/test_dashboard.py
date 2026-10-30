@@ -4,12 +4,13 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import struct
 import sys
 import tempfile
 import unittest
 from unittest.mock import patch
 from add_dashboard import prepare, apply
-from dashboard import page, read, run_records, parse_run_record, validate_run_record, summarize, observations, profile, write_output
+from dashboard import page, read, run_records, parse_run_record, validate_run_record, summarize, observations, profile, write_output, windows_directory_entries
 from integrity import check, manifest_for
 from scaffold import ROOT, render
 
@@ -112,6 +113,23 @@ class DashboardTests(unittest.TestCase):
             os.rmdir(link)
 
     @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_handles_multiple_enumeration_buffers(self):
+        runs=self.base/'.factory-runs';runs.mkdir()
+        for index in range(180): (runs/(str(index)+'x'*200)).write_text('')
+        record={'run_id':'run-good','outcome':'completed','started':self.now.isoformat(),
+                'finished':self.now.isoformat(),'dispatched':[]}
+        (runs/'run-good.json').write_text(json.dumps(record),encoding='utf-8')
+        records,errors=run_records(runs,self.now,60)
+        self.assertEqual(errors,[]);self.assertEqual([r['run_id'] for r in records],['run-good'])
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
+    def test_windows_history_refuses_device_and_unc_paths(self):
+        from dashboard import windows_run_records
+        for path in (r'\\?\C:\outside',r'\\.\C:\outside',r'\\server\share\outside'):
+            records,errors=windows_run_records(Path(path),self.now,60)
+            self.assertEqual(records,[]);self.assertTrue(errors)
+
+    @unittest.skipUnless(os.name=='nt','Windows native reader')
     def test_windows_history_directory_limit_fails_closed(self):
         runs=self.base/'.factory-runs';runs.mkdir()
         for index in range(201):(runs/f'run-{index}.json').write_text('{}')
@@ -138,6 +156,25 @@ class DashboardTests(unittest.TestCase):
             self.assertEqual(records,[]);self.assertTrue(errors)
         finally:
             os.rmdir(runs)
+
+    def test_windows_directory_buffer_validation(self):
+        name_offset=104; length_offset=60
+        def entry(name,next_offset=0):
+            data=bytearray(256);encoded=name.encode('utf-16-le')
+            struct.pack_into('<I',data,0,next_offset)
+            struct.pack_into('<I',data,length_offset,len(encoded))
+            data[name_offset:name_offset+len(encoded)]=encoded
+            return data
+        self.assertEqual(windows_directory_entries(bytes(entry('run-test.json')),name_offset,length_offset),['run-test.json'])
+        for mutate in ('odd','oversized','overlap','unaligned','short'):
+            data=entry('run-test.json')
+            if mutate=='odd':struct.pack_into('<I',data,length_offset,3)
+            if mutate=='oversized':struct.pack_into('<I',data,length_offset,400)
+            if mutate=='overlap':struct.pack_into('<I',data,0,104)
+            if mutate=='unaligned':struct.pack_into('<I',data,0,129)
+            if mutate=='short':data=data[:10]
+            with self.subTest(mutate=mutate),self.assertRaises(ValueError):
+                windows_directory_entries(bytes(data),name_offset,length_offset)
 
     def test_run_record_rejects_nonstring_and_naive_timestamps(self):
         valid={'run_id':'run-test','outcome':'failed','started':self.now.isoformat(),'finished':self.now.isoformat(),'dispatched':[]}

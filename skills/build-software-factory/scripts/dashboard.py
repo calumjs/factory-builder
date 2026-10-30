@@ -12,6 +12,7 @@ import math
 import os
 import re
 import stat
+import struct
 from pathlib import Path
 import tempfile
 from gates import gate_rows, requirements
@@ -152,6 +153,25 @@ def parse_run_record(data, name, now, minutes):
     return validate_run_record(item,name,now,minutes)
 
 
+def windows_directory_entries(data, name_offset, length_offset):
+    """Parse one bounded Win32 directory buffer without trusting entry offsets."""
+    if not isinstance(data,bytes) or not 0 <= length_offset <= name_offset-4:
+        raise ValueError('invalid enumeration layout')
+    names=[]; offset=0
+    while True:
+        if offset+name_offset>len(data):raise ValueError('invalid enumeration')
+        next_offset=struct.unpack_from('<I',data,offset)[0]
+        length=struct.unpack_from('<I',data,offset+length_offset)[0]
+        if length % 2 or offset+name_offset+length>len(data):raise ValueError('invalid enumeration name')
+        name=data[offset+name_offset:offset+name_offset+length].decode('utf-16-le')
+        if name not in ('.','..'):names.append(name)
+        if len(names)>MAX_RUN_ENTRIES:raise OverflowError('directory entry limit exceeded')
+        if not next_offset:return names
+        if next_offset<name_offset+length or next_offset%8 or offset+next_offset>=len(data):
+            raise ValueError('invalid enumeration offset')
+        offset+=next_offset
+
+
 def windows_run_records(path, now, minutes):
     """Bounded Windows history read with handle-relative, no-reparse traversal.
 
@@ -271,17 +291,11 @@ def windows_run_records(path, now, minutes):
             if not kernel.GetFileInformationByHandleEx(directory, 11 if first else 10, buffer, c.sizeof(buffer)):
                 if c.get_last_error() == 18: break  # ERROR_NO_MORE_FILES
                 raise OSError('directory enumeration failed')
-            first = False; offset = 0
-            while True:
-                if offset + DirInfo.name.offset > c.sizeof(buffer):raise ValueError('invalid enumeration')
-                entry = DirInfo.from_buffer(buffer, offset); length = entry.name_length
-                if length % 2 or offset + DirInfo.name.offset + length > c.sizeof(buffer):raise ValueError('invalid enumeration name')
-                name = bytes(buffer[offset+DirInfo.name.offset:offset+DirInfo.name.offset+length]).decode('utf-16-le')
-                if name not in ('.','..'): names.append(name)
-                if len(names) > MAX_RUN_ENTRIES:return [], ['Run records unavailable: directory entry limit exceeded']
-                if not entry.next:break
-                if entry.next < DirInfo.name.offset + length or entry.next % 8 or offset+entry.next >= c.sizeof(buffer):raise ValueError('invalid enumeration offset')
-                offset += entry.next
+            first = False
+            try:names.extend(windows_directory_entries(buffer.raw, DirInfo.name.offset, DirInfo.name_length.offset))
+            except OverflowError:return [], ['Run records unavailable: directory entry limit exceeded']
+            if len(names)>MAX_RUN_ENTRIES:
+                return [], ['Run records unavailable: directory entry limit exceeded']
         for name in names:
             if not re.fullmatch(r'run-[A-Za-z0-9T\-]+\.json', name):continue
             handle = None
