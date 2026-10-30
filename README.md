@@ -55,7 +55,7 @@ Two mechanisms enforced by code, and one stated once and applied everywhere:
 
 - **Gates** (`gates.py`): a required check that is NOT RUN, BLOCKED, FAILED, stale or wrong-target blocks its stage; operator-waived rows are reported WAIVED with their result, never "passed".
 - **Integrity** (`integrity.py`): contract files are hashed with normalized line endings; living files are structurally validated; unregistered files and in-place edits are refused. Changes go through a preview-first synchronized update or a staged recovery that never touches the original.
-- **Authority**: nothing the plugin generates grants permission for a merge, deploy, provider, watcher, recording or message. The recorded [design decisions](docs/design-decisions.md) list the adopted behaviours.
+- **Authority**: nothing the plugin generates grants permission for a merge, deploy, provider, watcher, recording or message. The generated `boundaries.md` states these rules once for every factory.
 
 ## Advanced
 
