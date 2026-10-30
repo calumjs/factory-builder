@@ -101,6 +101,21 @@ class StructuredGateTests(unittest.TestCase):
                 with self.assertRaises(ValueError):validate(self.config)
                 self.assertEqual(before,self.snapshot())
 
+    def test_labels_reject_padding_and_unicode_breaks_but_round_trip_printable_unicode(self):
+        for value in (' fixture','fixture ','fixture\u2028second line','fixture\u2029paragraph','fixture\u0085next line','fixture\x7f'):
+            for field in ('environment','target'):
+                spec=self.spec()
+                if field=='environment':spec[field]=value
+                else:spec['target']['value']=value
+                self.config['operations']={'smoke_gates':{'checks':{'G1':spec}}}
+                with self.assertRaises(ValueError):validate(self.config)
+        spec=self.spec();spec['environment']='Fixture caf\u00e9';spec['target']['value']='Package caf\u00e9 v1'
+        self.config['operations']={'smoke_gates':{'checks':{'G1':spec}}};validate(self.config);self.write()
+        text=self.observed(self.files['verification.md'],'G1',target=spec['target']['value'])
+        self.assertFalse(any(v.startswith('G1 ') for v in problems(text,'pre-merge','subject-S',requirements(self.config,self.research))))
+        root,old,new,plan=prepare(self.root,{'smoke_gates':{'checks':{'G1':spec}}})
+        apply(root,old,new,plan,plan);check(root,quiet=True)
+
     def test_required_records_must_match_structured_command_environment_and_target(self):
         spec=self.spec();self.config['operations']={'smoke_gates':{'checks':{'G1':spec}}};self.write()
         expected=requirements(self.config,self.research)

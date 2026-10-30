@@ -18,7 +18,8 @@ This is an invented example, not a claim those commands exist. Select the projec
 actual inspected commands, using a production-equivalent artifact and success/failure
 assertions. command is 1..64 nonempty argv strings, each at most 2000 characters,
 without controls. It is data, never a shell command the builder runs. environment
-is a nonempty single-line label without Markdown pipes. env_names contains at most
+is a nonempty printable label without outer whitespace, line/control separators or
+Markdown pipes; target values use the same representable form. env_names contains at most
 64 unique variable names (no values, credentials or assignments). The checker reads
 no environment variables and does not verify their presence or ownership.
 

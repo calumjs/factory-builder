@@ -14,7 +14,7 @@ def smoke_checks(smoke):
     if not isinstance(checks,dict) or not set(checks)<= {'G1','G2','G3'}:
         raise ValueError('smoke_gates.checks maps only G1/G2/G3 to structured recipes')
     def label(value):
-        return isinstance(value,str) and bool(value.strip()) and len(value)<=2000 and not any(ord(c)<32 or c=='|' for c in value)
+        return isinstance(value,str) and bool(value) and value==value.strip() and len(value)<=2000 and value.isprintable() and '|' not in value
     for gate,spec in checks.items():
         if not isinstance(spec,dict) or set(spec)!={'command','environment','env_names','target'}:
             raise ValueError('Structured smoke recipe requires command, environment, env_names and target')
