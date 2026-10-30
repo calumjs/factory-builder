@@ -65,6 +65,19 @@ class ScaffoldTests(unittest.TestCase):
         manifest=(self.target/'.software-factory'/'manifest.json').read_bytes()
         self.assertNotEqual(self.run_cli('--apply').returncode,0)
         self.assertEqual((self.target/'.software-factory'/'manifest.json').read_bytes(),manifest)
+
+    def test_check_advises_runtime_difference_without_claiming_upgrade_or_writing(self):
+        from integrity import digest
+        self.assertEqual(self.run_cli('--apply').returncode,0)
+        out=self.target/'.software-factory';gate=out/'dashboard/gates.py'
+        gate.write_text(gate.read_text(encoding='utf-8')+'\n# Synthetic local customization\n',encoding='utf-8')
+        manifest=out/'manifest.json';value=json.loads(manifest.read_text());value['contracts']['dashboard/gates.py']=digest(gate.read_bytes());manifest.write_text(json.dumps(value))
+        before={p.relative_to(out).as_posix():p.read_bytes() for p in out.rglob('*') if p.is_file()}
+        result=subprocess.run([sys.executable,str(SCRIPT),'--check',str(out)],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr);self.assertEqual(result.stdout.count('PASS:'),1)
+        for text in ('ADVISORY: dashboard/gates.py','--gate-runtime','not currency or compatibility'):
+            self.assertIn(text,result.stdout)
+        self.assertEqual(before,{p.relative_to(out).as_posix():p.read_bytes() for p in out.rglob('*') if p.is_file()})
     def test_existing_empty_output_refused(self):
         (self.target/'.software-factory').mkdir()
         self.assertNotEqual(self.run_cli('--apply').returncode,0)

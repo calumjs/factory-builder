@@ -145,7 +145,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             updated[section].update(value)
         else:
             updated[section]=value
-    if changes or (assumptions_update is None and not context_runtime and not gate_runtime):config['operations']=updated
+    if changes:config['operations']=updated
     if assumptions_update is not None:config['assumptions']=copy.deepcopy(assumptions_update)
     validate(config)
     policy=original['policy.md'].decode('utf-8-sig').replace('\r\n','\n')
@@ -162,6 +162,8 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
     if 'issue_intake' in changes:
         policy=refresh_proposal(policy,'intake',before_ops['issue_intake'],operations(config)['issue_intake'])
     replacement={'config.json':dumps(config).encode('utf-8'),'policy.md':policy.encode('utf-8')}
+    if not changes and assumptions_update is None:
+        replacement['config.json']=original['config.json']
     if not changes and not delivery_update:
         replacement['policy.md']=original['policy.md']
     if assumptions_update is not None:
@@ -237,10 +239,11 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             tools[dest]=updated[source]
             replacement['tools.json']=dumps(tools).encode('utf-8')
     manifest=json.loads(original['manifest.json'].decode('utf-8-sig'))
+    prior_manifest=copy.deepcopy(manifest)
     for name,data in replacement.items():
         if name in manifest['contracts'] or name.startswith('dashboard/') or name=='boundaries.md':
             manifest['contracts'][name]=digest(data)
-    replacement['manifest.json']=dumps(manifest).encode('utf-8')
+    replacement['manifest.json']=dumps(manifest).encode('utf-8') if manifest!=prior_manifest else original['manifest.json']
     replacement={k:v for k,v in replacement.items() if v!=original[k]}
     fingerprint={name:{'before':hashlib.sha256(original[name]).hexdigest() if original[name] is not None else None,'after':hashlib.sha256(data).hexdigest()} for name,data in sorted(replacement.items())}
     plan=hashlib.sha256(dumps({'factory':str(root),'files':fingerprint}).encode('utf-8')).hexdigest()
@@ -296,13 +299,16 @@ def main():
     parser.add_argument('--gate-runtime',action='store_true',help='Opt in to reviewed known dashboard operations/recipes/gates support for structured gate metadata')
     args=parser.parse_args()
     if args.approve_plan and not args.apply:parser.error('--approve-plan requires --apply')
-    if not args.operations and not args.assumptions:parser.error('--operations or --assumptions is required')
+    if not any((args.operations,args.assumptions,args.delivery_gates,args.recipe_runtime,args.context_runtime,args.gate_runtime)):
+        parser.error('Choose operations, assumptions, or a specific reviewed migration flag')
     changes=json.loads(Path(args.operations).read_text(encoding='utf-8-sig')) if args.operations else {}
     assumption_rows=json.loads(Path(args.assumptions).read_text(encoding='utf-8-sig')) if args.assumptions else None
     if args.assumptions and assumption_rows is None:raise ValueError('Assumptions input must be an array, not null')
     root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime)
     print('REVIEW PLAN: '+plan)
     for name,data in replacement.items():
+        before=hashlib.sha256(original[name]).hexdigest() if original[name] is not None else 'missing'
+        print('FILE '+name+' raw SHA256: '+before+' -> '+hashlib.sha256(data).hexdigest())
         print(''.join(difflib.unified_diff(original[name].decode('utf-8-sig').splitlines(True) if original[name] is not None else [],data.decode('utf-8').splitlines(True),fromfile=name+' (current)',tofile=name+' (proposed)')))
     if args.apply:
         backup=apply(root,original,replacement,plan,args.approve_plan)

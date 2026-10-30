@@ -256,6 +256,41 @@ class UpdateTests(unittest.TestCase):
         approved=subprocess.run(command+['--apply','--approve-plan',token],capture_output=True,text=True)
         self.assertEqual(approved.returncode,0,approved.stderr)
         self.assertTrue(json.loads((self.factory/'config.json').read_text())['operations']['done_videos']['enabled'])
+
+    def test_runtime_only_cli_previews_exact_reviewed_change_without_rewriting_config(self):
+        import re, subprocess, sys
+        config=self.factory/'config.json';config.write_text(json.dumps(json.loads(config.read_text()),separators=(',',':')),encoding='utf-8')
+        manifest_path=self.factory/'manifest.json';manifest=json.loads(manifest_path.read_text())
+        manifest['contracts']['config.json']=digest(config.read_bytes())
+        gate=self.factory/'dashboard/gates.py';gate.write_bytes((ROOT/'scripts/fixtures/v1_9_gates.txt').read_bytes())
+        manifest['contracts']['dashboard/gates.py']=digest(gate.read_bytes())
+        manifest_path.write_text(json.dumps(manifest),encoding='utf-8');check(self.factory,quiet=True)
+        before=self.snapshot();command=[sys.executable,str(ROOT/'scripts/update_operations.py'),'--factory',str(self.factory)]
+        self.assertNotEqual(subprocess.run(command,capture_output=True,text=True).returncode,0)
+        for flag in ('--recipe-runtime','--context-runtime','--gate-runtime','--delivery-gates'):
+            result=subprocess.run(command+[flag],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr);self.assertIn('REVIEW PLAN:',result.stdout)
+            self.assertEqual(before,self.snapshot())
+        preview=subprocess.run(command+['--gate-runtime'],capture_output=True,text=True)
+        self.assertIn('FILE dashboard/gates.py raw SHA256:',preview.stdout)
+        token=re.search(r'REVIEW PLAN: ([0-9a-f]{64})',preview.stdout).group(1)
+        self.assertNotEqual(subprocess.run(command+['--gate-runtime','--apply','--approve-plan','bad'],capture_output=True,text=True).returncode,0)
+        self.assertEqual(before,self.snapshot())
+        applied=subprocess.run(command+['--gate-runtime','--apply','--approve-plan',token],capture_output=True,text=True)
+        self.assertEqual(applied.returncode,0,applied.stderr)
+        self.assertEqual(config.read_bytes(),before['.software-factory/config.json'])
+        self.assertEqual((self.factory/'policy.md').read_bytes(),before['.software-factory/policy.md'])
+        self.assertEqual(gate.read_bytes(),(ROOT/'scripts/gates.py').read_bytes());check(self.factory,quiet=True)
+
+    def test_runtime_only_custom_code_is_refused_and_noop_preserves_manifest(self):
+        import subprocess, sys
+        command=[sys.executable,str(ROOT/'scripts/update_operations.py'),'--factory',str(self.factory),'--gate-runtime']
+        before=self.snapshot();result=subprocess.run(command,capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr);self.assertEqual(before,self.snapshot())
+        gate=self.factory/'dashboard/gates.py';gate.write_bytes(gate.read_bytes()+b'\n# custom\n')
+        manifest_path=self.factory/'manifest.json';manifest=json.loads(manifest_path.read_text());manifest['contracts']['dashboard/gates.py']=digest(gate.read_bytes());manifest_path.write_text(json.dumps(manifest))
+        before=self.snapshot();result=subprocess.run(command,capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0);self.assertIn('Customized/unsupported',result.stderr);self.assertEqual(before,self.snapshot())
     def test_disabling_video_retires_reserved_gate_but_keeps_history(self):
         root,old,new,plan=prepare(self.factory,{'done_videos':{'enabled':True}})
         apply(root,old,new,plan,plan)

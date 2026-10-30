@@ -4,6 +4,20 @@ Do not rerun the scaffolder over an existing factory. Do not directly edit hashe
 
 ## Preview and review
 
+`scaffold.py --check <factory>` checks the factory against its own manifest; its
+runtime advisory separately compares copied helpers with this installed builder's
+normalized digests. A difference can be a customization or older code, not proof
+of an available safe upgrade. Preview a specific `--gate-runtime`, `--recipe-runtime`,
+`--context-runtime` or `--delivery-gates` without supplying a dummy operations file.
+Review the named file diffs and before/after raw SHA256 values. The exact plan digest
+is required for apply; unknown custom helpers are refused, not overwritten.
+Delivery-gates is a contract migration and can also update policy, templates and
+verification history. A runtime-only migration preserves config and policy bytes.
+Do not change `upstream-provenance.json` merely because some helpers were updated:
+the rest of the factory can still come from an older source and the builder may
+not know its immutable source revision. Record verified provenance only through a
+separately reviewed accurate change.
+
 Ambiguous duplicate policy keys and policy/config disagreement block the update;
 preserve and reconcile both records through a reviewed synchronized recovery.
 Known pristine v1.7 copied gate helpers remain unchanged by default; the installed
