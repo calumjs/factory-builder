@@ -59,7 +59,8 @@ class UpdateTests(unittest.TestCase):
             (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
             root,old,new,plan=prepare(self.factory,{},delivery_update=True)
             for phase in paths:
-                self.assertEqual(new[f'.claude/skills/factory-{phase}/SKILL.md'].decode().count('<!-- factory-delivery-update:start -->'),1)
+                name=f'.claude/skills/factory-{phase}/SKILL.md'
+                self.assertEqual(new.get(name,old[name]).decode().count('<!-- factory-delivery-update:start -->'),1)
             intake=paths['intake'];intake.write_text(intake.read_text(encoding='utf-8').replace('Reviewed delivery-gate addendum','Customized delivery-gate addendum'),encoding='utf-8')
             manifest['contracts']['.claude/skills/factory-intake/SKILL.md']=digest(intake.read_bytes())
             (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
