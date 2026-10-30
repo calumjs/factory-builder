@@ -224,7 +224,7 @@ def headless_command(root):
 def schedule_text(root, config, kind, every=None, builder=None):
     autonomy, intake = operations(config)
     if intake['mode'] != 'continuous' or autonomy['mode'] != 'bounded':
-        raise ValueError('Scheduling requires issue_intake.mode continuous and autonomy.mode bounded; use a manual /factory-run kickoff instead')
+        raise ValueError('Scheduling requires issue_intake.mode continuous and autonomy.mode bounded; run the factory-run skill from the harness on a human kickoff instead')
     minutes = interval_minutes(config, every)
     project = root.parent
     builder = builder or '<builder-skill-dir>'

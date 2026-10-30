@@ -1,10 +1,10 @@
 # Scheduling the factory — inactive templates
 
 Nothing in this folder is installed or enabled by scaffolding. It documents how
-to run `/factory-run` on a schedule once the operator has confirmed
+to run the factory-run skill on a schedule once the operator has confirmed
 `operations.autonomy.mode: bounded` (named submitters, positive rate limit, kill
 switch) and holds authority over the chosen scheduler. One-shot mode needs none
-of this: start Claude Code in the project and invoke `/factory-run`.
+of this: invoke the factory-run skill from your harness in the project.
 
 ## Render a definition
 

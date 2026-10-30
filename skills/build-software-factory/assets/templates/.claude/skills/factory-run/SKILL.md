@@ -21,11 +21,11 @@ Read-only. It refuses on failed integrity, an active kill switch, exhausted budg
 python <builder-skill-dir>/scripts/run.py --factory <root> plan
 ```
 
-One worker per candidate, up to `budget.max_workers`, each with a prompt rendered from worker-handoff.md. Start one worker per plan entry using your own subagent or worker mechanism, each in an isolated checkout where you have one, and wait for all of them. Each worker performs the `factory-build` then `factory-verify` skills for its single task and returns status, revision, checks run, evidence and blockers. Do not add workers beyond the plan or reuse a worker for a second task in the same pass. A blocked or failed worker is recorded as such; retry only with a new hypothesis and within `budget.max_repair_attempts`.
+One worker per candidate, up to `budget.max_workers`, each with a prompt rendered from worker-handoff.md. Start one worker per plan entry using your own subagent or worker mechanism, each in an isolated checkout where you have one, and wait for all of them. Each worker performs the `factory-build` then `factory-verify` skills for its single task and returns status, revision, checks run, evidence and blockers. Tasks with overlapping `allowed_paths` are never in the same plan. Do not add workers beyond the plan or reuse a worker for a second task in the same pass. A blocked or failed worker is recorded as such; retry only with a new hypothesis and within `budget.max_repair_attempts`.
 
 ## 3. Release and learn
 
-After every worker returns, perform `factory-release` once for the pass, then `factory-learn` once.
+After every worker returns, perform `factory-release` once for the pass, then `factory-learn` once. A READY handoff is still not merge or deploy authority.
 
 ## 4. Record
 

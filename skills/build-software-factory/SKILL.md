@@ -34,7 +34,7 @@ python <skill-dir>/scripts/scaffold.py --config <config.json> --research <resear
 python <skill-dir>/scripts/scaffold.py --config <config.json> --research <research.json> --target <repo-or-folder> --apply
 ```
 
-It creates only `<target>/.software-factory/` — seven skills, boundaries.md, contracts, living records, a read-only dashboard, and inactive CI and scheduling templates — and refuses an existing output. Read [operation.md](references/operation.md) when customizing worker and evidence gates and [running.md](references/running.md) for how passes, parallel workers, issue snapshots and schedules work. Do not alter the project's existing CLAUDE.md, AGENTS.md, settings or skills.
+It creates only `<target>/.software-factory/` — seven skills, boundaries.md, contracts, living records, a read-only dashboard, and inactive CI and scheduling templates — and refuses an existing output. It implements no product, runs no worker or test, enables no provider and publishes nothing. Read [operation.md](references/operation.md) when customizing worker and evidence gates and [running.md](references/running.md) for how passes, parallel workers, issue snapshots and schedules work. Do not alter the project's existing CLAUDE.md, AGENTS.md, settings or skills.
 
 ## 6. Prove and hand over
 

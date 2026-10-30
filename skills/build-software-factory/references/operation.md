@@ -8,7 +8,7 @@ Each handoff names the goal, input artifacts and exact revision, acceptance crit
 
 ## Evidence chain
 
-A task is verified only with evidence tied to its actual revision: command or check, environment, timestamp, result, exit status where applicable, artifact path and limitations; passed / failed / blocked / not-run tracked separately, accepted risks recorded separately. Verify owns the pre-merge rows in verification.md; Release owns G3 and post-action A/R/V1 rows; the task owner records state and evidence atomically with `status.py` (done needs passing evidence and completed dependencies); Learn reconciles records with outcomes. The living files are the only evidence home — no extra evidence directory inside the factory.
+A task is verified only with evidence tied to its actual revision: command or check, environment, timestamp, result, exit status where applicable, artifact path and limitations; passed / failed / blocked / not-run tracked separately, accepted risks recorded separately. Build records the work revision, changed paths and checks actually run and updates its task progress with `status.py`; Verify owns the pre-merge rows in verification.md; Release owns G3 and post-action A/R/V1 rows; the task owner records state and evidence atomically (done needs passing evidence and completed dependencies); Learn reconciles records with outcomes. release-handoff.md summarizes readiness and confirmation but never replaces gate rows. The living files are the only evidence home — no extra evidence directory inside the factory.
 
 Durable logs, screenshots, videos and reports go to existing project evidence storage outside `.software-factory` (for example a reviewed non-secret `docs/factory-evidence/<subject-revision>/` tree or an authorized artifact store), with retention and access chosen with the owner, and are referenced by stable path or content hash. Confirm they remain reachable after the session ends. A vanished temporary log is not grounds to reconstruct a PASS.
 
@@ -53,7 +53,7 @@ Follow [done-videos.md](done-videos.md) and the generated done-video-recipe.md: 
 
 ## Review and visual evidence
 
-Independent reviewers return revision, approve/request_changes/blocked, findings and evidence; every required reviewer approves the final revision, later changes invalidate earlier approval, and repair loops are bounded and cannot auto-approve or merge. Different providers need approved data boundaries and budget. For document or design-to-code conversions, compare the rendered output with the source's own export at matching sizes, inspect the worst mismatches and record tolerances alongside human visual, accessibility and functional checks.
+Independent reviewers return revision, approve/request_changes/blocked, findings and evidence; every required reviewer approves the final revision, later changes invalidate earlier approval, and repair loops are bounded and cannot auto-approve or merge. Different providers need approved data boundaries and budget. For document or design-to-code conversions, compare the rendered output with the source's own export at matching sizes, inspect the worst mismatches and record tolerances alongside human visual, accessibility and functional checks. Keep platform security controls intact: no disabled deployment protection, widened token scopes or weakened settings for convenience.
 
 ## Living state and publication hygiene
 

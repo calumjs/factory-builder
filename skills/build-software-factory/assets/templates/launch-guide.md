@@ -4,7 +4,7 @@ Do this once per session before assigning helper commands, in whatever harness i
 
 ## 1. Pin the builder
 
-Record the builder plugin's name, version and the directory it was loaded from (for a Git checkout, the full commit and whether the tree is dirty; for an archive, its trusted revision or checksum). A version string alone does not identify code. Resolve `<trusted-skill-root>` to `skills/build-software-factory` inside that directory and confirm `scripts/scaffold.py`, `scripts/status.py`, `scripts/gates.py` and `scripts/run.py` are present. A missing helper is a BLOCKED tooling preflight, not a passing gate; do not substitute a copied or improvised script. Updating the plugin is a separate authorized action, and it does not migrate this factory's contracts — use the builder's reviewed update for that.
+Record the builder plugin's name, version and the directory it was loaded from (for a Git checkout, the full commit and whether the tree is dirty; for an archive, its trusted revision or checksum). A version string alone does not identify code. Resolve `<trusted-skill-root>` to `skills/build-software-factory` inside that directory and confirm `scripts/scaffold.py`, `scripts/status.py`, `scripts/gates.py` and `scripts/run.py` are present. A missing helper is a BLOCKED tooling preflight, not a passing gate; do not substitute a copied or improvised script, and manual observations recorded meanwhile do not satisfy a still-required automated check. Do not read credentials while pinning, and do not assume the application's Git origin is the plugin source. Updating the plugin is a separate authorized action, and it does not migrate this factory's contracts — use the builder's reviewed update for that.
 
 ## 2. Load the skills
 
@@ -22,4 +22,4 @@ Before verification or release, record the interpreter's absolute path and the e
 
 ## 4. Headless runs
 
-For a scheduled or unattended pass, the command comes from the headless recipe recorded in `tools.json` (provider, command, structured output, restrictions, authentication evidence). An unverified recipe stays disabled; `run.py schedule` refuses to render without one.
+For a scheduled or unattended pass, the command comes from the headless recipe recorded in `tools.json` (provider, command, structured output, restrictions, authentication evidence). `run.py schedule` uses the first recipe whose command is not marked unconfirmed; confirming its authentication, restrictions and output is the operator's review before enabling the schedule.
