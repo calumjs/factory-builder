@@ -43,7 +43,7 @@ class InstallTrustSecretGuidanceTests(unittest.TestCase):
                        'A version string alone does not identify code', 'does not migrate this factory',
                        'human owner makes it in the normal UI', 'absence does not prove',
                        'affected task BLOCKED', 'a denied action remains denied',
-                       'exact helper argv', 'headless recipe recorded in `tools.json`'):
+                       'exact helper argv', 'only a non-executable proposal', 'never selects a tools.json command'):
             self.assertIn(clause, guide)
         self.assertIn('launch-guide.md', files['.claude/skills/factory-intake/SKILL.md'])
         self.assertIn('launch-guide.md', files['.claude/skills/factory-build/SKILL.md'])
