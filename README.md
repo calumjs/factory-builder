@@ -38,6 +38,8 @@ Every generated factory requires production-equivalent local smoke (G1), change-
 
 Existing factories can opt in through a [narrow reviewed update](skills/build-software-factory/references/existing-factory-update.md), preserving custom instructions and historical evidence.
 
+New factories also receive a dedicated local read-only dashboard: open `.software-factory/dashboard/index.html`, then refresh with its bundled Python helper to an external snapshot. It shows actual recorded work, assignments, gates/waivers, release claims and provenance; missing live activity or usage stays unavailable. [Dashboard design and adoption](skills/build-software-factory/references/dashboard.md) covers project-specific profiles, existing-UI JSON integration and narrow opt-in for existing factories. No credentials, server, hosted stack or background process is required.
+
 Contract files are integrity-checked using normalized text hashes. Living task/evidence, verification, tools, release and learning records may evolve. The status helper records status and revision-bound evidence together without executing or attesting the check. Existing schema 1 factories require a reviewed migration.
 
 ## Improve reusable components

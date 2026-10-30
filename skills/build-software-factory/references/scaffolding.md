@@ -27,6 +27,8 @@ Schema 2 `manifest.json` hashes contract artifacts: phase skills, policy, accept
 
 Five living artifacts are listed but not hashed: `verification.md`, `task-plan.json`, `learning-log.md`, `release-handoff.md` and `tools.json`. These are expected to evolve. The checker validates file presence and basic text/JSON structure, not evidence truth or authorization. Review meaningful changes to permissions, enablement, tools and release decisions. Unexpected files, missing files and malformed living JSON are still errors.
 
+The dedicated `dashboard/` bundle and initial HTML are contracts. Open its initial snapshot directly; refresh using the bundled helper to an HTML/JSON file **outside** the factory. It creates no caches in the factory. See [dashboard.md](dashboard.md) for source/freshness semantics, project-specific profiles, safe existing-UI integration and narrow existing-factory adoption. Keep runtime snapshots and adapter inputs private and outside the manifest directory.
+
 ## Delivery gates
 
 verification.md includes required G1/G2/G3, A1... acceptance checks, R1... selected research checks, and post-G3 V1 when narrated done videos are enabled. Records start NOT RUN, except an explicitly accepted no-release G3 exclusion may be NOT APPLICABLE. Read the generated recording rules; replace designs with actual inspected commands/manual procedures and observations.

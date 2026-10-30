@@ -10,6 +10,8 @@ from research import apply_research, validate_research
 from integrity import check, manifest_for, safe_path
 from operations import operations, controls, DELIVERY_POLICY
 from gates import initial_table
+from dashboard import profile
+from dashboard_bundle import bundle
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT = ('project', 'outcome', 'stack', 'harness', 'deployment', 'data_policy')
@@ -19,7 +21,7 @@ def validate(c):
     if not isinstance(c, dict):
         raise ValueError('Config must be an object')
     expected = set(TEXT + LISTS + ('budget', 'tasks'))
-    if set(c) - {'operations'} != expected:
+    if set(c) - {'operations', 'dashboard'} != expected:
         raise ValueError('Config keys must match example-config.json; missing or unknown keys: ' + str(sorted(set(c) ^ expected)))
     for key in TEXT:
         if not isinstance(c[key], str) or not c[key].strip():
@@ -69,6 +71,7 @@ def validate(c):
         active.remove(i); done.add(i)
     for i in ids: visit(i)
     operations(c)
+    profile(c)
 
 def dumps(c):
     return json.dumps(c, indent=2, ensure_ascii=False) + '\n'
@@ -101,6 +104,7 @@ def render(c, research):
     files['gitignore.fragment'] = '# Optional root ignore rules: inspect and merge manually; never overwrite the repository ignore policy.\n.env*\n!.env.example\n!.env.*.example\n__pycache__/\n*.py[cod]\n.venv/\nnode_modules/\ndist/\nbuild/\ntest-results/\n.claude/skill-backups/\n.factory-update-backups/\n'
     apply_research(files, research)
     files['verification.md'] += '\n## Delivery gate records (required checks start NOT RUN)\n' + initial_table(c,research)
+    files.update(bundle(files))
     files['manifest.json'] = dumps(manifest_for(files))
     return files
 
