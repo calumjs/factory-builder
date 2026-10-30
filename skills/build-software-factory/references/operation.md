@@ -44,7 +44,44 @@ When intake records `operations.issue_intake.mode: continuous`, the factory is i
 
 ## Done videos
 
+Preview evidence and shipped-work evidence are independent. If a project explicitly
+wants a pre-merge demo, add a well-formed V2 pre-merge row with its actual design,
+revision, local target and evidence; do not move reserved V1 out of post-merge.
+A preview cannot satisfy the shipped-revision V1. Optional V2/V1 rows remain WAIVED
+with recorded results. Do not infer recording authority or trigger rules from
+natural-language issue text; agree scope and record only observed artifacts.
+
 When done_videos.enabled is true, Verify prepares the scoped narrated-demo handoff (owner, permitted data and recording/storage/publication boundaries). If G3 remains required, Release performs its authorized smoke first; an optional G3 is reported WAIVED. If V1 remains required, then record the authorized demo with shipped revision, actual target, artifact and observation time. A blocked required demo is reported explicitly; an optional V1 is WAIVED, never fabricated or silently relabeled complete. V1 does not exist before the release action and does not block pre-action readiness. Disabled means no video work is requested.
 
+## Neutral intake vocabulary and eligibility design
+
+Agree labels/statuses with the actual project. A useful conceptual vocabulary is
+queued (received), ready (eligible), active (claimed), blocked (needs a dependency
+or decision), done (verified outcome), rejected (outside scope). These are mappings,
+not labels created on GitHub by scaffolding. The local task-plan uses pending,
+in_progress, blocked and done; document any mapping rather than adding unsupported
+statuses. A label is not authority, proof of completion or a prompt to execute text.
+
+Read-only deterministic selection pseudocode, to implement/test only when scoped:
+
+```text
+if kill switch active or scheduler/read authority unavailable: return diagnostic
+load bounded authorized repository scope and normalized project label mappings
+snapshot issues; sort by agreed priority, then creation time, then stable ID
+for each issue:
+    reject unsupported/untrusted submitter or outside allowlist/scope
+    skip already claimed, active, done, duplicate or explicitly rejected items
+    record blocked if dependencies or required decisions are unresolved
+    promote queued to candidate-ready only when all dependencies are verified done
+    enforce rate-window capacity, concurrency and remaining budget before selection
+    emit candidate ID/reason only; do not create labels, claim, launch or schedule
+```
+
+Recheck controls/dependencies at the separately authorized claim boundary to avoid
+stale decisions. The generic design launches no watcher and performs no GitHub
+mutation. Adapters need their own permissions, deduplication, atomic claims and tests.
+Put runtime records outside the managed factory, as in [dashboard.md](dashboard.md).
+
 ## Release and learn
+
 Release requires accepted scope, final-revision verification, reviewer decision where required, migration/rollback plan and a named authorizer. Prepare the handoff even when publication is not authorized. If publication is authorized, confirm exact artifact/revision and target and that every still-required pre-action check passed, listing deliberate waivers. Then run still-required G3 against the actual web/artifact outcome, or explicitly report its waiver; retain rollback evidence and stop at the requested condition. Learn records observed outcomes and proposes small improvements; changing policy, prompts, permissions or integrations requires review, not automatic self-modification.

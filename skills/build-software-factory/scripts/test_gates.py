@@ -196,6 +196,32 @@ class GateTests(unittest.TestCase):
         self.assertIn('success/failure assertions',self.config['tasks'][0]['goal'])
         self.assertIn('representative critical path',gate_rows(self.rows())['G1']['design'])
         self.assertTrue(self.check(self.rows()))
+
+    def test_mixed_phase_research_can_explicitly_wait_for_release(self):
+        self.test_release_only_research_check_is_not_a_pre_action_dependency()
+        self.research['practices'][0]['phases']=['verify','release']
+        self.research['coverage']['verify']={'status':'applicable','reason':'Synthetic planning and release fixture'}
+        self.assertEqual(requirements(self.config,self.research)['R1']['stage'],'pre-merge')
+        self.config['operations']={'smoke_gates':{'check_stages':{'R1':{'stage':'post-merge','rationale':'Requires the actual released artifact; Verify plans it only'}}}}
+        self.files=render(self.config,self.research)
+        self.assertEqual(requirements(self.config,self.research)['R1']['stage'],'post-merge')
+        self.assertEqual(self.check(self.all_pass()),[])
+        self.assertTrue(any('R1' in p for p in self.check(self.mark(self.rows(),'G3'),'post-merge',target='fixture-artifact')))
+
+    def test_preview_video_and_release_video_are_independent_with_waivers(self):
+        self.config['operations']={'done_videos':{'enabled':True,'scope':'Synthetic shipped demo'}}
+        self.files=render(self.config,self.research)
+        text=self.all_pass()
+        preview=next(line for line in text.splitlines() if line.startswith('| A1 |')).replace('| A1 |','| V2 |').replace('| PASSED |','| NOT RUN |')
+        text+='\n'+preview
+        self.assertTrue(any('V2' in p for p in self.check(text)))
+        text=self.mark(text,'V2')
+        self.assertEqual(self.check(text),[])
+        self.assertTrue(any('V1' in p for p in self.check(self.mark(text,'G3'),'post-merge',target='fixture-artifact')))
+        text=self.edit(text,'V2',4,'no');text=self.edit(text,'V2',6,'FAILED')
+        self.assertEqual(self.check(text),[])
+        text=self.edit(self.mark(text,'G3'),'V1',4,'no')
+        self.assertEqual(self.check(text,'post-merge',target='fixture-artifact'),[])
     def test_unresolved_actual_targets_never_confirm_release(self):
         for placeholder in ('unknown','TBD','not configured','unconfirmed: target pending','none','n/a'):
             text=self.mark(self.rows(),'G3',target=placeholder)

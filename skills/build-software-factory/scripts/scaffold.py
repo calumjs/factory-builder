@@ -3,6 +3,7 @@
 import argparse
 import json
 import math
+import re
 from pathlib import Path
 import shutil
 import sys
@@ -10,6 +11,8 @@ from research import apply_research, validate_research
 from integrity import check, manifest_for, safe_path
 from operations import operations, controls, DELIVERY_POLICY
 from gates import initial_table
+from dashboard import profile
+from dashboard_bundle import bundle
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT = ('project', 'outcome', 'stack', 'harness', 'deployment', 'data_policy')
@@ -19,7 +22,7 @@ def validate(c):
     if not isinstance(c, dict):
         raise ValueError('Config must be an object')
     expected = set(TEXT + LISTS + ('budget', 'tasks'))
-    if set(c) - {'operations'} != expected:
+    if set(c) - {'operations', 'dashboard'} != expected:
         raise ValueError('Config keys must match example-config.json; missing or unknown keys: ' + str(sorted(set(c) ^ expected)))
     for key in TEXT:
         if not isinstance(c[key], str) or not c[key].strip():
@@ -69,9 +72,26 @@ def validate(c):
         active.remove(i); done.add(i)
     for i in ids: visit(i)
     operations(c)
+    profile(c)
 
 def dumps(c):
     return json.dumps(c, indent=2, ensure_ascii=False) + '\n'
+
+
+def ignore_fragment(c):
+    text = '# Optional root ignore rules: inspect and merge manually; never overwrite the repository ignore policy.\n.env*\n!.env.example\n!.env.*.example\n__pycache__/\n*.py[cod]\n.venv/\nnode_modules/\ndist/\nbuild/\ntest-results/\n.claude/skill-backups/\n.factory-update-backups/\nfactory-overview.html\nfactory-overview.json\n'
+    stack = c['stack'].casefold()
+    if re.search(r'\bnext(?:\.js|js)\b', stack):
+        text += '\n# Next.js generated output; verify installed-version conventions.\n.next/\n'
+        if 'typescript' in stack:
+            text += '# Current Next.js regenerates this type declaration; review tracked-file policy first.\nnext-env.d.ts\n'
+    if 'typescript' in stack:
+        text += '*.tsbuildinfo\n'
+    if 'vercel' in (stack+' '+c['deployment'].casefold()):
+        text += '.vercel/\n'
+    if 'playwright' in (stack+' '+' '.join(c['test_commands']).casefold()):
+        text += 'playwright-report/\n'
+    return text
 
 def render(c, research):
     files = {str(f.relative_to(ROOT/'assets/templates')).replace('\\','/'): f.read_text(encoding='utf-8') for f in sorted((ROOT/'assets/templates').rglob('*')) if f.is_file()}
@@ -98,9 +118,10 @@ def render(c, research):
         'publication_authority':'none',
         'privacy_note':'No repository identity is copied automatically. Verify the installed plugin repository and visibility before recording it in an approved private location; redact private identity before sharing.'})
     files['.gitattributes'] = '* text=auto eol=lf\n'
-    files['gitignore.fragment'] = '# Optional root ignore rules: inspect and merge manually; never overwrite the repository ignore policy.\n.env*\n!.env.example\n!.env.*.example\n__pycache__/\n*.py[cod]\n.venv/\nnode_modules/\ndist/\nbuild/\ntest-results/\n.claude/skill-backups/\n.factory-update-backups/\n'
+    files['gitignore.fragment'] = ignore_fragment(c)
     apply_research(files, research)
     files['verification.md'] += '\n## Delivery gate records (required checks start NOT RUN)\n' + initial_table(c,research)
+    files.update(bundle(files))
     files['manifest.json'] = dumps(manifest_for(files))
     return files
 

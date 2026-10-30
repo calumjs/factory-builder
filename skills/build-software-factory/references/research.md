@@ -7,6 +7,8 @@ Propose a small research budget inside the project time budget: normally up to 1
 
 Record research questions and planned queries. Use public product/stack/version terms only: never submit secrets, private repository names/code, personal records or internal URLs to search engines. Use the available browsing tools; the scaffold helper stays offline.
 
+For the dedicated overview, assess project operators, existing UI/stack compatibility, accessible presentation, safe text rendering, evidence source semantics and freshness. Research only consequential gaps. Apply selected practices to dashboard/adapter tasks and planned checks; do not add credentials, live integrations or fabricated metrics as a research side effect. The offline local fallback is always available.
+
 ## 2. Read, compare and select
 Prefer official framework/harness/provider documentation, standards and original research. Open and read the actual source, not just a snippet. Check the project's installed version against the source's version and any deprecation or migration notices. Record URL, access date, source type, version scope and the observation actually supported. Use secondary material only where it adds necessary context, label it, and corroborate consequential claims. Compare conflicting advice and document the project-specific trade-off.
 

@@ -1,5 +1,12 @@
 # Optional operational configuration
 
+Legacy `not_run_is_blocking` is unsupported: do not copy it into operations. In a
+reviewed migration, retain required NOT RUN checks as blocking, or express the
+user's deliberate optional choice with `smoke_gates.required:false` (G1/G2/G3
+defaults) or Required=no in a specific living row. Preserve the original record
+and context; never silently drop an unknown legacy field or translate it to PASSED.
+There is one requiredness system, with transparent WAIVED outcomes.
+
 `operations` is an optional object in the intake config. Missing sections use manual, disabled or unconfirmed defaults. These are proposals, not permission or verified authentication. The helper validates and copies metadata; it runs no recipe, probe, agent or identity-changing command.
 
 ```json
@@ -70,6 +77,13 @@ Intake should verify existing Git author and authenticated platform account/scop
 target_kind is unconfirmed, web, artifact or no_release. Post-merge applicability is applicable by default. A not_applicable G3 requires target_kind no_release, a specific post_merge_rationale and named accepted_by. An unknown target is not an exclusion. Enabled shipped-work videos conflict with a no-release exclusion and must be resolved explicitly.
 
 check_stages optionally maps A/R IDs to a stage and nonempty rationale, e.g. {"A2":{"stage":"post-merge","rationale":"Needs the actual published artifact"}}. Unknown IDs are rejected. Acceptance defaults pre-merge; research checks mapped only to Release/Learn default post-merge, with explicit overrides available. Keep G1/G2 pre-merge and G3/V1 post-merge. Requiredness is independently user-editable and is not locked by these stage defaults.
+
+A resource may inform Verify and Release while its observable check needs the
+published artifact. For such a selected R1, set
+`{"check_stages":{"R1":{"stage":"post-merge","rationale":"The practice informs Verify planning, but this check inspects the actual released artifact"}}}`
+inside smoke_gates. This overrides the mixed-phase pre-merge default without a new
+schema. Verify can plan it; future release evidence does not block pre-action
+readiness. Keep checks that can run before release at pre-merge instead.
 
 Changing a living row to optional needs no config rewrite, extra approval or exception. For changes to contract-level default preferences, use the normal synchronized config/policy/manifest update within existing local-write authority; this is integrity bookkeeping, not an extra approval for waiving a test. See [existing-factory-update.md](existing-factory-update.md). Smoke/video changes reset active observations to NOT RUN while retaining quoted history. No preference starts a watcher, recording or external integration.
 

@@ -27,6 +27,8 @@ Schema 2 `manifest.json` hashes contract artifacts: phase skills, policy, accept
 
 Five living artifacts are listed but not hashed: `verification.md`, `task-plan.json`, `learning-log.md`, `release-handoff.md` and `tools.json`. These are expected to evolve. The checker validates file presence and basic text/JSON structure, not evidence truth or authorization. Review meaningful changes to permissions, enablement, tools and release decisions. Unexpected files, missing files and malformed living JSON are still errors.
 
+The dedicated `dashboard/` bundle and initial HTML are contracts. Open its initial snapshot directly; refresh using the bundled helper to an HTML/JSON file **outside** the factory. It creates no caches in the factory. See [dashboard.md](dashboard.md) for source/freshness semantics, project-specific profiles, safe existing-UI integration and narrow existing-factory adoption. Keep runtime snapshots and adapter inputs private and outside the manifest directory.
+
 ## Delivery gates
 
 verification.md includes required G1/G2/G3, A1... acceptance checks, R1... selected research checks, and post-G3 V1 when narrated done videos are enabled. Records start NOT RUN, except an explicitly accepted no-release G3 exclusion may be NOT APPLICABLE. Read the generated recording rules; replace designs with actual inspected commands/manual procedures and observations.
@@ -57,6 +59,15 @@ The preview writes nothing. `--apply` updates status and appends an evidence eve
 The plugin builder is `/software-factory:build-software-factory`. Generated six-phase folders live at `.software-factory/.claude/skills/factory-<phase>/`. Start Claude from the project root with `claude --add-dir .software-factory`, then invoke `/factory-intake`, `/factory-plan`, `/factory-build`, `/factory-verify`, `/factory-release` or `/factory-learn`. Confirm discovery under the installed Claude version and organization policy. The phase instructions resolve their artifact root three levels above their containing folder.
 
 No hooks, tool preapproval, MCP server or settings changes are bundled. `gitignore.fragment` is an optional root ignore fragment to review and merge manually; the helper never edits root ignore rules. Keep non-secret `.env.example` files if useful. Stage explicit reviewed paths; avoid blanket staging of caches, backups, credentials or factory outputs.
+
+The fragment adds Next.js/TypeScript/Vercel/Playwright patterns only when named in
+the configured stack, target or test commands. Confirm actual installed tooling
+before adopting inferred patterns. Current Next.js documentation says next-env.d.ts
+is regenerated and should be ignored; older tracked-file conventions may differ.
+The helper neither deletes nor untracks files or overwrites root ignore policy.
+See [Next.js TypeScript](https://nextjs.org/docs/app/api-reference/config/typescript#next-envdts)
+(read 2026-10-30). Snapshots use factory-overview.html/json by convention; review
+additional runtime/adapter paths separately and keep them outside the factory.
 
 The generated `upstream-provenance.json` deliberately leaves the repository URL unverified/null. Resolve the reusable component's source from installed plugin metadata, then use the bundled contribution skill; never copy a private repository identity into shared output or infer posting authority from provenance.
 
