@@ -49,6 +49,11 @@ class CIEvidenceTests(unittest.TestCase):
                 self.assertEqual(Git(self.repo).read('status'),b'synthetic')
         self.assertEqual(observed[0]['GIT_ALLOW_PROTOCOL'],'')
         self.assertEqual(observed[0]['GIT_PROTOCOL_FROM_USER'],'0')
+
+    def test_generated_ci_guide_describes_transport_restriction(self):
+        guide=(self.factory/'ci/README.md').read_text(encoding='utf-8')
+        self.assertIn('independently denies all Git transport protocols',guide)
+        self.assertNotIn('must support --no-lazy-fetch',guide)
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.repo=Path(self.tmp.name)/'project';self.repo.mkdir()
         self.hooks=self.repo/'.fixture-empty-hooks';self.hooks.mkdir()
