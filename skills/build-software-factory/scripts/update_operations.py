@@ -76,6 +76,10 @@ LEGACY_CONTEXT = {'dashboard.py':'9e785051fe9cc6a7dba5c4022992878066c264711fca14
 # Exact assumption-aware integrity.py published through v1.5.1: compatible without
 # the newer path diagnostics. Preserve it unless a reviewed runtime update is opted in.
 COMPATIBLE_CONTEXT = {'integrity.py':'c036ba6ce7bae45e7679ecc111fd33cc7dd65c323d13f1ce651856de6b291f94'}
+LEGACY_DELIVERY_ADDENDUM = {
+    'intake':'222e1a4da39797890d2da2f7279d2f3492f678daca322823f0ceafc30c915573',
+    'verify':'fea10626d5030ace9cf8a36f8d8246ea0a0d086b4abbb894fd10dfa5d875ea47',
+    'release':'08f80342cb4be98daf090c833e0cc209971ec959acff24512d7dd06a9c0e5a87'}
 PRIOR_GATE_RUNTIME = {
     'operations.py':'0a964032c4680520b945f8103185a0cb04fa265a147c1b0bb7f547f5302b8d00',
     'recipes.py':'0290d43d98da9529dd20452c93c5d0bb037a794c3e9a8e68526a546391cd8d27',
@@ -202,10 +206,19 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             original[name]=(root/name).read_bytes()
             current=original[name].decode('utf-8-sig')
             source=phase_skill((ROOT/'assets/templates'/name).read_text(encoding='utf-8')).split('---',2)[2].strip()+'\n\n'+RETURN
-            addon='<!-- factory-delivery-update:start -->\n## Reviewed delivery-gate addendum\nThis reviewed addendum supersedes conflicting older delivery/intake instructions; other custom project instructions remain in force.\n\n'+source+'\n<!-- factory-delivery-update:end -->'
+            seven='Confirm all seven skills (six phases plus factory-run) are discovered'
+            six='Confirm the six existing phase skills are discovered; if factory-run was separately adopted, confirm it too'
+            if phase=='intake' and seven not in source:raise ValueError('Unexpected intake discovery instructions; review migration manually')
+            source_six=source.replace(seven,six) if phase=='intake' else source
+            def build_addon(body):
+                return '<!-- factory-delivery-update:start -->\n## Reviewed delivery-gate addendum\nThis reviewed addendum supersedes conflicting older delivery/intake instructions; other custom project instructions remain in force.\n\n'+body+'\n<!-- factory-delivery-update:end -->'
+            addon=build_addon(source_six if phase=='intake' and not (root/'.claude/skills/factory-run/SKILL.md').is_file() else source)
             pattern=r'<!-- factory-delivery-update:start -->.*?<!-- factory-delivery-update:end -->'
             if current.count('<!-- factory-delivery-update:start -->')>1 or current.count('<!-- factory-delivery-update:start -->')!=current.count('<!-- factory-delivery-update:end -->'):
                 raise ValueError('Ambiguous prior delivery addendum')
+            previous=re.search(pattern,current,flags=re.S)
+            if previous and digest(previous.group(0)) not in (LEGACY_DELIVERY_ADDENDUM[phase],digest(build_addon(source)),digest(build_addon(source_six))):
+                raise ValueError('Customized or unsupported delivery addendum preserved; review migration manually: '+phase)
             current=re.sub(pattern,lambda _:addon,current,flags=re.S) if re.search(pattern,current,flags=re.S) else current.rstrip()+'\n\n'+addon+'\n'
             replacement[name]=current.encode('utf-8')
     tools=json.loads(original['tools.json'].decode('utf-8-sig'))

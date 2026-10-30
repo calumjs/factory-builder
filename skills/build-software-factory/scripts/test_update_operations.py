@@ -49,6 +49,40 @@ class UpdateTests(unittest.TestCase):
         self.assertIn('boundaries.md',json.loads((backup/'added-files.json').read_text()))
         check(root,quiet=True)
 
+    def test_six_skill_factory_migration_does_not_require_uninstalled_run(self):
+        manifest=json.loads((self.factory/'manifest.json').read_text())
+        for name in ('boundaries.md','.claude/skills/factory-run/SKILL.md'):
+            (self.factory/name).unlink();manifest['contracts'].pop(name)
+        intake=self.factory/'.claude/skills/factory-intake/SKILL.md'
+        intake.write_text('---\nname: factory-intake\ndescription: Legacy intake\n---\n\n# Intake\n\nLegacy project instructions.\n')
+        manifest['contracts']['.claude/skills/factory-intake/SKILL.md']=digest(intake.read_bytes())
+        (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+        root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        addon=new['.claude/skills/factory-intake/SKILL.md'].decode().split('<!-- factory-delivery-update:start -->',1)[1]
+        self.assertIn('Confirm the six existing phase skills',addon)
+        self.assertIn('if factory-run was separately adopted',addon)
+        self.assertNotIn('Confirm all seven skills',addon)
+        apply(root,old,new,plan,plan);check(root,quiet=True)
+
+    def test_known_legacy_addenda_upgrade_and_unknown_custom_addenda_refuse(self):
+        from update_operations import LEGACY_DELIVERY_ADDENDUM
+        manifest=json.loads((self.factory/'manifest.json').read_text())
+        for phase in ('intake','verify','release'):
+            name=f'.claude/skills/factory-{phase}/SKILL.md';path=self.factory/name
+            addon=(ROOT/f'scripts/fixtures/v1_7_delivery_{phase}.txt').read_text(encoding='utf-8')
+            self.assertEqual(digest(addon),LEGACY_DELIVERY_ADDENDUM[phase])
+            path.write_text(path.read_text()+'\n'+addon+'\n');manifest['contracts'][name]=digest(path.read_bytes())
+        (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+        root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        self.assertIn('factory-delivery-update:start',new['.claude/skills/factory-intake/SKILL.md'].decode())
+        path=root/'.claude/skills/factory-intake/SKILL.md'
+        path.write_text(path.read_text().replace('<!-- factory-delivery-update:end -->','Custom retained instruction.\n<!-- factory-delivery-update:end -->'))
+        manifest=json.loads((root/'manifest.json').read_text());manifest['contracts']['.claude/skills/factory-intake/SKILL.md']=digest(path.read_bytes())
+        (root/'manifest.json').write_text(json.dumps(manifest));before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'Customized or unsupported delivery addendum'):
+            prepare(root,{},delivery_update=True)
+        self.assertEqual(before,self.snapshot())
+
     def test_delivery_migration_preserves_custom_boundaries(self):
         path=self.factory/'boundaries.md';path.write_text(path.read_text()+'\nCustom policy.\n')
         manifest=json.loads((self.factory/'manifest.json').read_text());manifest['contracts']['boundaries.md']=digest(path.read_bytes())
