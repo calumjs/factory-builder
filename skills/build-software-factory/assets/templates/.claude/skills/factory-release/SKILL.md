@@ -10,6 +10,26 @@ description: Prepare a truthful readiness handoff, perform only authorized relea
 2. Before first provisioning, verify framework, runtime, build and output settings against the project and current official provider guidance. Discover the live plan/SKU identifiers and record the selection, limits, cost, source and time; never guess from a sample, and a free plan is not permission. Inventory permitted environment names (no values) and who manages each target; required names and integration-managed extras need project-specific checks, since the generic gates enforce no env allowlist.
 3. Without publication authority, deliver the prepared handoff and stop.
 
+## Coordinate one release lane
+
+For each subject and actual target, identify one release owner and the authorized
+coordination mechanism before migration, G3 or V1 work starts. Separate triggers
+must not each infer ownership from a label, row or local file. If two owners might
+act, require a separately authorized, tested atomic admission mechanism at their
+shared coordination boundary; otherwise stop and resolve ownership with the owner.
+A non-owner waits and consumes the owner's revision-bound outcome and durable
+evidence; it does not rerun migration, smoke or narration. Transfer ownership only
+through the agreed procedure after the prior owner stops or its outcome is resolved.
+No mechanism is installed or authority granted by this guidance.
+
+Before traffic can reach code that requires a schema change, establish an authorized
+migration-before-promotion sequence or a verified compatible expand/contract plan
+for the actual deployment platform. Check pending migrations and compatibility in
+the project-specific release plan, with named owner, backup and rollback decisions.
+If automatic promotion can expose incompatible code first, a later G3 observation
+cannot prevent that exposure: block the release handoff and escalate the ordering
+problem. Do not run migrations or change promotion settings without scoped authority.
+
 ## Post-action
 4. Only after a separately authorized merge, deploy, install or publish: run G3, if still required, against the actual target and merged revision — the real URL for web targets, the installed or published artifact for everything else — plus required post-action A/R checks. Record result, target, revision, command or observation, time, exit status and evidence, then run `gates.py --factory <root> --stage post-merge --revision <merged-rev> --target <target>`. An optional G3 is reported WAIVED.
 5. If a required post-action check fails or cannot run, report UNCONFIRMED/FAILED at once to the release owner with evidence, target, revision and the diagnosis or rollback decision needed. Roll back only within existing authority. An unknown target stays blocked; only accepted no-release scope records G3 NOT APPLICABLE with rationale.

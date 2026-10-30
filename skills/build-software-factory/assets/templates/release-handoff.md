@@ -11,6 +11,8 @@ G1 production-equivalent local smoke, G2 change-targeted checks and required A/R
 Outstanding failed / BLOCKED / NOT RUN checks:
 Review verdict and exact revision:
 Accepted scope, migrations and rollback plan:
+Release owner, subject/target, coordination boundary and handoff evidence:
+Migration-before-traffic or compatible expand/contract evidence; automatic promotion risk:
 Actual intended web/artifact target:
 Named authorizer, allowed action and boundaries:
 Only mark READY FOR AUTHORIZED ACTION after all still-required pre-merge gates pass; use READY WITH WAIVERS when the user explicitly made checks optional and list them with recorded status. Pending post-action evidence is not a pre-merge dependency.
