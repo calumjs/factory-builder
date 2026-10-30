@@ -8,7 +8,8 @@ import shutil
 import sys
 from research import apply_research, validate_research
 from integrity import check, manifest_for, safe_path
-from operations import operations
+from operations import operations, controls, DELIVERY_POLICY
+from gates import initial_table
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT = ('project', 'outcome', 'stack', 'harness', 'deployment', 'data_policy')
@@ -86,7 +87,8 @@ def render(c, research):
     ops = operations(c)
     files['tools.json'] = dumps({'integrations':[{'requested':x,'enabled':False,'availability':'unverified','evidence':None,'authorization':None,'data_egress':'not authorized','cost':'unverified'} for x in c['providers']], 'test_commands':[{'command':x,'execution_authorized':False,'result':'not-run'} for x in c['test_commands']], 'identities':ops['identities'], 'headless_recipes':ops['tool_recipes']})
     files['policy.md'] = '# Approval and budget policy\n\n## Requested permission scope (verify authority before action)\n'+'\n'.join('- '+x for x in c['permissions'])+'\n\n## Data boundary\n'+c['data_policy']+'\n\n## Proposed limits (confirm before live execution)\n```json\n'+dumps(c['budget'])+'```\n\nExternal integrations are disabled. No paid agents, provisioning, credentials, permission changes, data upload, publication, PR approval/merge or deployment is authorized by this scaffold. Approval must identify the action, target and scope.\n\nStop at the agreed time/cost/retry limit, missing authority, unsafe data boundary, unresolved required evidence, or requested outcome. Retry only with a new hypothesis. Escalate with evidence and the smallest needed decision.\n'
-    files['policy.md'] += '\n## Proposed autonomy and review controls (not execution authority)\n```json\n' + dumps({'autonomy':ops['autonomy'],'concurrency':c['budget']['max_workers'],'review':ops['review'],'visual_checks':ops['visual_checks'],'issue_intake':ops['issue_intake'],'done_videos':ops['done_videos']}) + '```\n\nIf enabled later, independent reviewers return revision, verdict (approve/request_changes/blocked), findings and evidence. Every required approval must cover the final revision; repair attempts stay within budget.\n'
+    files['policy.md'] += '\n## Proposed autonomy and review controls (not execution authority)\n```json\n' + dumps(controls(c)) + '```\n\nIf enabled later, independent reviewers return revision, verdict (approve/request_changes/blocked), findings and evidence. Every required approval must cover the final revision; repair attempts stay within budget.\n'
+    files['policy.md'] += '\n' + DELIVERY_POLICY
     plugin_manifest = ROOT.parents[1]/'.claude-plugin/plugin.json'
     metadata = json.loads(plugin_manifest.read_text(encoding='utf-8')) if plugin_manifest.is_file() else {}
     files['upstream-provenance.json'] = dumps({'schema_version':1,
@@ -96,8 +98,9 @@ def render(c, research):
         'publication_authority':'none',
         'privacy_note':'No repository identity is copied automatically. Verify the installed plugin repository and visibility before recording it in an approved private location; redact private identity before sharing.'})
     files['.gitattributes'] = '* text=auto eol=lf\n'
-    files['gitignore.fragment'] = '# Optional root ignore rules: inspect and merge manually; never overwrite the repository ignore policy.\n.env*\n!.env.example\n!.env.*.example\n__pycache__/\n*.py[cod]\n.venv/\nnode_modules/\ndist/\nbuild/\ntest-results/\n.claude/skill-backups/\n'
+    files['gitignore.fragment'] = '# Optional root ignore rules: inspect and merge manually; never overwrite the repository ignore policy.\n.env*\n!.env.example\n!.env.*.example\n__pycache__/\n*.py[cod]\n.venv/\nnode_modules/\ndist/\nbuild/\ntest-results/\n.claude/skill-backups/\n.factory-update-backups/\n'
     apply_research(files, research)
+    files['verification.md'] += '\n## Delivery gate records (required checks start NOT RUN)\n' + initial_table(c,research)
     files['manifest.json'] = dumps(manifest_for(files))
     return files
 

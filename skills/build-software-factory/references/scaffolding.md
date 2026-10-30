@@ -27,7 +27,19 @@ Schema 2 `manifest.json` hashes contract artifacts: phase skills, policy, accept
 
 Five living artifacts are listed but not hashed: `verification.md`, `task-plan.json`, `learning-log.md`, `release-handoff.md` and `tools.json`. These are expected to evolve. The checker validates file presence and basic text/JSON structure, not evidence truth or authorization. Review meaningful changes to permissions, enablement, tools and release decisions. Unexpected files, missing files and malformed living JSON are still errors.
 
-Schema 1 factories need a separately reviewed migration; this helper does not rewrite their manifests. Intentional content changes are distinct from newline-only changes.
+## Delivery gates
+
+verification.md includes required G1/G2/G3, A1... acceptance checks, R1... selected research checks, and post-G3 V1 when narrated done videos are enabled. Records start NOT RUN, except an explicitly accepted no-release G3 exclusion may be NOT APPLICABLE. Read the generated recording rules; replace designs with actual inspected commands/manual procedures and observations.
+
+```sh
+python scripts/gates.py --factory /approved/project/.software-factory --stage pre-merge --revision actual-reviewed-revision
+# Only after a separately authorized action; the target may be a URL or artifact identity:
+python scripts/gates.py --factory /approved/project/.software-factory --stage post-merge --revision actual-merged-revision --target actual-target
+```
+
+The gate helper first checks contract integrity and synchronized config/policy. It then validates stage, mandatory rows, actual revision/target, environment, timestamp, successful exit/manual observation and evidence for all required checks. A nonzero exit blocks readiness/confirmation. Pre-action readiness does not require future post-action observations. Gate validity is not evidence truth or release authority; no application command executes.
+
+For a write-free proposed table, use `python scripts/gates.py --factory /approved/project/.software-factory --plan`. Do not append duplicate active rows. For an existing factory, use the [narrow reviewed update](existing-factory-update.md); no force/rescaffold operation is available. Legacy schema 1 requires a separate migration.
 
 ## Record status and evidence
 
@@ -50,6 +62,6 @@ The generated `upstream-provenance.json` deliberately leaves the repository URL 
 
 ## Offline tests
 
-`python -m unittest discover -s scripts -p "test_*.py" -v` exercises helpers in temporary directories, including preservation, integrity, line endings, living records, evidence updates and synthetic research mapping. It does not validate an application or prove online research occurred.
+`python -m unittest discover -s scripts -p "test_*.py" -v` exercises helpers in temporary directories, including preservation, integrity, line endings, living records, evidence updates, default delivery gates (NOT RUN blocks) and synthetic research mapping. It does not validate an application or prove online research occurred.
 
 Official format/discovery references: https://code.claude.com/docs/en/skills and https://code.claude.com/docs/en/plugins/create (checked 2026-10-29).

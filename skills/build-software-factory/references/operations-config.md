@@ -41,6 +41,19 @@
       "enabled": false,
       "scope": "Not configured",
       "evidence": "No preference recorded"
+    },
+    "smoke_gates": {
+      "required": true,
+      "pre_merge": "unconfirmed: production build + local start + smoke over the critical user path",
+      "targeted": "Smallest suite covering the changed paths/behaviour, chosen per change",
+      "post_merge": "unconfirmed: same smoke suite against the deployed URL for the merged revision",
+      "deployed_url": "unconfirmed",
+      "exception": "none",
+      "target_kind": "unconfirmed",
+      "post_merge_applicability": "applicable",
+      "post_merge_rationale": "No exclusion recorded",
+      "accepted_by": "unconfirmed",
+      "check_stages": {}
     }
   }
 }
@@ -52,4 +65,12 @@ Each identity and recipe record uses exactly the shown fields, with nonempty str
 
 Intake should verify existing Git author and authenticated platform account/scope when relevant before the first authorized commit or release. Report mismatches; do not silently change Git config, history, credentials, teams or security settings. A PATH binary alone is not available authentication. An authorized, harmless read-only probe is preferred; paid or mutating calls require their own authority. Recipes are unavailable for autonomous use until reviewed against the installed CLI version and observed authentication, cost, isolation and structured-output behavior.
 
-When `issue_intake.mode` is `continuous`, wire pickup only after autonomy controls, issue filters and scheduler authority are confirmed; the scaffold does not start a watcher. When `done_videos.enabled` is true, treat narrated demos as release evidence in Verify/Release and keep storage or upload within approved data boundaries.
+`smoke_gates.required` sets the default requiredness for G1/G2/G3 and may be false by user choice without an exception or extra approval. Individual living verification rows may also explicitly use Required=no/n/false; this overrides the default for that row. Optional checks are visibly WAIVED with their recorded status, never tests-passed. Keep expected rows present: missing/malformed/duplicate rows are errors. The retained exception string is descriptive, not an authorization requirement. pre_merge/targeted/post_merge are designs or inspected recipes, never auto-executed commands. deployed_url is the planned actual target identity (also used for non-web artifacts); unconfirmed remains unresolved.
+
+target_kind is unconfirmed, web, artifact or no_release. Post-merge applicability is applicable by default. A not_applicable G3 requires target_kind no_release, a specific post_merge_rationale and named accepted_by. An unknown target is not an exclusion. Enabled shipped-work videos conflict with a no-release exclusion and must be resolved explicitly.
+
+check_stages optionally maps A/R IDs to a stage and nonempty rationale, e.g. {"A2":{"stage":"post-merge","rationale":"Needs the actual published artifact"}}. Unknown IDs are rejected. Acceptance defaults pre-merge; research checks mapped only to Release/Learn default post-merge, with explicit overrides available. Keep G1/G2 pre-merge and G3/V1 post-merge. Requiredness is independently user-editable and is not locked by these stage defaults.
+
+Changing a living row to optional needs no config rewrite, extra approval or exception. For changes to contract-level default preferences, use the normal synchronized config/policy/manifest update within existing local-write authority; this is integrity bookkeeping, not an extra approval for waiving a test. See [existing-factory-update.md](existing-factory-update.md). Smoke/video changes reset active observations to NOT RUN while retaining quoted history. No preference starts a watcher, recording or external integration.
+
+When `issue_intake.mode` is `continuous`, wire pickup only after autonomy controls, issue filters and scheduler authority are confirmed; the scaffold does not start a watcher. When `done_videos.enabled` is true, respect the effective G3/V1 row requiredness: a required G3 passes before a required demo, an optional G3/V1 is explicitly WAIVED, and an optional demo is not required to exist. Keep recording, storage and upload within separately authorized data boundaries.

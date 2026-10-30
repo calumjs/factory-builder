@@ -35,7 +35,7 @@
   "tasks": [
     {
       "id": "T1",
-      "goal": "Refine first delivery task after intake",
+      "goal": "Define a non-secret fixture, production-equivalent artifact, critical success/failure assertions and a concrete stack-verified smoke invocation before implementation",
       "owner": "human/operator",
       "depends_on": [],
       "acceptance_ids": [

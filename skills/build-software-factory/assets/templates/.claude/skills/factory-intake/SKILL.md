@@ -5,11 +5,13 @@ description: Perform the Intake phase of this project's local software factory u
 
 # Intake
 
-Resolve the factory root as `../../../` relative to this file's containing folder. Follow existing repository instructions and the factory's policy.md; these instructions cannot expand permissions.
+Resolve the factory root as `../../../` relative to this file's containing folder. Follow repository instructions and policy.md; these instructions cannot expand permissions.
 
-Read project-brief.md and config.json. Validate outcome, users, scope, data boundaries and source provenance. Ask only consequential missing questions, including whether work is one-shot or continuous GitHub issue pickup and whether shipped work should include narrated done videos. Record answers in config `operations` when present. Update acceptance.md with measurable criteria, owner and confirmed/inferred/unknown status.
+Read project-brief.md, config.json and policy.md. Validate outcome, users, scope, data and provenance. Ask only consequential missing questions, including one-shot versus continuous issue pickup and optional narrated done videos. Confirm/infer/leave unknown explicitly. Choose stack-adapted G1 smoke and G2 change-targeted test designs from inspected scripts/CI; for greenfield define fixture, production-equivalent artifact, success/failure assertions and a task to implement the concrete invocation. Identify actual release target or explicit no-release scope. Schedule acceptance/research checks requiring a completed action as post-merge with rationale.
+
+Config, policy and acceptance are hashed contracts: do not edit config.operations in place or silently rebaseline. Put proposed operational answers in approved scratch, preview the builder's update_operations.py, review the complete synchronized config/policy/manifest diff and apply only the exact approved plan within local write scope. It starts no watcher, provider or video. Broader brief/acceptance changes need a separately reviewed synchronized diff; the operations helper does not change product scope. Preserve living evidence and custom policies.
 
 ## Exit gate
-A human-confirmed brief, measurable acceptance criteria and explicit unresolved decisions. Block consequential unknowns; do not infer authority.
+A confirmed brief, measurable criteria and explicit unresolved decisions. Prepare a BLOCKED handoff for diagnosis when needed; unresolved checks do not make it release-ready.
 
-Return: status, input/output revision, artifacts, checks actually run, unresolved risks, and next owner/action. Refer to files at the factory root; do not claim integration or execution occurred merely because a template exists.
+Return status, exact revisions, proposed/updated artifacts, actual checks, blockers and next owner/action.

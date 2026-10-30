@@ -1,6 +1,11 @@
 """Validate proposed operational metadata; never probe or enable a provider."""
 import copy
 
+def unresolved(value):
+    if not isinstance(value,str):return True
+    normalized=' '.join(value.casefold().strip().split()).rstrip(' .:')
+    return normalized in ('','none','unconfirmed','unknown','tbd','to be determined','not configured','not set','pending','n/a','not applicable') or normalized.startswith(('unknown:','unconfirmed:','tbd:','not configured:'))
+
 def operations(config):
     defaults = {
         'identities': [], 'tool_recipes': [],
@@ -9,7 +14,15 @@ def operations(config):
         'review': {'required_approvals':0,'independent':False,'distinct_providers':False},
         'visual_checks': {'required':False,'reference':'Unconfirmed or not applicable','method':'Rendered comparison and human review when relevant'},
         'issue_intake': {'mode':'one_shot','github_scope':'Not applicable until continuous pickup is chosen','status':'disabled','evidence':'No preference recorded; factory runs only on explicit kickoff'},
-        'done_videos': {'enabled':False,'scope':'Not configured','evidence':'No preference recorded'}
+        'done_videos': {'enabled':False,'scope':'Not configured','evidence':'No preference recorded'},
+        'smoke_gates': {'required':True,
+                        'pre_merge':'unconfirmed: prepare a production-equivalent artifact and exercise a representative critical path with expected success and failure outcomes',
+                        'targeted':'Smallest suite covering the changed paths/behaviour, chosen per change',
+                        'post_merge':'unconfirmed: confirm the merged revision on the actual deployed, installed or published target',
+                        'deployed_url':'unconfirmed',
+                        'exception':'none', 'target_kind':'unconfirmed',
+                        'post_merge_applicability':'applicable',
+                        'post_merge_rationale':'No exclusion recorded', 'accepted_by':'unconfirmed', 'check_stages':{}}
     }
     supplied = config.get('operations',{})
     if not isinstance(supplied,dict) or not set(supplied) <= set(defaults):
@@ -52,4 +65,31 @@ def operations(config):
     d = result['done_videos']
     if type(d['enabled']) is not bool or any(not isinstance(d[k],str) or not d[k].strip() for k in ('scope','evidence')):
         raise ValueError('Invalid done-video policy')
+    s = result['smoke_gates']
+    if type(s['required']) is not bool or any(not isinstance(s[k],str) or not s[k].strip() for k in ('pre_merge','targeted','post_merge','deployed_url','exception','target_kind','post_merge_applicability','post_merge_rationale','accepted_by')):
+        raise ValueError('Invalid smoke-gate policy')
+    if s['target_kind'] not in ('unconfirmed','web','artifact','no_release') or s['post_merge_applicability'] not in ('applicable','not_applicable'):
+        raise ValueError('Invalid delivery target or applicability')
+    if s['post_merge_applicability'] == 'not_applicable':
+        if s['target_kind'] != 'no_release' or s['post_merge_rationale'] == 'No exclusion recorded' or unresolved(s['post_merge_rationale']) or unresolved(s['accepted_by']):
+            raise ValueError('Post-merge not-applicable requires no-release scope, rationale and named acceptance')
+        if d['enabled']:
+            raise ValueError('Enabled shipped-work videos conflict with a no-release/not-applicable scope')
+    if not isinstance(s['check_stages'],dict):
+        raise ValueError('check_stages must map acceptance/research IDs to stage and rationale')
+    for key,value in s['check_stages'].items():
+        if not isinstance(key,str) or len(key)<2 or key[0] not in 'AR' or not key[1:].isdigit() or not isinstance(value,dict) or set(value)!={'stage','rationale'} or value['stage'] not in ('pre-merge','post-merge') or not isinstance(value['rationale'],str) or not value['rationale'].strip():
+            raise ValueError('Invalid additional-check stage/rationale')
     return result
+
+def controls(config):
+    ops = operations(config)
+    return dict({'concurrency':config['budget']['max_workers']}, **{k:ops[k] for k in ('autonomy','review','visual_checks','issue_intake','done_videos','smoke_gates')})
+
+DELIVERY_POLICY = '''## Default delivery gates
+G1 production-equivalent local smoke and G2 change-targeted tests default to required; users may deliberately mark individual verification rows optional or configure optional smoke defaults without extra approval for that choice. Every remaining required pre-merge check must pass for the exact revision before readiness. Report optional checks visibly as WAIVED (including recorded failures), never tests-passed. Missing/malformed/duplicate rows are errors, not waivers. A blocked diagnostic handoff may always be prepared. Build/hash/lint success alone is not application verification.
+
+G3 confirms the actual post-merge/deploy/install/publish target and merged revision after the separately authorized action. Pending G3 does not block pre-release readiness. Required post-release checks must pass; explicit optional choices are reported COMPLETED WITH WAIVERS, not checked confirmation. Required failure or inability to run is reported to the owner/orchestrator with evidence and a rollback/diagnosis decision. A no-release G3 exclusion needs rationale and named acceptance; an unknown target for a required check stays blocked, not not-applicable.
+
+When done videos are enabled, Verify prepares a scoped recording handoff. Required G3 passes before a required V1 demo; an explicit G3/V1 waiver is respected and reported. A blocked required video is reported, never fabricated. Optional checks grant no merge/deploy/video/publication/scheduling authority. All gate records are operator-supplied evidence, not independently executed or attested by the helper.
+'''
