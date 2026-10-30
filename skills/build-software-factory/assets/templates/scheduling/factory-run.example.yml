@@ -23,7 +23,7 @@ jobs:
       - name: Checkout pinned builder
         uses: actions/checkout@v4
         with:
-          repository: OWNER/software-factory-plugin   # replace; pin ref to a reviewed tag
+          repository: OWNER/software-factory-plugin   # replace; pin ref to a reviewed full commit
           ref: "<verified-full-commit-sha>"
           path: .builder
       - name: Export issue snapshot (read-only)
