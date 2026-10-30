@@ -1,21 +1,32 @@
 # Release handoff
 
-Status: BLOCKED — no release authorization recorded.
+A diagnostic handoff may always be prepared. Preparation grants no authority.
 
-Artifact and exact revision:
-Target environment and deployed URL:
-Accepted scope and acceptance evidence:
-G1 pre-merge local smoke (production build) — revision / result / evidence: NOT RUN
-G2 change-targeted tests — suite chosen and why / revision / result / evidence: NOT RUN
-Other required checks and review decision:
-Known risks and explicitly accepted exceptions (named human, scope):
-Data changes / migration plan:
-Rollback action and verification:
-Human authorizer and exact approved action:
-G3 post-merge confirmatory smoke against deployed URL — revision / result / evidence: NOT RUN
-Post-release checks and stopping condition:
-Actual result / evidence / time:
+## Pre-action readiness
+Status: BLOCKED (initial; not release-ready)
+Reviewed artifact and pre-merge revision:
+G1 production-equivalent local smoke, G2 change-targeted checks and required A/R evidence:
+Outstanding failed / BLOCKED / NOT RUN checks:
+Review verdict and exact revision:
+Accepted scope, migrations and rollback plan:
+Actual intended web/artifact target:
+Named authorizer, allowed action and boundaries:
+Only mark READY FOR AUTHORIZED ACTION after applicable pre-merge gates pass. Pending post-action evidence is not a pre-merge dependency.
 
-Handoff stays BLOCKED while G1 or G2 (or any other required check) is NOT RUN, BLOCKED or FAILED for the exact revision. Scaffold hashes and a successful host build are not substitutes. After merge/deploy, the release is unconfirmed until G3 passes; a G3 failure is surfaced to the release owner and triggers the rollback decision.
+## Post-action confirmation
+Status: PENDING / UNCONFIRMED (initial; no action performed)
+Actual authorized action, merged revision and target:
+G3 actual-target smoke result, evidence, time and exit/manual observation:
+Other required post-action acceptance/research checks:
+Failure/unavailable-check report to release owner/orchestrator and diagnosis/rollback decision:
+For no-release scope, explicit NOT APPLICABLE rationale and named acceptance:
 
-Preparation does not authorize publishing, merging or deployment.
+## Enabled done-video handoff
+Preference read from policy/config; disabled by default:
+Verify's planned recording scope, synthetic/non-secret data and owner:
+G3 prerequisite result:
+V1 narrated demo status, shipped revision, actual target, artifact and observation time:
+Recording/storage/publication authority (separate scopes):
+Report blocked recording or follow-up explicitly; do not fabricate a demo or mark it complete without its artifact. When enabled, V1 follows passing G3; neither is required before the release action can exist.
+
+Only report CONFIRMED/DONE when every applicable post-action gate passes. A failed or NOT RUN G3 is unconfirmed, never silent success. Merge, deployment, recording and publication remain separately authorized.

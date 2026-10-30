@@ -29,16 +29,17 @@ Five living artifacts are listed but not hashed: `verification.md`, `task-plan.j
 
 ## Delivery gates
 
-`verification.md` starts with required G1 (pre-merge local smoke on a production build), G2 (change-targeted tests) and G3 (post-merge smoke on the deployed URL) rows, all NOT RUN. Record actual results in those rows, then check them:
+verification.md includes required G1/G2/G3, A1... acceptance checks, R1... selected research checks, and post-G3 V1 when narrated done videos are enabled. Records start NOT RUN, except an explicitly accepted no-release G3 exclusion may be NOT APPLICABLE. Read the generated recording rules; replace designs with actual inspected commands/manual procedures and observations.
 
 ```sh
-python scripts/gates.py --factory /approved/project/.software-factory --stage pre-merge --revision actual-revision
-python scripts/gates.py --factory /approved/project/.software-factory --stage post-merge --revision merged-revision
+python scripts/gates.py --factory /approved/project/.software-factory --stage pre-merge --revision actual-reviewed-revision
+# Only after a separately authorized action; the target may be a URL or artifact identity:
+python scripts/gates.py --factory /approved/project/.software-factory --stage post-merge --revision actual-merged-revision --target actual-target
 ```
 
-Exit 0 only when every required gate for the stage is PASSED with evidence for that exact revision; NOT RUN, BLOCKED, FAILED, a stale revision or a removed gate exits 1. The helper reads records only; it executes no tests and grants no merge or deploy authority.
+The gate helper first checks contract integrity and synchronized config/policy. It then validates stage, mandatory rows, actual revision/target, environment, timestamp, successful exit/manual observation and evidence for all required checks. A nonzero exit blocks readiness/confirmation. Pre-action readiness does not require future post-action observations. Gate validity is not evidence truth or release authority; no application command executes.
 
-Schema 1 factories need a separately reviewed migration; this helper does not rewrite their manifests. Intentional content changes are distinct from newline-only changes.
+For a write-free proposed table, use `python scripts/gates.py --factory /approved/project/.software-factory --plan`. Do not append duplicate active rows. For an existing factory, use the [narrow reviewed update](existing-factory-update.md); no force/rescaffold operation is available. Legacy schema 1 requires a separate migration.
 
 ## Record status and evidence
 

@@ -12,6 +12,7 @@ dist/
 build/
 test-results/
 .software-factory/
+.factory-update-backups/
 .claude/skill-backups/
 factory-feedback/
 *.log

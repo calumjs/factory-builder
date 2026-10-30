@@ -1,0 +1,135 @@
+"""Narrow update regressions; only isolated synthetic factories are modified."""
+import json
+from pathlib import Path
+import tempfile
+import unittest
+from unittest.mock import patch
+from gates import assess, gate_rows, policy_controls
+from integrity import check, digest
+from operations import controls
+from scaffold import ROOT, render
+from update_operations import apply, prepare
+
+class UpdateTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory();self.base=Path(self.tmp.name)
+        self.factory=self.base/'.software-factory';self.factory.mkdir()
+        self.config=json.loads((ROOT/'assets/example-config.json').read_text())
+        research=json.loads((ROOT/'assets/example-research.json').read_text())
+        for name,body in render(self.config,research).items():
+            p=self.factory/name;p.parent.mkdir(parents=True,exist_ok=True);p.write_text(body,encoding='utf-8')
+        self.add_custom_policy()
+    def tearDown(self):self.tmp.cleanup()
+    def add_custom_policy(self):
+        p=self.factory/'policy.md';p.write_text(p.read_text()+'\n## Custom project rule\nPreserve this reviewed policy.\n')
+        manifest=json.loads((self.factory/'manifest.json').read_text())
+        manifest['contracts']['policy.md']=digest(p.read_bytes())
+        (self.factory/'manifest.json').write_text(json.dumps(manifest))
+    def snapshot(self):
+        return {p.relative_to(self.base).as_posix():p.read_bytes() for p in self.base.rglob('*') if p.is_file()}
+    def test_preview_and_wrong_approval_write_nothing(self):
+        before=self.snapshot();root,old,new,plan=prepare(self.factory,{'done_videos':{'enabled':True}})
+        self.assertEqual(self.snapshot(),before)
+        with self.assertRaises(ValueError):apply(root,old,new,plan,'not-approved')
+        self.assertEqual(self.snapshot(),before)
+    def test_synchronized_update_preserves_custom_policy_and_evidence_history(self):
+        evidence=self.factory/'verification.md';evidence.write_text(evidence.read_text()+'\nOperator notes: preserve this history.\n')
+        before=self.snapshot()
+        root,old,new,plan=prepare(self.factory,{'done_videos':{'enabled':True,'scope':'Synthetic approved demo'}})
+        backup=apply(root,old,new,plan,plan)
+        config=json.loads((root/'config.json').read_text())
+        self.assertEqual(policy_controls((root/'policy.md').read_text()),controls(config))
+        self.assertIn('Preserve this reviewed policy',(root/'policy.md').read_text())
+        self.assertIn('Operator notes: preserve this history',(root/'verification.md').read_text())
+        self.assertEqual(gate_rows((root/'verification.md').read_text())['V1']['result'],'NOT RUN')
+        for name in new:self.assertEqual((backup/name).read_bytes(),old[name])
+        self.assertEqual((root/'task-plan.json').read_bytes(),before['.software-factory/task-plan.json'])
+        check(root,quiet=True)
+    def test_ops_edit_cannot_hide_under_a_rebaselined_stale_policy(self):
+        config=json.loads((self.factory/'config.json').read_text())
+        config['operations']={'done_videos':{'enabled':True}}
+        (self.factory/'config.json').write_text(json.dumps(config))
+        m=json.loads((self.factory/'manifest.json').read_text());m['contracts']['config.json']=digest((self.factory/'config.json').read_bytes())
+        (self.factory/'manifest.json').write_text(json.dumps(m))
+        check(self.factory,quiet=True)
+        with self.assertRaisesRegex(ValueError,'disagree'):assess(self.factory,'pre-merge','r1')
+    def test_changed_contract_blocks_preview(self):
+        (self.factory/'policy.md').write_text('Unreviewed edit')
+        before=self.snapshot()
+        with self.assertRaises(ValueError):prepare(self.factory,{})
+        self.assertEqual(self.snapshot(),before)
+    def test_concurrent_change_invalidates_the_reviewed_plan(self):
+        root,old,new,plan=prepare(self.factory,{'issue_intake':{'mode':'continuous'}})
+        (root/'tools.json').write_text('{"user":"new living edit"}')
+        before=self.snapshot()
+        with self.assertRaises(ValueError):apply(root,old,new,plan,plan)
+        self.assertEqual(self.snapshot(),before)
+    def test_invalid_operations_do_not_write(self):
+        before=self.snapshot()
+        for changes in ({'unexpected':{}},{'smoke_gates':{'required':False}},{'autonomy':{'mode':'bounded'}}):
+            with self.assertRaises(ValueError):prepare(self.factory,changes)
+        self.assertEqual(self.snapshot(),before)
+    def test_narrow_delivery_opt_in_preserves_other_files_and_custom_skill(self):
+        path=self.factory/'.claude/skills/factory-intake/SKILL.md'
+        path.write_text(path.read_text()+'\nCustom reviewed project intake instructions.\n')
+        m=json.loads((self.factory/'manifest.json').read_text());m['contracts']['.claude/skills/factory-intake/SKILL.md']=digest(path.read_bytes())
+        (self.factory/'manifest.json').write_text(json.dumps(m))
+        before=self.snapshot()
+        root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        self.assertEqual(self.snapshot(),before)
+        apply(root,old,new,plan,plan)
+        self.assertIn('Custom reviewed project intake instructions',path.read_text())
+        self.assertIn('Reviewed delivery-gate addendum',path.read_text())
+        for name in ('research.json','acceptance.md','task-plan.json','learning-log.md','release-handoff.md'):
+            self.assertEqual((root/name).read_bytes(),before['.software-factory/'+name])
+        self.assertTrue(assess(root,'pre-merge','r1'))
+    def test_failure_preserves_backup_and_blocks_integrity_until_recovery(self):
+        root,old,new,plan=prepare(self.factory,{'done_videos':{'enabled':True}})
+        import os
+        real_replace=os.replace;calls=[]
+        def fail_second(source,dest):
+            calls.append(str(dest))
+            if len(calls)==2:raise OSError('Synthetic interrupted write')
+            return real_replace(source,dest)
+        with patch('update_operations.os.replace',side_effect=fail_second):
+            with self.assertRaises(OSError):apply(root,old,new,plan,plan)
+        backup=self.base/'.factory-update-backups'/plan
+        self.assertTrue(backup.is_dir())
+        for name in new:self.assertEqual((backup/name).read_bytes(),old[name])
+        self.assertFalse((root/'.operations-update.lock').exists())
+        with self.assertRaises(ValueError):check(root,quiet=True)
+    def test_revised_smoke_plan_resets_prior_passed_claims(self):
+        path=self.factory/'verification.md'
+        text=path.read_text().replace('| NOT RUN |','| PASSED |')
+        path.write_text(text)
+        root,old,new,plan=prepare(self.factory,{'smoke_gates':{'pre_merge':'New inspected smoke design'}})
+        apply(root,old,new,plan,plan)
+        self.assertIn('> | G1 |',path.read_text())
+        self.assertEqual(gate_rows(path.read_text())['G1']['result'],'NOT RUN')
+    def test_legacy_eight_column_gate_migration_preserves_history_and_extra_requirements(self):
+        verification=self.factory/'verification.md'
+        verification.write_text('| G1 | pre-merge | old smoke | local | yes | old-rev | PASSED | original evidence |\n| G2 | pre-merge | targeted | local | yes | | NOT RUN | |\n| G3 | post-merge | confirmation | live | yes | | NOT RUN | |\n| X1 | pre-merge | custom requirement | local | yes | old-rev | PASSED | custom history |\n')
+        root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        apply(root,old,new,plan,plan)
+        self.assertIn('> | G1 |',verification.read_text())
+        self.assertIn('original evidence',verification.read_text())
+        rows=gate_rows(verification.read_text())
+        self.assertEqual(set(rows),{'G1','G2','G3','A1','X1'})
+        self.assertTrue(all(r['result']=='NOT RUN' for r in rows.values()))
+    def test_cli_requires_review_digest_before_apply(self):
+        import re
+        import subprocess
+        import sys
+        changes=self.base/'ops.json';changes.write_text('{"done_videos":{"enabled":true}}')
+        command=[sys.executable,str(ROOT/'scripts/update_operations.py'),'--factory',str(self.factory),'--operations',str(changes)]
+        before=self.snapshot()
+        preview=subprocess.run(command,capture_output=True,text=True)
+        self.assertEqual(preview.returncode,0,preview.stderr);self.assertEqual(self.snapshot(),before)
+        token=re.search(r'REVIEW PLAN: ([0-9a-f]{64})',preview.stdout).group(1)
+        no_approval=subprocess.run(command+['--apply'],capture_output=True,text=True)
+        self.assertNotEqual(no_approval.returncode,0);self.assertEqual(self.snapshot(),before)
+        approved=subprocess.run(command+['--apply','--approve-plan',token],capture_output=True,text=True)
+        self.assertEqual(approved.returncode,0,approved.stderr)
+        self.assertTrue(json.loads((self.factory/'config.json').read_text())['operations']['done_videos']['enabled'])
+
+if __name__=='__main__':unittest.main(verbosity=2)

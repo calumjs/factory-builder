@@ -34,7 +34,9 @@ After authorized local writes, the offline Python helper creates only `<project>
 
 Start Claude from the project root with `claude --add-dir .software-factory`, then use `/factory-intake`, `/factory-plan`, `/factory-build`, `/factory-verify`, `/factory-release` and `/factory-learn`. Confirm additional-directory skill discovery under the installed version and organization policy. See the builder's [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for helper commands and Windows interpreter selection.
 
-Every generated factory requires, by default, a pre-merge local smoke test against a production build (G1), change-targeted tests for what the change touched (G2) and a confirmatory smoke test against the deployed URL after merge (G3). They start NOT RUN; Verify and Release treat NOT RUN, BLOCKED or FAILED as blocking, and `scripts/gates.py` checks the recorded results for an exact revision. Scaffold hashes and "host build succeeded" are not substitutes.
+Every generated factory requires production-equivalent local smoke (G1), change-targeted tests (G2) and applicable acceptance/research checks before pre-merge readiness. After a separately authorized release, G3 checks the actual web URL or installed/published artifact at the merged revision. Pending post-action evidence does not block pre-action readiness; it does prevent claiming the release confirmed. Required failed, NOT RUN, malformed, stale, removed or wrong-target evidence blocks its stage. The offline gate helper validates records only; build/hash success is not application verification. Enabled narrated videos have a post-G3 V1 handoff.
+
+Existing factories can opt in through a [narrow reviewed update](skills/build-software-factory/references/existing-factory-update.md), preserving custom instructions and historical evidence.
 
 Contract files are integrity-checked using normalized text hashes. Living task/evidence, verification, tools, release and learning records may evolve. The status helper records status and revision-bound evidence together without executing or attesting the check. Existing schema 1 factories require a reviewed migration.
 

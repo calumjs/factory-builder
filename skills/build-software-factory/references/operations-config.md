@@ -48,7 +48,12 @@
       "targeted": "Smallest suite covering the changed paths/behaviour, chosen per change",
       "post_merge": "unconfirmed: same smoke suite against the deployed URL for the merged revision",
       "deployed_url": "unconfirmed",
-      "exception": "none"
+      "exception": "none",
+      "target_kind": "unconfirmed",
+      "post_merge_applicability": "applicable",
+      "post_merge_rationale": "No exclusion recorded",
+      "accepted_by": "unconfirmed",
+      "check_stages": {}
     }
   }
 }
@@ -60,6 +65,12 @@ Each identity and recipe record uses exactly the shown fields, with nonempty str
 
 Intake should verify existing Git author and authenticated platform account/scope when relevant before the first authorized commit or release. Report mismatches; do not silently change Git config, history, credentials, teams or security settings. A PATH binary alone is not available authentication. An authorized, harmless read-only probe is preferred; paid or mutating calls require their own authority. Recipes are unavailable for autonomous use until reviewed against the installed CLI version and observed authentication, cost, isolation and structured-output behavior.
 
-`smoke_gates` describes the default G1 pre-merge local smoke, G2 change-targeted tests and G3 post-merge deployed smoke. `required` defaults to true; setting it false is refused unless `exception` records a human-accepted reason other than `none`. Commands are descriptions to inspect and authorize, never executed by the helper. Omitting the section keeps the required defaults.
+`smoke_gates.required` stays true: G1/G2 are adapted to the stack rather than disabled wholesale. The retained exception string is descriptive and grants no bypass. pre_merge/targeted/post_merge are designs or inspected recipes, never auto-executed commands. deployed_url is the planned actual target identity (also used for non-web artifacts); unconfirmed remains unresolved.
+
+target_kind is unconfirmed, web, artifact or no_release. Post-merge applicability is applicable by default. A not_applicable G3 requires target_kind no_release, a specific post_merge_rationale and named accepted_by. An unknown target is not an exclusion. Enabled shipped-work videos conflict with a no-release exclusion and must be resolved explicitly.
+
+check_stages optionally maps A/R IDs to a stage and nonempty rationale, e.g. {"A2":{"stage":"post-merge","rationale":"Needs the actual published artifact"}}. Unknown IDs are rejected. Acceptance defaults pre-merge; research checks mapped only to Release/Learn default post-merge, with explicit overrides available. Keep G1/G2 pre-merge and G3/V1 post-merge.
+
+Changed answers are proposals until a reviewed synchronized config/policy/manifest update. See [existing-factory-update.md](existing-factory-update.md). Smoke/video changes reset active observations to NOT RUN while retaining quoted history. No preference starts a watcher, recording or external integration.
 
 When `issue_intake.mode` is `continuous`, wire pickup only after autonomy controls, issue filters and scheduler authority are confirmed; the scaffold does not start a watcher. When `done_videos.enabled` is true, run G3 post-merge smoke first and produce the demo only after it passes; treat narrated demos as release evidence in Verify/Release and keep storage or upload within approved data boundaries.
