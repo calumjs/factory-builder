@@ -65,6 +65,15 @@ Two mechanisms enforced by code, and one stated once and applied everywhere:
 
 Run selection is advisory and does not reserve work or enforce budget. Scheduler output is a non-executable proposal; see [running](skills/build-software-factory/references/running.md).
 
+## Release identity
+
+Advance the plugin version for a new release containing changed plugin content;
+keep version references synchronized and identify the actual full source commit.
+A version bump alone does not prove an installed cache refreshed. For fresh installs
+and updates, follow the generated launch preflight to compare the loaded files with
+the trusted revision or checksum manifest. The inactive scheduler example requires
+an explicitly verified full commit; it does not assume a release tag exists.
+
 ## Validate and test
 
 ```sh
