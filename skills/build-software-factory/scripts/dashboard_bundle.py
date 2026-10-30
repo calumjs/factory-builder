@@ -10,40 +10,34 @@ def bundle(files):
     result['dashboard/index.html'] = page(summarize(files))
     result['dashboard/README.md'] = '''# Local factory overview
 
-Open index.html for the initial proposed snapshot. It does not refresh itself.
-Refresh from the project root with a verified Python 3.9+ interpreter:
+`index.html` is the initial snapshot; it never refreshes itself. Refresh from the
+project root to a file outside the factory:
 
     python .software-factory/dashboard/dashboard.py --output factory-overview.html
+    python .software-factory/dashboard/dashboard.py --output factory-overview.json --format json
 
-Open factory-overview.html in a browser. Repeat with --replace only when overwriting
-that snapshot is intended. Runtime output must stay outside .software-factory;
-the dashboard source and initial snapshot are manifest-checked contracts.
-No dependencies, credentials, server, network calls, worker or scheduler required.
-Use --format json for a versioned DTO suitable for an existing project UI.
-The generated bundle sets dont_write_bytecode before imports to avoid cache files.
+Add `--replace` to overwrite a previous snapshot. The page is self-contained:
+no server, dependencies, network, credentials or scripts, and it adapts to light
+and dark mode. It reads config, task plan, verification, research and the run
+records in `../.factory-runs/`; a failed read exits nonzero and leaves the old
+output alone.
 
-Records are claims, not live activity or attested test results. Missing/malformed
-sources fail with nonzero status; an old output remains old, never a fresh success.
-Check command status and captured/expiry times. File modification is not observation.
-Read-only assignments do not prove worker liveness. WAIVED does not mean PASSED.
-The view does not compute release readiness; use gates.py for a specific revision.
+What it shows: the six-phase flow with derived counts, task progress, the
+required-gate ring and gate pills, work items, gates and waivers, factory passes,
+recent evidence events, and collapsed details for intake design, assumptions,
+workers, observations and artifact provenance. Every value is a recorded claim
+with its freshness; WAIVED keeps its result and is never counted as passed, and
+readiness for a specific revision still comes from `gates.py`.
 
-Project-specific extension: pass --observations an explicitly approved local JSON
-file outside the factory. Schema: {"schema_version":1,"metrics":[{"name":"Build
-duration","value":12,"unit":"seconds","source":"approved local build log",
-"observed_at":"2026-01-01T00:00:00Z","status":"measured"}]} (single-line name).
-Statuses: measured, unavailable, proposed, error; only measured has a finite numeric
-value, other statuses require null. Every row needs source and timezone timestamp.
-No automatic source discovery/fetching. Budget/usage needs a real measurement;
-configured limits are not consumption. Keep adapter inputs private and untracked.
+Project metrics: pass `--observations <file.json>` (outside the factory) with
+`{"schema_version":1,"metrics":[{"name":"Build duration","value":12,"unit":"seconds","source":"approved local build log","observed_at":"2026-01-01T00:00:00Z","status":"measured"}]}`.
+Statuses are measured, unavailable, proposed or error; only measured carries a
+number. Budget usage needs a measured source; configured limits are not spending.
 
-The HTML/JSON allowlist excludes raw goals, check commands, evidence bodies, target
-URLs, config budget, handoff prose and credentials. It includes task IDs, owner
-labels, revisions and explicitly supplied metric labels/values. Sanitize these
-before recording; escaping is not secret redaction. Snapshot files may still be
-private: inspect before sharing, ignore runtime output, never publish automatically.
-All user values render as escaped text with no active links, Markdown or scripts.
-Existing UI integration must maintain this boundary, freshness and WAIVED semantics;
-authentication/hosting, external reads and operational controls need separate scope.
+Privacy: the HTML and JSON contain task IDs, owner labels, revisions, run notes
+and supplied metric labels, but no goals, commands, evidence bodies, URLs,
+budgets, handoff prose or credentials. Escaping is not redaction, so sanitize
+those fields at source and keep snapshots and adapter inputs untracked. An
+existing UI that consumes the JSON must keep the freshness and WAIVED semantics.
 '''
     return result
