@@ -13,7 +13,8 @@ class VideoPlanGuidanceTests(unittest.TestCase):
         self.assertEqual([s['kind'] for s in plan['scenes']],['title','genuine_capture','outcome'])
         self.assertIsNone(plan['subject_revision']);self.assertIsNone(plan['scenes'][1]['source'])
         for s in ('not a shell script','or proof of capture','distinct V1/V2',
-                  'approval immediately before narration'):
+                  'approval immediately before narration', 'ffmpeg -protocol_whitelist file,pipe',
+                  'silent fixture proves only', 'capture.mp4'):
             self.assertIn(s,' '.join(recipe.split()))
 
 if __name__=='__main__': unittest.main()
