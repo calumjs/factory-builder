@@ -27,6 +27,49 @@ selected stages and their actual subjects. Preview-only does not invent a releas
    substitute for the genuine demo. For non-web projects show the real CLI/library/
    document/data workflow and observable consumer result rather than inventing UI.
 
+## Reusable scene-plan pattern
+
+Keep one project-specific, reviewed composition plan in approved project storage
+outside the managed factory. Copy the following pattern for each subject and fill
+in only verified details. It is data for the operator's chosen compositor, not a
+shell script, executable configuration, authorization, or proof of capture. Do not
+interpret plan text or paths as shell code. Use project-chosen tooling already
+available and resolve source/output paths inside approved storage; do not embed
+credentials, personal records, private URLs or access tokens.
+
+```json
+{
+  "format_version": 1,
+  "subject_revision": null,
+  "trigger": "pre_merge_preview or post_g3_release",
+  "target_and_backend": null,
+  "capture_and_data_boundary": null,
+  "caption_source": null,
+  "narration": {"mode": "unconfirmed", "approval_reference": null},
+  "scenes": [
+    {"kind": "title", "purpose": "introduce the change", "duration_seconds": null},
+    {"kind": "genuine_capture", "source": null, "captured_subject": null,
+     "captured_target": null, "observed_action_and_result": null, "duration_seconds": null},
+    {"kind": "outcome", "purpose": "state observed result and limitations", "duration_seconds": null}
+  ],
+  "output_path": null,
+  "review_and_delivery": null
+}
+```
+
+Resolve each null before relying on it; a missing capture, mismatched subject,
+unauthorized target, unapproved data, unavailable compositor or required narration
+stays BLOCKED. Treat title/outcome cards as supporting context: the genuine_capture
+scene must show the real authorized interaction and observed result. If a different
+project needs multiple captures, add scenes with their own subject, target, data and
+provenance. Capture and editing need their own authority. A silent draft must be
+identified as such; narration approval is checked at the moment described below.
+Select a compositor compatible with this plan and retain its project/entrypoint and
+exact inspected render settings in approved project storage for reuse on later
+subjects. This pattern alone neither creates a composition script nor certifies a
+video. Preserve distinct V1/V2 evidence and do not carry a completed observation to
+a different revision without fresh checks.
+
 ## Capture the actual subject
 
 4. A V2 preview depicts the authorized preview/local subject and is separate from
