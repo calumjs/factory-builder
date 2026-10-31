@@ -34,6 +34,11 @@ class AttemptClaimGuidanceTests(unittest.TestCase):
                      'Retain that completed identity and evidence',
                      'not distributed exclusion','installs no claim helper'):
             with self.subTest(term=term):self.assertIn(term,recipe)
+        self.assertLess(recipe.index('After acquiring exclusive ownership'),
+                        recipe.index('before any capture, composition or paid request'))
+        self.assertIn('An earlier lookup may be stale',recipe)
+        self.assertIn('before releasing the claim',recipe)
+        self.assertIn('If indexing is unavailable or the completion is uncertain',recipe)
         self.assertIn('approval immediately before narration',recipe)
 
 if __name__=='__main__':unittest.main()

@@ -49,6 +49,18 @@ that actually share that filesystem and semantics; it is not distributed exclusi
 or authority to spend. Record timestamps and the claim owner in approved evidence;
 keep sensitive paths and identities private.
 
+After acquiring exclusive ownership, recheck the durable completed-output index
+for the exact identity under that same coordination boundary before any capture,
+composition or paid request. An earlier lookup may be stale. If a matching verified
+completed artifact now exists, reuse it and release the claim under the authorized
+procedure without duplicating work; if its evidence is unavailable or inconsistent,
+stop for diagnosis. On successful completion, persist and verify the artifact's
+identity, hash and durable evidence in the completed index before releasing the
+claim. If indexing is unavailable or the completion is uncertain, retain the claim
+or use the authorized recovery procedure; do not release it as though success was
+safely recorded. The coordination boundary must cover the recheck, publication and
+release ordering, not merely an isolated local file.
+
 Never treat a TTL expiry, missing final marker or stale heartbeat as proof that an
 owner cannot still write or spend. Recovery requires a separately authorized
 procedure that either confirms the old worker has terminated and cannot act, including any outstanding
