@@ -27,6 +27,38 @@ selected stages and their actual subjects. Preview-only does not invent a releas
    substitute for the genuine demo. For non-web projects show the real CLI/library/
    document/data workflow and observable consumer result rather than inventing UI.
 
+## Coordinate duplicate work without assuming a lock
+
+Before any separately authorized capture, composition or narration, consult the
+project's authoritative coordination mechanism and durable completed-output
+index. Define the output identity from the full subject revision, actual target,
+V1/V2 trigger, reviewed plan/input identities, output format and the exact approved
+output key or destination; use a new identity
+when any material input changes. A prior successful output is reusable only after
+checking the artifact is accessible, its recorded content hash matches, and its
+subject, target, plan and permissions still support the requested claims. Retain
+that completed identity and evidence outside the transient claim directory, so
+cleaning a claim cannot erase the duplicate check. A proposed or failed artifact
+is not completed evidence.
+
+If the project has an authorized claim mechanism, it must atomically bind that
+identity to a unique attempt and owner token at the shared coordination boundary.
+Another worker waits or exits without capture, compose or paid actions while the
+claim is valid. A local exclusive directory can coordinate only cooperating workers
+that actually share that filesystem and semantics; it is not distributed exclusion
+or authority to spend. Record timestamps and the claim owner in approved evidence;
+keep sensitive paths and identities private.
+
+Never treat a TTL expiry, missing final marker or stale heartbeat as proof that an
+owner cannot still write or spend. Recovery requires a separately authorized
+procedure that either confirms the old worker has terminated and cannot act, including any outstanding
+provider request that could still spend or write, or uses effective fencing enforced at every relevant output and paid-service boundary.
+If a provider or output destination cannot enforce the fence and termination is
+unverified, leave the claim unresolved and escalate; do not launch a replacement,
+release the claim, or infer ABORTED from elapsed time. Preserve old attempt history
+and link any authorized successor. A missing terminal record remains UNKNOWN.
+This recipe installs no claim helper, watcher, fencing service or live lock.
+
 ## Reusable scene-plan pattern
 
 Keep one project-specific, reviewed composition plan in approved project storage
