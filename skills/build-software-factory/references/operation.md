@@ -66,6 +66,6 @@ Release needs accepted scope, final-revision verification, reviewer decisions wh
 For a release subject and target, designate one owner for migration, G3 and V1.
 When triggers can race, require a separately authorized tested shared admission
 mechanism or stop; a local file, label or record alone does not prove exclusion.
-A non-owner waits for revision-bound evidence. Establish migration-before-traffic
+Record the owner start, latest observation and terminal timestamps and one of SUCCESS, FAILED, CANCELLED or UNKNOWN. No terminal marker is UNKNOWN, never success; verify the actual action and durable evidence separately. Diagnose stale owners and use an authorized coordination handoff before takeover. A non-owner waits for revision-bound evidence. Establish migration-before-traffic
 ordering or a verified compatible expand/contract strategy before promotion; a
 post-action G3 cannot prevent an earlier incompatible automatic deployment.

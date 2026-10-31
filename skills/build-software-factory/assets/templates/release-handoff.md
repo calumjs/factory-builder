@@ -13,6 +13,8 @@ Review verdict and exact revision:
 Accepted scope, migrations and rollback plan:
 Release owner, subject/target, coordination boundary and handoff evidence:
 Migration-before-traffic or compatible expand/contract evidence; automatic promotion risk:
+Owner start, latest observation and terminal timestamps (UTC); outcome SUCCESS / FAILED / CANCELLED / UNKNOWN:
+If a terminal marker is absent, record UNKNOWN, not success. Check the actual action and durable evidence before reporting an outcome. A stale or missing owner needs diagnosis and an authorized handoff under the agreed coordination procedure; a local claim alone proves neither exclusion nor permission to take over.
 Actual intended web/artifact target:
 Named authorizer, allowed action and boundaries:
 Only mark READY FOR AUTHORIZED ACTION after all still-required pre-merge gates pass; use READY WITH WAIVERS when the user explicitly made checks optional and list them with recorded status. Pending post-action evidence is not a pre-merge dependency.

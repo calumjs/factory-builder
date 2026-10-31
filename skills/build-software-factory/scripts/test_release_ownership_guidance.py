@@ -18,3 +18,6 @@ class ReleaseOwnershipGuidanceTests(unittest.TestCase):
         handoff=files['release-handoff.md']
         self.assertIn('Release owner, subject/target',handoff)
         self.assertIn('Migration-before-traffic',handoff)
+        for term in ('SUCCESS / FAILED / CANCELLED / UNKNOWN','terminal marker is absent',
+                     'authorized handoff','local claim alone'):
+            self.assertIn(term,handoff)
