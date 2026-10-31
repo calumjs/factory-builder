@@ -84,6 +84,22 @@ class UpdateTests(unittest.TestCase):
         self.assertIn(addon,(backup/'.claude/skills/factory-verify/SKILL.md').read_text(encoding='utf-8'))
         check(root,quiet=True)
 
+    def test_pre100_verify_addendum_reviewed_upgrade_preserves_backup(self):
+        path=self.factory/'.claude/skills/factory-verify/SKILL.md'
+        addon=(ROOT/'scripts/fixtures/pre100_verify_addendum.txt').read_text(encoding='utf-8')
+        from update_operations import V19_DELIVERY_ADDENDUM
+        self.assertIn(digest(addon),V19_DELIVERY_ADDENDUM['verify'])
+        path.write_text(path.read_text(encoding='utf-8').rstrip()+'\n\n'+addon+'\n',encoding='utf-8')
+        manifest=json.loads((self.factory/'manifest.json').read_text())
+        manifest['contracts']['.claude/skills/factory-verify/SKILL.md']=digest(path.read_bytes())
+        (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+        before=self.snapshot();root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        self.assertEqual(before,self.snapshot())
+        self.assertIn('Check data prerequisites across environments',new['.claude/skills/factory-verify/SKILL.md'].decode())
+        backup=apply(root,old,new,plan,plan)
+        self.assertIn(addon,(backup/'.claude/skills/factory-verify/SKILL.md').read_text(encoding='utf-8'))
+        check(root,quiet=True)
+
     def test_preview_and_wrong_approval_write_nothing(self):
         before=self.snapshot();root,old,new,plan=prepare(self.factory,{'done_videos':{'enabled':True}})
         self.assertEqual(self.snapshot(),before)

@@ -12,6 +12,18 @@ description: Perform revision-bound pre-merge application verification and prepa
 4. Review promised failure properties beyond the happy path. Where the task uses caller IDs or durable persistence, exercise special-key and collision behaviour, save/load with fresh-process retries, removal semantics, and multibyte, short, zero and failed writes with disposable fault fixtures; seek independent review when risk warrants. A kill-before-commit smoke proves no complete-write guarantee.
 5. When a task-fitted secret or connection-string check applies, use connection-string-review.md: review candidate provenance with synthetic positive and negative fixtures. Localhost, fixture usernames and documentation paths are not exemptions. A revised check needs a reviewed contract change and fresh evidence.
 
+## Check data prerequisites across environments
+For seed or fixture changes, inspect the changed data setup alongside tests intended for CI and long-lived targets. Record the required data, which environment supplies it, ownership and authorized setup/cleanup with the exact subject and target; do not expose secrets or private rows. Where a long-lived target is in scope, test a representative production-like state **without relying on newly introduced seeds**, using authorized isolated disposable fixtures when appropriate. A green fresh-seeded CI run is evidence for that CI setup, not proof that the same data or test will work on a long-lived target. Never reseed production merely to pass a test. Retain meaningful feature assertions: use an appropriate data-independent assertion or a separate isolated fixture test, and report a required check BLOCKED/NOT RUN when safe representative data is unavailable. An explicitly optional row remains WAIVED, not passed.
+
+Examples (planned interpretations, not observed results):
+
+| Situation | Interpretation |
+| --- | --- |
+| Fresh CI database contains newly added seed rows | CI evidence only; long-lived prerequisites unconfirmed |
+| Representative long-lived-like state lacks those new rows | Exercise meaningful behavior without assuming the new rows |
+| Required data unavailable and safe setup not authorized | BLOCKED/NOT RUN; do not seed the target |
+| Feature needs controlled records and isolated setup is authorized | Test in a disposable fixture and record its scope |
+
 ## Reconcile mapped tests with actual runs
 For each test required for this change, identify the applicable mapped test or suite; classify fixture or helper paths and separately run suites rather than assuming every mapped path is a runnable spec. Against the **same subject revision**, runner configuration, project(s), filters and intended shards used by the actual job, compare the runner's collection/list output with the required runnable tests and retain the collection and final result evidence. Use the stack's supported collection mechanism after inspecting the existing setup; do not run untrusted configuration merely to validate a map.
 
