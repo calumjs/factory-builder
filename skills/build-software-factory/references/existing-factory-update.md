@@ -177,3 +177,15 @@ Smoke/video preference changes or a delivery migration reset active gate observa
 The helper writes the manifest last and keeps verified backups. Filesystem updates are not a multi-file atomic transaction: interruption can leave a blocked integrity state. Stop, inspect backups and any lock/temp file, restore the affected originals and manifest together or finish a newly reviewed plan. Never delete a lock owned by an active writer or bypass the failed integrity check. Run the contract check and stage-specific gate assessment afterwards. Valid hashes do not mean application checks ran or passed.
 
 Known pristine copied gate and context helpers that predate bytecode suppression are preserved by default. To adopt the fix, explicitly preview `--gate-runtime --context-runtime`, review the exact files and backup, then apply the approved digest. Customized helpers are refused for manual review; never ignore unexpected `__pycache__` in the manifest.
+
+Known copied helpers from the reviewed runtime-diagnostics baseline can use the
+same explicit `--context-runtime --gate-runtime` preview to adopt safe dashboard
+diagnostics, table wrapping, per-check targets and typed controls errors. This is
+a selective code-and-manifest migration: config, policy, task events, gate
+observations and deliberate waivers remain unchanged. Inspect the diff and exact
+plan digest; custom helper bytes are refused. After applying a reviewed plan,
+run the copied gate CLI and regenerate the dashboard from the same factory, then
+check integrity again. A matching display and valid hashes do not attest test
+execution or freshness. Existing root ignore rules remain a separate manual
+review; generated runtime output and private backups belong outside the managed
+factory file set.
