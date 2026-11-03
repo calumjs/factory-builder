@@ -64,6 +64,61 @@ def unknown_fields(keys):
     return json.dumps(shown,ensure_ascii=True)
 
 
+def admission_policy(value, autonomy, intake, currency):
+    """Validate recorded admission design inline; copied runtimes need no new module."""
+    fields={'version','status','repository','identity','starts','max_in_flight_items',
+            'completion','costs','snapshot_max_age_seconds'}
+    if not isinstance(value,dict) or set(value)!=fields or type(value['version']) is not int or value['version']!=1 or value['status'] not in ('draft','specified'):
+        raise ValueError('Admission must match the version-1 recorded policy schema')
+    specified=value['status']=='specified'
+    if specified and any(value[key] is None for key in fields):
+        raise ValueError('Specified admission requires every explicit policy choice')
+    def integer(item,minimum,maximum):
+        return type(item) is int and minimum<=item<=maximum
+    def money(item):
+        return isinstance(item,str) and re.fullmatch(r'(?:0|[1-9][0-9]{0,11})(?:\.[0-9]{1,6})?',item) is not None
+    def window(item,kinds,amount=False):
+        if not isinstance(item,dict) or set(item)!={'maximum','window','timezone'}:
+            return False
+        return ((money(item['maximum']) if amount else integer(item['maximum'],0,1000000))
+                and item['window'] in kinds and isinstance(item['timezone'],str)
+                and re.fullmatch(r'[A-Za-z0-9_+\-/]{1,100}',item['timezone']) is not None
+                and not any(part in ('','.','..') for part in item['timezone'].split('/')))
+    repository=value['repository']
+    if repository is not None and (not isinstance(repository,str) or len(repository)>200 or re.fullmatch(r'[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+',repository) is None or repository!=intake['github_scope']):
+        raise ValueError('Admission repository must match the explicit intake repository')
+    identity=value['identity']
+    if identity is not None:
+        if not isinstance(identity,dict):raise ValueError('Invalid admission identity rule')
+        kind=identity.get('kind')
+        if kind=='legacy_submitters':
+            if set(identity)!={'kind'} or (specified and not autonomy['allowed_submitters']):
+                raise ValueError('Legacy admission identity needs the named submitter list')
+        elif kind=='label_actor_accounts':
+            accounts=identity.get('accounts')
+            if set(identity)!={'kind','accounts'} or not isinstance(accounts,list) or not 1<=len(accounts)<=100 or any(not isinstance(v,str) or re.fullmatch(r'[A-Za-z0-9_.-]{1,100}',v) is None for v in accounts) or len(set(accounts))!=len(accounts):
+                raise ValueError('Admission actor accounts must be a bounded unique account list')
+        elif kind=='label_actor_capability':
+            if set(identity)!={'kind','capability'} or identity['capability']!='write':
+                raise ValueError('Admission capability rule supports an explicit write predicate only')
+        else:raise ValueError('Unknown admission identity rule')
+        if kind!='legacy_submitters' and autonomy['allowed_submitters']:
+            raise ValueError('Replacement admission identity conflicts with legacy allowed_submitters')
+    if value['starts'] is not None and not window(value['starts'],('calendar_day',)):
+        raise ValueError('Admission starts require an integer calendar-day bound and explicit timezone')
+    if value['max_in_flight_items'] is not None and not integer(value['max_in_flight_items'],0,1000000):
+        raise ValueError('Admission in-flight bound must be a nonnegative integer')
+    if value['completion'] is not None and value['completion'] not in ('draft_pr','merged','shipped','owner_confirmed'):
+        raise ValueError('Admission completion event must be explicit')
+    if value['snapshot_max_age_seconds'] is not None and not integer(value['snapshot_max_age_seconds'],1,86400):
+        raise ValueError('Admission snapshot age must be an explicit 1-86400 second bound')
+    costs=value['costs']
+    if costs is not None:
+        if not isinstance(costs,dict) or set(costs)!={'currency','max_per_item','period'} or not isinstance(costs['currency'],str) or re.fullmatch('[A-Z]{3}',costs['currency']) is None or costs['currency']!=currency or not money(costs['max_per_item']) or not window(costs['period'],('calendar_day','calendar_month'),True):
+            raise ValueError('Admission costs require matching currency, decimal limits and explicit period')
+    return copy.deepcopy(value)
+
+
 def operations(config):
     defaults = {
         'identities': [], 'tool_recipes': [],
@@ -84,14 +139,15 @@ def operations(config):
     }
     supplied = config.get('operations',{})
     guide='; see references/existing-factory-update.md for the operations patch example'
-    allowed_sections=json.dumps(sorted(defaults))
+    allowed_sections=json.dumps(sorted(set(defaults)|{'admission'}))
     if not isinstance(supplied,dict):
         raise ValueError('Unknown operations field: operations must be an object; allowed sections: '+allowed_sections+guide)
-    if not set(supplied) <= set(defaults):
-        raise ValueError('Unknown operations field: unknown keys at operations: '+unknown_fields(set(supplied)-set(defaults))+
+    if not set(supplied) <= set(defaults)|{'admission'}:
+        raise ValueError('Unknown operations field: unknown keys at operations: '+unknown_fields(set(supplied)-set(defaults)-{'admission'})+
                          '; allowed sections: '+allowed_sections+guide)
     result = copy.deepcopy(defaults)
     for key,value in supplied.items():
+        if key=='admission':continue
         if isinstance(defaults[key],dict):
             optional = INTAKE_FIELDS if key=='issue_intake' else VIDEO_FIELDS if key=='done_videos' else SMOKE_FIELDS if key=='smoke_gates' else frozenset()
             allowed=set(defaults[key]) | optional
@@ -119,7 +175,12 @@ def operations(config):
         raise ValueError('Autonomy allowed_submitters must be a string list')
     if any(not isinstance(a[k],str) or not a[k].strip() for k in ('kill_switch','rejected_items')):
         raise ValueError('Autonomy stopping and rejection behavior are required')
-    if a['mode'] == 'bounded' and (not a['allowed_submitters'] or a['max_items_per_hour'] == 0):
+    if 'admission' in supplied:
+        result['admission']=admission_policy(supplied['admission'],a,result['issue_intake'],config.get('budget',{}).get('currency'))
+    admission=result.get('admission')
+    replacement=admission is not None and admission['identity'] is not None and admission['identity']['kind']!='legacy_submitters'
+    draft=admission is not None and admission['status']=='draft'
+    if a['mode'] == 'bounded' and not draft and ((not a['allowed_submitters'] and not replacement) or a['max_items_per_hour'] == 0):
         raise ValueError('Bounded autonomy requires named submitters and a positive rate limit')
     r = result['review']
     if type(r['required_approvals']) is not int or r['required_approvals'] < 0 or any(type(r[k]) is not bool for k in ('independent','distinct_providers')):
@@ -155,7 +216,9 @@ def operations(config):
 
 def controls(config):
     ops = operations(config)
-    return dict({'concurrency':config['budget']['max_workers']}, **{k:ops[k] for k in ('autonomy','review','visual_checks','issue_intake','done_videos','smoke_gates')})
+    result=dict({'concurrency':config['budget']['max_workers']}, **{k:ops[k] for k in ('autonomy','review','visual_checks','issue_intake','done_videos','smoke_gates')})
+    if 'admission' in ops:result['admission']=ops['admission']
+    return result
 
 DELIVERY_POLICY = '''## Default delivery gates
 G1 production-equivalent local smoke and G2 change-targeted tests default to required; users may deliberately mark individual verification rows optional or configure optional smoke defaults without extra approval for that choice. Every remaining required pre-merge check must pass for the exact revision before readiness. Report optional checks visibly as WAIVED (including recorded failures), never tests-passed. Missing/malformed/duplicate rows are errors, not waivers. A blocked diagnostic handoff may always be prepared. Build/hash/lint success alone is not application verification.

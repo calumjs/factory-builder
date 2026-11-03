@@ -43,6 +43,12 @@ integrity is never disturbed.
 
 ## Issue pickup
 
+When `operations.admission` is present, `select` and `plan` require a satisfied
+[supplied admission snapshot review](admission-review.md) before returning issue
+candidates. Pass `--admission-snapshot <outside-factory.json>`; absent, incomplete
+or mismatched observations cannot fall back to a legacy identity rule. This is
+separate from task selection and does not reserve or enforce live capacity/spend.
+
 A continuous factory does not read GitHub itself. The authorized scheduler job
 exports a read-only snapshot and passes it with `select --issues snapshot.json`.
 Pass `--issue-policy policy.json` with a non-secret object such as
