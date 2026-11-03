@@ -2,6 +2,34 @@
 
 There is one requiredness system: `smoke_gates.required` sets the G1/G2/G3 defaults, and an explicit Required=no/false on a living row is the operator's waiver. Legacy `not_run_is_blocking` is not a second setting; in a reviewed migration keep required NOT RUN blocking or express the operator's optional choice, preserve the original and its context during review; never silently discard the field or convert it to PASSED. Configuring any of the metadata below establishes no tool permission, CI execution, env allowlist or application truth.
 
+## Failed-subject diagnostics and explicit follow-up references
+
+A required current FAILED row stays blocking. The checker identifies its recorded
+subject and whether it exactly matches the requested `--revision`; a failure for
+S1 is not an observation for S2. Simple subject tokens up to 128 ASCII characters
+are displayed; paths, control characters and longer identifiers are withheld.
+Opaque subjects still match exactly even when withheld. Archived rows remain
+history and never satisfy or fail a current-subject assessment. Optional FAILED
+rows remain WAIVED with their underlying observation, not PASSED.
+
+When recording a FAILED row with `incremental_records.py`, opt in to displaying
+only an issue reference by including `[follow-up: owner/repository#123]` in its
+evidence. `[follow-up: #123]` is also supported when the repository context is
+already clear. Keep exactly one marker. This is a supplied reference, not proof
+that the issue exists or is accessible; no lookup occurs. Arbitrary URLs, private
+paths and notes are not mined or printed. Missing, malformed or ambiguous markers
+produce a fixed instruction to inspect the private evidence locally. For example,
+evidence `private diagnostic path; [follow-up: example/project#9]` displays only
+the explicit reference. Choose the reference with its output audience in mind.
+
+Continue the existing same-task fix-forward workflow: preserve the actual failed
+observation, let the release owner choose authorized recovery, reopen the same
+task and record the independently observed new subject. UUID task events identify
+supplied events; they do not establish a complete attempt count. No counter or
+automatic PASS is inferred. Existing copied gate helpers require a reviewed
+`update_operations.py --gate-runtime` preview/digest/apply to gain these diagnostics;
+the exact published v1.33 helper is recognized, custom copies are preserved/refused.
+
 ## Data hygiene for writing checks
 
 For checks that write data, review the [run-scoped teardown example](disposable-fixture-example.md)

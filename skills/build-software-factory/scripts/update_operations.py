@@ -375,6 +375,7 @@ COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION = {
 COMPATIBLE_GATE_V113 = {'gates.py':'bb706626fb04bf509ff4cb8805d0da353c4add1309f310441bc1dbbde7fe5da4'}
 COMPATIBLE_GATE_V115 = {'gates.py':'cba74ee0273ad98461a23af1e52c2d486e60bd066947315ea07aa049cf1bcbde'}
 COMPATIBLE_GATE_V117 = {'gates.py':'11b5ca9fce5e6eec5ec06c60d0417546e74aea05968d0346f7fe4f6076b4c697'}
+COMPATIBLE_GATE_V133 = {'gates.py':'2083dbaa62dacbcc9510423153e8de5038b8d1c336bef58b9b32ba9b061da0c7'}
 # Exact published helpers through v1.27, before optional admission metadata.
 # Compatible with legacy config; migrate only through the existing runtime flags.
 PRE_ADMISSION_RUNTIME = {
@@ -391,7 +392,7 @@ def gate_runtime_plan(root, original, replacement, opted_in):
         wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename),COMPATIBLE_GATE_V115.get(filename),COMPATIBLE_GATE_V117.get(filename),PRE_ADMISSION_RUNTIME.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename),COMPATIBLE_GATE_V115.get(filename),COMPATIBLE_GATE_V117.get(filename),COMPATIBLE_GATE_V133.get(filename),PRE_ADMISSION_RUNTIME.get(filename))
         if compatible and not opted_in:continue
         known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
         if not known and not compatible and not (current is None and filename=='recipes.py'):

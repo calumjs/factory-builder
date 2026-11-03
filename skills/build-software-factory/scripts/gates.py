@@ -95,6 +95,27 @@ def subject_abbreviation_hint(recorded, requested):
                 'a new evidence record for the exact full subject; do not automatically expand the existing observation.')
     return None
 
+def failed_observation(row, revision):
+    """Describe supplied current-row claims, without exposing free-form evidence."""
+    subject=row['revision']
+    # Opaque IDs remain valid for matching; display only bounded simple tokens.
+    visible=subject if re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9._-]{0,127}',subject) else '[missing or non-displayable subject]'
+    if not subject:
+        relation='no recorded subject; requested subject is unconfirmed'
+    elif subject==revision.strip():
+        relation='matches requested subject exactly'
+    else:
+        relation='different from requested subject; no current-subject pass is established'
+    evidence=row['evidence']
+    # This bracket syntax is an explicit choice to display an issue reference.
+    # Never mine arbitrary URLs, notes, paths, or multiple conflicting markers.
+    markers=re.findall(r'\[follow-up: ([^\[\]\r\n]{1,180})\]',evidence)
+    reference=markers[0] if len(markers)==1 and evidence.count('[follow-up:')==1 else ''
+    valid=re.fullmatch(r'(?:[A-Za-z0-9][A-Za-z0-9-]{0,38}/[A-Za-z0-9][A-Za-z0-9._-]{0,99})?#[1-9][0-9]{0,9}',reference)
+    followup='follow-up '+reference+' (recorded reference; not verified)' if valid else 'no unambiguous explicit follow-up reference; inspect private evidence locally'
+    return row['gate']+' recorded FAILED at '+visible+'; '+relation+'; '+followup
+
+
 def problems(text, stage, revision, required=None, target=None):
     if stage not in STAGES or not isinstance(revision,str) or not revision.strip():
         raise ValueError('Known stage and exact revision are required')
@@ -122,6 +143,7 @@ def problems(text, stage, revision, required=None, target=None):
             continue
         if row['result']!='PASSED':
             out.append(gate+' is '+row['result'])
+            if row['result']=='FAILED':out.append(failed_observation(row,revision))
             continue
         if row['revision'] != revision.strip():
             hint=subject_abbreviation_hint(row['revision'],revision.strip())
@@ -245,6 +267,9 @@ def main():
     found = assess(args.factory,args.stage,args.revision,args.target)
     skipped=waivers((safe_path(args.factory)/'verification.md').read_text(encoding='utf-8-sig'),args.stage)
     for item in skipped:print(item+'; not evidence that the check ran or passed')
+    for row in gate_rows((safe_path(args.factory)/'verification.md').read_text(encoding='utf-8-sig')).values():
+        if row['stage']==args.stage and row['required']=='no' and row['result']=='FAILED':
+            print('WAIVED observation only: '+failed_observation(row,args.revision))
     if found:
         print('BLOCKED: recorded '+args.stage+' gates are not satisfied')
         for item in found: print('  - '+item)
