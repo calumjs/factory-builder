@@ -204,7 +204,8 @@ plans retain their exact recorded observations; changed plans and dependent rows
 reset with history. Review the per-row reasons and field paths before applying.
 Retained evidence keeps its original subject and status; it is not reassessed or
 transferred to a new revision. Broad reset remains the default and the fallback
-for ambiguous schemas, explicit smoke-required defaults or mixed runtime changes.
+for recognized legacy schemas, explicit smoke-required defaults or mixed runtime
+changes. Malformed or duplicate rows are refused for manual review.
 
 The helper writes the manifest last and keeps verified backups. Filesystem updates are not a multi-file atomic transaction: interruption can leave a blocked integrity state. Stop, inspect backups and any lock/temp file, restore the affected originals and manifest together or finish a newly reviewed plan. Never delete a lock owned by an active writer or bypass the failed integrity check. Run the contract check and stage-specific gate assessment afterwards. Valid hashes do not mean application checks ran or passed.
 
