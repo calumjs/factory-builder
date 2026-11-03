@@ -77,6 +77,10 @@ Optional object in the intake config; missing sections default to manual, disabl
 
 Changing a living row to optional needs no config rewrite. Changing contract-level defaults goes through the synchronized update ([existing-factory-update.md](existing-factory-update.md)); smoke and video changes reset active observations to NOT RUN with history kept. Loading a newer helper injects no fields into old configs. No preference starts a watcher, recording or integration.
 
+For `check_stages` R IDs, use the generated selected-practice mapping rather than
+the practice ID's number. The [research mapping example](headless-intake-preflight.md#research-ids-and-setup-versus-per-item-assessment)
+also distinguishes stage selection from setup/per-item scope; neither silently waives requirements.
+
 ## Structured assumptions (`assumptions`)
 
 Optional; old configs without it stay valid, and an empty array means "none recorded", not "no uncertainty". Up to 100 records, each with exactly `text`, `status`, `source`, `blocks`:
