@@ -100,6 +100,40 @@ class UpdateTests(unittest.TestCase):
         self.assertIn(addon,(backup/'.claude/skills/factory-verify/SKILL.md').read_text(encoding='utf-8'))
         check(root,quiet=True)
 
+    def test_pre101_103_addenda_upgrade_preserves_custom_instructions_and_backup(self):
+        from update_operations import V19_DELIVERY_ADDENDUM
+        manifest=json.loads((self.factory/'manifest.json').read_text())
+        prior={}
+        for phase in ('verify','release'):
+            name=f'.claude/skills/factory-{phase}/SKILL.md'
+            addon=(ROOT/f'scripts/fixtures/pre101_103_{phase}_addendum.txt').read_text(encoding='utf-8')
+            self.assertIn(digest(addon),V19_DELIVERY_ADDENDUM[phase])
+            path=self.factory/name
+            path.write_text(path.read_text(encoding='utf-8').rstrip()+'\n\nProject-specific retained instruction.\n'+addon+'\n',encoding='utf-8')
+            prior[name]=path.read_bytes()
+            manifest['contracts'][name]=digest(prior[name])
+        (self.factory/'manifest.json').write_text(json.dumps(manifest))
+        check(self.factory,quiet=True)
+        before=self.snapshot()
+        root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        self.assertEqual(before,self.snapshot())
+        for name in prior:
+            self.assertIn('Project-specific retained instruction.',new[name].decode())
+            self.assertEqual(new[name].decode().count('<!-- factory-delivery-update:start -->'),1)
+        backup=apply(root,old,new,plan,plan)
+        for name,data in prior.items():self.assertEqual((backup/name).read_bytes(),data)
+        check(root,quiet=True)
+        # A later manual change inside the generated addendum is not silently adopted.
+        path=root/'.claude/skills/factory-release/SKILL.md'
+        path.write_text(path.read_text().replace('<!-- factory-delivery-update:end -->','Custom operator choice.\n<!-- factory-delivery-update:end -->'),encoding='utf-8')
+        manifest=json.loads((root/'manifest.json').read_text())
+        manifest['contracts']['.claude/skills/factory-release/SKILL.md']=digest(path.read_bytes())
+        (root/'manifest.json').write_text(json.dumps(manifest))
+        before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'Customized or unsupported delivery addendum'):
+            prepare(root,{},delivery_update=True)
+        self.assertEqual(before,self.snapshot())
+
     def test_preview_and_wrong_approval_write_nothing(self):
         before=self.snapshot();root,old,new,plan=prepare(self.factory,{'done_videos':{'enabled':True}})
         self.assertEqual(self.snapshot(),before)
