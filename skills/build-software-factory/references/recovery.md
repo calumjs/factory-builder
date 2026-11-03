@@ -11,6 +11,20 @@ Use when hand-edited contracts or unregistered files block checks, status, gates
 2. Obtain an independently accepted baseline of this factory from a verified commit or verified backup, with its provenance and original manifest bytes. A newly generated factory, or a manifest from the same unreviewed edit, is not independent authority. Check the isolated baseline with the compatible trusted builder's `scaffold.py --check`.
 3. Refuse legacy schema 1, unsafe or redirected paths, duplicate or ambiguous manifest entries, malformed UTF-8/JSON, or an unavailable baseline; resolve those separately. A historical baseline with another supported classification uses its compatible checker, not a guessed migration.
 
+**Conflicted manifest:** `recover_factory.py` cannot audit a malformed or conflicted
+manifest. Preserve its original bytes, both merge parents and all living records in
+the verified private backup above. Obtain the independently accepted baseline and
+inspect the actual merged contract contents alongside both parents in private
+scratch. Resolve conflict markers and make only the individually reviewed manifest
+changes using the normalized `digest` of each accepted merged contract; retain the
+baseline classification and unrelated entries. Review the complete manifest and
+contract diffs together. Do not take either side's hash on trust, run a blanket
+rebaseline, or claim evidence passed. Follow the stable-writer, manifest-last,
+backup and verification steps below; if baseline or provenance is uncertain, stop
+for manual diagnosis. The staged helper refuses a semantically changed manifest and
+does not automatically adopt this repair. A green application CI run alone does not
+establish factory integrity.
+
 **Review**
 4. In private scratch, diff baseline, current and proposed: full text per changed file, added/missing lists, old/new normalized hashes, original/proposed manifest, living-file changes. Compare config/policy controls semantically; a matching hash cannot approve new scope.
 5. Classify every difference: restore unintended changes from the baseline (keeping the backup); retain useful customizations through the diff; move runtime notes, test maps and application/CI deliverables outside the factory, preserving references. A deliberately immutable new file may be registered as a **named contract** with rationale; never add a living directory or reclassify contracts. Schema 2 keeps exactly five living files.

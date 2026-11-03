@@ -16,7 +16,10 @@ python scripts/run.py --factory /approved/project/.software-factory plan
 minus tasks already `in_progress`, the rate window (bounded autonomy only) and
 task dependencies, then lists candidates and why the rest are blocked. Path
 comparison is conservative and lexical; aliases and shared resources need separate
-review. A task without recorded paths is blocked. Selection does not reserve work or
+review. Allowed paths are project-relative **literal paths**, not glob expressions;
+brackets in a name such as `app/contacts/[id]/` are literal. Quote paths when a shell
+could expand them. Wildcards `*` and `?`, traversal, redirected paths and ambiguous
+aliases remain blocked. A task without recorded paths is blocked. Selection does not reserve work or
 enforce rate, concurrency, budget or external authority. Establish a verified
 exclusive dispatcher or atomic admission mechanism before authorized dispatch.
 
@@ -30,7 +33,9 @@ python scripts/run.py --factory ... record --run-id <id> --dispatched T1,T2 --ou
 ```
 
 Run records are JSON files in `<project>/.factory-runs/` (override with
-`--runs`, always outside the factory). They are retrospective supplied claims for advisory rate calculations, not
+`--runs`, always outside the factory). Place this top-level option before the
+subcommand, for example `run.py --factory <factory> --runs <outside-path> select`.
+They are retrospective supplied claims for advisory rate calculations, not
 reservations, independently verified events or budget enforcement. The helper refuses a path inside the factory so
 integrity is never disturbed.
 
@@ -46,6 +51,35 @@ checks. The snapshot and its claimed repository are untrusted and must be verifi
 within the authorized intake process; reported IDs are candidate data. An eligible issue
 still goes through `factory-intake` to become a task; the helper never labels,
 claims or comments.
+
+The snapshot is a JSON array, not raw `gh issue list` output. Each item requires
+nonempty string `id` and `submitter`, and string-array `labels`. Optional `title`
+and `created_at` must be strings (default empty); optional `depends_on` must be a
+string-ID array (default empty). `created_at` sorts lexically; use provider ISO
+timestamps consistently. For example, [example-issue-snapshot.json](../assets/example-issue-snapshot.json):
+
+```json
+[{"id":"42","title":"Example","submitter":"operator","created_at":"2026-01-01T00:00:00Z","labels":["ready"],"depends_on":[]}]
+```
+
+An authorized exporter must explicitly map its provider's number, author and label
+objects to this schema and verify repository identity and dependency history. Raw
+GitHub objects and missing labels are not accepted as verified candidates. Confirm
+the configured `issue_intake.github_scope` exactly matches the policy repository;
+a reported ID alone does not establish provenance or authorization.
+
+Example export design, only for an already authorized repository read:
+
+```sh
+gh issue list --repo OWNER/REPO --state open --limit 1000 --json number,title,author,labels,createdAt | jq 'map({id:(.number|tostring),title,submitter:.author.login,labels:[.labels[].name],created_at:.createdAt,depends_on:[]})' > snapshot.json
+```
+
+This capped export may omit issues; verify completeness and repository identity.
+GitHub dependency state is **not** supplied by this command. Treat its empty
+`depends_on` values as unverified placeholders: reconcile actual dependency and
+processed-issue history before using the snapshot. Keep the verified repository
+in the separate policy object and match `issue_intake.github_scope`; repository
+identity is not inferred from a per-item field. Exporting is not intake approval.
 
 ## Schedules
 
@@ -73,7 +107,30 @@ reports the smallest next human decision.
 `factory-run` and `scheduling/` are new contract files. The existing operations
 updater does not add them. An older factory needs a separately reviewed selective
 contract migration and backup; do not copy files into a hashed directory or
-silently rebaseline it.
+silently rebaseline it. Inventory the exact installed version and target, prepare
+the missing files and selective manifest entries in private scratch, review them
+against the independently accepted baseline, then use the manual procedure in
+[recovery.md](recovery.md). Retain living records and project customizations; recheck
+integrity and discovery after authorized adoption. This procedure does not activate
+dispatch or schedules; no automatic Run migration is currently provided.
+
+For a six-phase factory, first check whether
+`.claude/skills/factory-run/SKILL.md` and the named `scheduling/` files are present
+in both the tree and manifest. A passing `scaffold.py --check` attests the recorded
+file set; it does not assert that optional new Run files have been adopted. Use
+the trusted installed builder's `run.py --factory <existing-factory> --runs
+<outside-path> select` for a read-only advisory pass before adoption.
+
+For manual adoption, render a disposable candidate from the reviewed project
+config/research using the trusted builder. Inspect only the missing
+`.claude/skills/factory-run/SKILL.md` and `scheduling/` contract files, their phase
+references and assumptions against the existing factory. Prepare an exact file
+list and selective manifest entries, retaining all existing contracts, living
+records and customizations. Complete recovery section 1's backup, full-diff review,
+stable-writer and manifest-last steps; then check integrity and discover the
+new skill from the project's intended agent surface. Do not replace the factory
+with the rendered candidate. Missing authority or incompatible phase contracts
+blocks adoption. No `--run-runtime` updater switch is implemented.
 
 Optional `--recipe <nonsecret-json>` supplies an explicitly selected argv recipe:
 `{"purpose":"factory-run","argv":["agent","--example"],"restrictions":"project-specific bounds"}`.
