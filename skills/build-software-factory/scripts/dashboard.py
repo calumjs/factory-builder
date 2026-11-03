@@ -470,7 +470,8 @@ RUN_CLASS = {'completed': 'ok', 'failed': 'bad', 'blocked': 'warn', 'stopped': '
 TASK_CLASS = {'done': 'ok', 'in_progress': 'run', 'blocked': 'warn', 'pending': ''}
 
 
-def page(data):
+def page(data, *, supplemental_html=''):
+    # Internal extension point for trusted escaped renderers, never raw supplied markup.
     def text(value):
         return escape(str(value), quote=True)
     def when(value):
@@ -583,6 +584,7 @@ def page(data):
     details += '<details><summary>Project observations and usage</summary>'+table([('name','Metric'),('value','Value'),('unit','Unit'),('freshness','State'),('source','Source'),('observed_at','Observed')], data['metrics'])+'<p class="note">'+text(data['usage'])+'</p></details>'
     details += '<details><summary>Artifact provenance</summary>'+table([('artifact','Artifact'),('modified_at','Modified'),('freshness','Freshness'),('sha256','SHA256')], data['sources'])+'</details>'
     body += '<section class="panel">'+details+'</section>'
+    body += supplemental_html
     body += '<footer>'+text(data['mode'])+'. No application check, release, watcher or worker was executed by this overview.</footer>'
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; base-uri \'none\'; form-action \'none\'"><title>'+title+'</title><style>'+STYLE+'</style></head><body><main>'+body+'</main></body></html>\n'
 

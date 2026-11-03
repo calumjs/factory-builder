@@ -60,6 +60,12 @@ Project metrics come from an adapter built in the project's own stack, outside t
 
 ## Privacy and rendering
 
+For explicit private phase/token/outcome claims, the installed
+[run-trace helper](run-traces.md) adds a separate supplied-trace panel. It reads
+only an approved sanitized input, keeps unavailable values and status cohorts
+distinct, excludes open/incomplete/stale traces from averages, and changes no
+factory record or gate. It discovers no sessions and installs no hooks.
+
 The DTO carries task IDs, owner labels, revisions, run identifiers and supplied metric labels; it excludes run notes, goals, commands, evidence bodies, recorded target URLs, budgets, handoff prose, assumption text and sources (only position, status and blocker count appear). Explicit assessment subject, actual target and explanation are also exported when supplied: use only approved non-secret text (limits: 200, 2048 and 500 characters respectively, single-line without edge whitespace). Recorded/planned targets and raw exceptions are not added to the assessment output. Evidence paths are never followed. Sanitize identifiers at source and keep snapshots and adapter inputs untracked; escaping is not redaction. All values render as escaped text under a CSP of `default-src 'none'` with inline styles only ([CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Content-Security-Policy), read 2026-10-30).
 
 ## Adding the dashboard to an existing factory
