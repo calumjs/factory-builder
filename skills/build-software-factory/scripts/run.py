@@ -19,6 +19,7 @@ from integrity import check, read_json, safe_path, strict_json, validate_task_pl
 from gates import gate_rows, policy_controls
 from operations import controls, operations as validated_operations
 from scaffold import validate as validate_config
+from admission_review import review as review_admission, bounded_json as admission_json
 
 STOP_FILE = 'STOP'
 STOP_ENV = 'FACTORY_STOP'
@@ -104,7 +105,7 @@ def operations(config):
     return ops['autonomy'],ops['issue_intake']
 
 
-def issue_candidates(issues, autonomy, known_ids, policy):
+def issue_candidates(issues, autonomy, known_ids, policy, replacement_identity=False):
     """Filter a read-only issue snapshot. Emits candidate IDs and reasons only."""
     accepted, rejected = [], []
     allowed = set(autonomy.get('allowed_submitters') or [])
@@ -137,7 +138,7 @@ def issue_candidates(issues, autonomy, known_ids, policy):
             rejected.append({'id': issue_id, 'reason': 'already in task plan'})
         elif autonomy['mode'] != 'bounded':
             rejected.append({'id': issue_id, 'reason': 'autonomy is not bounded; issues need a human intake decision'})
-        elif issue.get('submitter') not in allowed:
+        elif not replacement_identity and issue.get('submitter') not in allowed:
             rejected.append({'id': issue_id, 'reason': 'submitter not in allowed_submitters'})
         elif issue.get('depends_on'):
             rejected.append({'id': issue_id, 'reason': 'unresolved issue dependencies'})
@@ -177,9 +178,11 @@ def valid_paths(root, paths):
     return True
 
 
-def select(root, config, plan, runs, issues=None, now=None, issue_policy=None):
+def select(root, config, plan, runs, issues=None, now=None, issue_policy=None, admission_snapshot=None):
     now = now or utcnow()
     autonomy, intake = operations(config)
+    admission=validated_operations(config).get('admission')
+    replacement_identity=bool(admission and admission['identity'] and admission['identity']['kind']!='legacy_submitters')
     budget = config['budget']
     minutes=budget.get('max_minutes')
     if isinstance(minutes,bool) or not isinstance(minutes,(int,float)) or minutes<0:
@@ -227,14 +230,22 @@ def select(root, config, plan, runs, issues=None, now=None, issue_policy=None):
                 'issue-policy repository does not match configured issue_intake.github_scope')
         accepted=[];rejected=[{'id':i.get('id') if isinstance(i,dict) else None,'reason':reason} for i in issues]
     else:
-        accepted, rejected = issue_candidates(issues, autonomy, set(tasks), issue_policy) if issues else ([],[])
-    return {'run_id': 'run-' + now.strftime('%Y%m%dT%H%M%SZ') + '-' + uuid.uuid4().hex[:6],
+        accepted, rejected = issue_candidates(issues, autonomy, set(tasks), issue_policy,replacement_identity) if issues else ([],[])
+    admission_result=None
+    if admission is not None:
+        admission_result=review_admission(config,admission_snapshot,issues or [],issue_policy,now)
+        approved={row['issue_id'] for row in admission_result['allowed']}
+        rejected.extend({'id':row['id'],'reason':'Recorded admission policy lacks a satisfied exact request assessment'} for row in accepted if row['id'] not in approved)
+        accepted=[row for row in accepted if row['id'] in approved]
+    result={'run_id': 'run-' + now.strftime('%Y%m%dT%H%M%SZ') + '-' + uuid.uuid4().hex[:6],
             'mode': intake['mode'], 'autonomy': autonomy['mode'], 'kill_switch': stop,
             'capacity': {'concurrency': concurrency, 'in_progress': in_progress, 'available': available,
                          'rate_limit_per_hour': rate_limit if autonomy['mode'] == 'bounded' else None,
                          'rate_remaining': rate_remaining, 'dispatched_last_hour': used},
             'candidates': chosen, 'blocked': blocked, 'issues': {'eligible': accepted, 'rejected': rejected},
             'diagnostics': diagnostics+['Selection is advisory: no reservation, exclusive dispatcher or budget enforcement is provided.','Snapshot source and prior processed-issue history are not independently verified.'], 'proceed': bool(chosen) and not stop}
+    if admission_result is not None:result['admission_review']=admission_result
+    return result
 
 
 def context_text(root, name):
@@ -328,8 +339,8 @@ def worker_prompt(root, config, task, selection):
     return '\n'.join(lines)
 
 
-def plan_pass(root, config, plan, runs, issues=None, now=None, issue_policy=None):
-    selection = select(root, config, plan, runs, issues, now, issue_policy)
+def plan_pass(root, config, plan, runs, issues=None, now=None, issue_policy=None, admission_snapshot=None):
+    selection = select(root, config, plan, runs, issues, now, issue_policy,admission_snapshot)
     workers = [{'task_id': c['task_id'], 'isolation': 'worktree', 'prompt': worker_prompt(root, config, c, selection)} for c in selection['candidates']]
     selection['workers'] = workers
     selection['after_workers'] = ['integrate-and-reverify', 'factory-release-if-authorized', 'factory-learn'] if workers else []
@@ -431,10 +442,12 @@ def main():
     s = sub.add_parser('select', help='Read-only selection of eligible tasks and issues')
     s.add_argument('--issues', help='Read-only JSON issue snapshot exported by an authorized job')
     s.add_argument('--issue-policy',help='Explicit project repository/label-policy JSON')
+    s.add_argument('--admission-snapshot',help='Bounded supplied admission observations; required for new-policy issue proposals')
     s.add_argument('--require-work',action='store_true',help='Exit nonzero when no task is selectable')
     p = sub.add_parser('plan', help='Selection plus rendered worker prompts; nothing is dispatched')
     p.add_argument('--issues')
     p.add_argument('--issue-policy')
+    p.add_argument('--admission-snapshot',help='Bounded supplied admission observations; does not reserve or enforce')
     sc = sub.add_parser('schedule', help='Describe a non-executable scheduler proposal; installs nothing')
     sc.add_argument('--kind', choices=SCHEDULERS, required=True)
     sc.add_argument('--every', type=int, help='Interval in minutes (overrides recorded cadence)')
@@ -457,7 +470,8 @@ def main():
         if not isinstance(issues, list):
             raise ValueError('Issue snapshot must be a JSON list')
         policy=read_json(Path(args.issue_policy)) if args.issue_policy else None
-        result=select(root, config, plan, runs, issues, issue_policy=policy) if args.command == 'select' else plan_pass(root, config, plan, runs, issues, issue_policy=policy)
+        snapshot=admission_json(args.admission_snapshot) if args.admission_snapshot else None
+        result=select(root, config, plan, runs, issues, issue_policy=policy,admission_snapshot=snapshot) if args.command == 'select' else plan_pass(root, config, plan, runs, issues, issue_policy=policy,admission_snapshot=snapshot)
         emit(result)
         return 3 if args.command=='select' and args.require_work and not result['proceed'] else 0
     if args.command == 'schedule':

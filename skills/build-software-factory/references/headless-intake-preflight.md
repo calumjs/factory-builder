@@ -137,9 +137,12 @@ optional choices remain waivers with their underlying observations.
 
 This uses the existing [scoped-assessment contract](incremental-workflow.md), not a
 new setup lifecycle. It neither classifies setup automatically nor carries old
-evidence forward. Daily/in-flight admission, role-based submitters and periodic
-spend limits require separate designs; this guide does not encode them in free
-text or imply they are enforced. For inspected private project workflows, use the
+evidence forward. Daily/in-flight admission, actor-based identity and item/period
+spend can use the optional [versioned admission policy](admission-review.md), with
+explicit choices and a current supplied snapshot. Its read-only review does not
+verify live permission, reserve capacity or enforce budgets; existing workers and
+task dispatch remain distinct. Existing factories need the [reviewed copied-runtime
+migration](admission-runtime-migration.md). For inspected private project workflows, use the
 versioned [repository-file source](repository-research-sources.md) with actual
 commit and byte identities. Older source validators do not support this format;
 successful integrity or gate checks alone do not establish source-schema support.

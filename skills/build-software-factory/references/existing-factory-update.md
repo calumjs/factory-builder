@@ -242,3 +242,10 @@ The known v1.17 copied gate helper can separately receive the abbreviation
 diagnostics with `--gate-runtime`. Unrelated updates preserve both older forms.
 Custom addenda/helper bytes are refused, and backups retain the originals. A
 diagnostic update does not resolve a short SHA or establish new subject evidence.
+
+When adopting optional `operations.admission`, follow the [admission runtime
+migration](admission-runtime-migration.md). A copied dashboard needs both supported
+operations validation and readiness reporting; updating only one is insufficient.
+The existing explicit `--context-runtime` path supports known prior bytes and
+preserves custom copies for manual review. Admission metadata alone does not reset
+gate observations or activate any live limit, dispatcher or reservation.

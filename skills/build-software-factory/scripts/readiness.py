@@ -19,7 +19,11 @@ def watcher(config):
         notices.append('Repository scope lacks a concrete owner/repository design; verify exact authorized scope.')
     a=ops['autonomy'];budget=config['budget']
     if a['mode']!='bounded':notices.append('Autonomy is manual; continuous pickup needs reviewed bounded controls before live use.')
-    if not a['allowed_submitters']:notices.append('No permitted submitters are recorded.')
+    admission=ops.get('admission')
+    replacement=bool(admission and admission['identity'] and admission['identity']['kind']!='legacy_submitters')
+    if not a['allowed_submitters'] and not replacement:notices.append('No permitted submitters are recorded.')
+    if admission is not None:
+        notices.append('Admission policy is '+admission['status']+'; current supplied identity, cycle and accounting observations are required for issue proposals. Metadata does not verify permissions or enforce admission/spend.')
     if a['max_items_per_hour']<=0:notices.append('No positive intake rate bound is recorded.')
     if budget['max_workers']<=0:notices.append('No positive worker concurrency bound is recorded.')
     if budget['max_minutes']<=0:notices.append('No positive task time bound is recorded.')

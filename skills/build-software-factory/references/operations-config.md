@@ -1,5 +1,10 @@
 # Operational configuration (`operations`)
 
+Optional versioned [admission policy](admission-review.md) adds explicitly chosen
+issue-cycle, label-actor and accounting dimensions. It remains recorded metadata;
+legacy controls are unchanged when absent, and draft/missing observations do not
+produce new-policy issue candidates.
+
 For continuous intake, adapt the [proposed label vocabulary and eligibility query](intake-label-example.md),
 including dependency promotion, repository-wide pause handling and Release-owned
 `pr-open` to `merged` to `shipped` evidence mapping. This is a project-reviewed
