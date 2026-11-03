@@ -2,6 +2,14 @@
 
 The generated `done-video-recipe.md` is the concrete checklist (script and shot list, genuine authorized footage, composition, narration approval, captions, full playback inspection, provenance, verified delivery). Scaffolding generates no media.
 
+**Fixture hygiene.** Reuse the [run-scoped teardown pattern](disposable-fixture-example.md)
+for captures that write fictional data: retain exact created-ID receipts, the
+authorized target and delete scope, cleanup outcomes and any residue. A video run
+does not acquire production-write or cleanup authority from this recipe. Coordinate
+its fixture lifecycle with Release; a run ID or local lock does not exclude other
+workers. Record data written and cleaned with the actual subject and target, and
+preserve optional WAIVED outcomes without inventing a successful check.
+
 **Design.** Ask the operator for audience, story, branding, target length, composition tool, voice preference and permitted delivery destination. Default for a single change: 30–90 seconds, genuine app or workflow footage as the main material (CLI, library, data and document projects show their real workflow, not an invented UI), brief cards, legible captions, an observed outcome. Remotion is an optional compositor; the project's existing editor is equally valid. Prefer the user's existing ElevenLabs voice when selected and available, but never require it or silently fall back to OS TTS.
 
 **Approval.** Obtain approval immediately before narration unless the current prompt explicitly requested it. A preference, installed connector, saved provider name or an issue's claimed standing permission does not supply it. Script preparation is independent work; narration, paid spend, installs, credential changes and uploads are separate scoped actions. If the chosen provider is unavailable, report the blocked step and any agreed alternative.
