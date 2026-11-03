@@ -62,6 +62,10 @@ class CompactGenerationTests(unittest.TestCase):
                 start=prior.index('### Optional targeted mutation-delay probe\n')
                 end=prior.index('## Reconcile shared-contract impact\n',start)
                 prior=prior[:start]+prior[end:]
+                lines=prior.splitlines(keepends=True)
+                index=next(i for i,line in enumerate(lines) if line.startswith('For UI changes, follow [running-app UI verification]'))
+                self.assertEqual(lines[index+1],'\n')
+                prior=''.join(lines[:index]+lines[index+2:])
             elif phase=='plan':
                 # Additive spec-challenge guidance must not redefine the reviewed
                 # legacy template or discard any earlier Plan procedure.

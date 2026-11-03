@@ -15,10 +15,13 @@ class UiVerificationGuidanceTests(unittest.TestCase):
         research=json.loads((ROOT/'assets/example-research.json').read_text())
         return render(config,research)
 
-    def test_generated_build_link_resolves_to_hashed_canonical_guide(self):
+    def test_generated_build_and_verify_links_resolve_to_hashed_canonical_guide(self):
         files=self.files();canonical=(ROOT/'references/ui-verification.md').read_text()
         self.assertEqual(files['ui-verification.md'],canonical)
         self.assertIn('[running-app UI verification](ui-verification.md)',files['phase-build-guide.md'])
+        self.assertIn('[running-app UI verification](ui-verification.md)',files['phase-verify-guide.md'])
+        self.assertIn('independently drive each applicable acceptance journey',files['phase-verify-guide.md'])
+        self.assertIn('without treating base failures as automatic exemptions',files['phase-verify-guide.md'])
         self.assertEqual(json.loads(files['manifest.json'])['contracts']['ui-verification.md'],digest(canonical))
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp)
