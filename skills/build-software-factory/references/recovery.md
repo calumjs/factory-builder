@@ -107,6 +107,46 @@ independently verified; a digest computed from the current damaged factory canno
 approve itself. Manifest output uses deterministic sorted keys, so the first change
 from an older unsorted manifest can also reorder keys; review that full diff.
 
+**Example decisions for an existing acceptance/map contract.** Suppose A1 already
+exists and review refines its meaning. Update `config.json.acceptance`,
+`acceptance.md` and the brief's duplicated acceptance summary consistently; align
+the existing named immutable `test-map.json`
+contract with the intended project tests, and review task acceptance references and
+the corresponding verification row. A changed criterion needs fresh observations:
+retain prior evidence as history and leave the revised row NOT RUN until checked;
+preserve unrelated observations and explicit optional choices. This example changes
+no operational controls, so `policy.md` stays unchanged. If controls also change,
+synchronize config/policy and include every actual contract delta in the review.
+
+For exactly those four changed contracts, save this example as a private
+`decisions.json`, replacing the reasons with the actual reviewed rationale:
+
+```json
+{
+  "accept_changed": [
+    {"path": "config.json", "reason": "Reviewed refinement of existing A1; operational controls unchanged"},
+    {"path": "acceptance.md", "reason": "A1 wording agrees with the reviewed configured acceptance"},
+    {"path": "project-brief.md", "reason": "Duplicated acceptance summary agrees with the reviewed A1 wording"},
+    {"path": "test-map.json", "reason": "Existing named immutable test map aligned with the reviewed A1 checks"}
+  ],
+  "register": [],
+  "remove": []
+}
+```
+
+Run the staged preview above with `--decisions <decisions.json>` against the
+independently pinned accepted baseline, then review its exact delta set and digest
+before the existing apply/verify steps. The source manifest must still match that
+baseline; do not pre-rehash the edited source. The names must exactly match the
+actual deltas: this example is not permission to accept unrelated files. A missing
+or external runtime map does not become a factory contract through this example.
+The helper checks structure and integrity, not the semantic agreement of acceptance
+prose or a project's test-map format; that comparison is part of review. Adding A9
+only to prose cannot register a new acceptance ID: new criteria require reviewed
+synchronized configuration, acceptance, verification rows, task references and any
+test map, including policy when controls change. This example neither implements
+`add_feature.py` nor runs tests.
+
 For **manifest-only adoption**, first rerun the printed verification arguments.
 Under section 1's stable-writer boundary, confirm the original source still matches
 the reviewed backup's source inventory, including its manifest and living records.
