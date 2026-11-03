@@ -73,7 +73,11 @@ class FeatureConfirmationTests(unittest.TestCase):
         self.assertEqual(self.results(), ['A2 is BLOCKED'])
         self.record(self.observation('A2', 'FAILED', evidence='SYNTHETIC export omitted selected filter', exit_status='1',
                                      checked_at='2026-11-03T00:01:00Z'))
-        self.assertEqual(self.results(), ['A2 is FAILED'])
+        failures = self.results()
+        self.assertEqual(failures[0], 'A2 is FAILED')
+        self.assertEqual(len(failures), 2)
+        self.assertIn('A2 recorded FAILED at ' + self.subject, failures[1])
+        self.assertIn('matches requested subject exactly', failures[1])
         self.assertEqual(gate_rows((self.root / 'verification.md').read_text())['G3']['result'], 'PASSED')
 
     def test_observation_preview_is_write_free_then_exact_feature_record_can_satisfy(self):
