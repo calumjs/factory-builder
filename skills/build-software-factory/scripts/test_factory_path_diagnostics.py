@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 
@@ -116,6 +117,24 @@ class FactoryPathDiagnosticsTests(unittest.TestCase):
                     # Internal path diagnostics escape paths; safe_path's existing
                     # root/ancestor diagnostic retains its original representation.
                     self.assertTrue(str(redirected) in message or json.dumps(str(redirected)) in message)
+
+    def test_older_python_reparse_fallback_rejects_paths_and_suppresses_child_hint(self):
+        original_lstat = Path.lstat
+        for reparse in (self.repo, self.factory, self.factory/'manifest.json', self.factory/'config.json'):
+            def modeled_lstat(path):
+                if path == reparse:
+                    return SimpleNamespace(st_file_attributes=0x400)
+                return original_lstat(path)
+            with self.subTest(reparse=reparse), \
+                 patch.object(Path, 'is_junction', None, create=True), \
+                 patch.object(Path, 'is_symlink', return_value=False), \
+                 patch.object(Path, 'lstat', modeled_lstat):
+                with self.assertRaisesRegex(ValueError, 'Redirected'):
+                    check(self.factory, quiet=True)
+                if reparse in (self.factory, self.factory/'manifest.json'):
+                    with self.assertRaisesRegex(ValueError, 'Factory root') as raised:
+                        check(self.repo, quiet=True)
+                    self.assertNotIn('A child manifest exists', str(raised.exception))
 
 
 if __name__ == '__main__':

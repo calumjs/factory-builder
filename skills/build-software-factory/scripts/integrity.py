@@ -8,10 +8,22 @@ from assumptions import assumptions
 
 LIVING = frozenset(('verification.md', 'task-plan.json', 'learning-log.md', 'release-handoff.md', 'tools.json'))
 
+def redirected(path):
+    junction_check = getattr(path, 'is_junction', None)
+    if path.is_symlink() or (callable(junction_check) and junction_check()):
+        return True
+    # Path.is_junction was added in Python 3.12. Older supported Windows
+    # runtimes expose reparse points through lstat without following them.
+    try:
+        return bool(getattr(path.lstat(), 'st_file_attributes', 0) & 0x400)
+    except (FileNotFoundError, NotADirectoryError):
+        return False
+
+
 def safe_path(path):
     p = Path(path).absolute()
     for node in (p, *p.parents):
-        if node.is_symlink() or (hasattr(node, 'is_junction') and node.is_junction()):
+        if redirected(node):
             raise ValueError('Redirected paths are not supported: ' + str(node))
     return p
 
@@ -72,7 +84,7 @@ def check(path, *, quiet=False):
     if not p.is_dir() or not manifest.is_file():
         raise ValueError(missing_manifest_diagnostic(p))
     for item in p.rglob('*'):
-        if item.is_symlink() or (hasattr(item, 'is_junction') and item.is_junction()):
+        if redirected(item):
             raise ValueError('Redirected path inside factory ' + json.dumps(str(p)) + ': ' + json.dumps(str(item)))
     m = json.loads(manifest.read_text(encoding='utf-8-sig'))
     if m.get('schema') != 2 or m.get('hash_mode') != 'utf8-lf' or not isinstance(m.get('contracts'), dict) or not isinstance(m.get('living'), list):
