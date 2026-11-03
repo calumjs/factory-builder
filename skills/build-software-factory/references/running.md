@@ -24,7 +24,9 @@ enforce rate, concurrency, budget or external authority. Establish a verified
 exclusive dispatcher or atomic admission mechanism before authorized dispatch.
 
 `plan` adds one rendered worker prompt per candidate, built from
-worker-handoff.md. After separate authority and verified exclusive admission,
+worker-handoff.md and [selected acceptance/test designs](worker-context.md).
+Missing or ambiguous context is reported; planned checks are not passing evidence.
+After separate authority and verified exclusive admission,
 the orchestrator can dispatch scoped work. Integrate and reverify the exact
 combined revision before any release handoff. Nothing here starts a worker.
 

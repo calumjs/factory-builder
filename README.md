@@ -23,7 +23,7 @@ One generated directory, `<project>/.software-factory/`, containing the seven `f
 /software-factory:build-software-factory Add CSV export to the reports page
 ```
 
-Load `.software-factory/.claude/skills/` using your harness, then invoke `factory-run` for an advisory plan. For example, from the project root in Claude Code:
+For a newly generated factory, load `.software-factory/.claude/skills/` using your harness, then invoke `factory-run` for an advisory plan. An older factory may not have Run: first use `scaffold.py --check <factory>` and follow the [reviewed manual adoption guide](skills/build-software-factory/references/running.md#existing-factories) if advised. A plugin update alone does not add missing factory contracts. For example, from the project root in Claude Code:
 
 ```sh
 claude --add-dir .software-factory      # keep --setting-sources project for headless runs
