@@ -22,6 +22,14 @@ MAX_FILE=4*1024*1024
 MAX_TOTAL=32*1024*1024
 MAX_FILES=1024
 DATA_SUFFIXES=frozenset(('.txt','.log','.json','.md','.png','.jpg','.jpeg','.mp4','.webm'))
+EVIDENCE_RECORDS=('verification.md','task-plan.json','release-handoff.md','learning-log.md')
+FACTORY_PATH_HELP=('--factory is a canonical path relative to the --repo checkout root, not the current directory. '
+                   'For --repo project, use --factory .software-factory when that is the committed directory, '
+                   'not project/.software-factory. Nested factory paths are supported; no prefix is stripped.')
+
+
+class FactoryPathError(ValueError):
+    """The supplied relative path has no committed factory files."""
 
 
 def relative(value):
@@ -31,6 +39,15 @@ def relative(value):
     if any(part in ('','.','..') or part.casefold()=='.git' for part in parts) or PurePosixPath(value).is_absolute():
         raise ValueError('Unsafe repository path')
     return value
+
+
+def evidence_envelope(factory,evidence_dir,subject):
+    records=[factory+'/'+name for name in EVIDENCE_RECORDS]
+    return ('Allowed evidence-only paths: modifications to existing '+json.dumps(records,ensure_ascii=True)+
+            '; additions of non-executable regular data files under '+
+            json.dumps(evidence_dir+'/'+subject+'/',ensure_ascii=True)+
+            ' with extensions '+', '.join(sorted(DATA_SUFFIXES))+
+            '. No deletions, renames or modifications of prior data files; task definitions and prior event history must remain unchanged.')
 
 
 def full_sha(value):
@@ -108,7 +125,10 @@ def bind_factory(git,factory,storage):
         if kind!='blob' or mode not in ('100644','100755'):
             raise ValueError('Redirected/special factory entries are unsupported')
         entries[name]=oid
-    if not entries or len(entries)>MAX_FILES:raise ValueError('Missing or oversized committed factory file set')
+    if not entries or factory in entries:
+        raise FactoryPathError('No committed factory directory at --factory '+json.dumps(factory,ensure_ascii=True)+
+                         ' in the evidence-storage commit. '+FACTORY_PATH_HELP)
+    if len(entries)>MAX_FILES:raise ValueError('Oversized committed factory file set')
     root=safe_path(git.repo.joinpath(*factory.split('/')))
     found={};total=0;count=0;pending=[root]
     while pending:
@@ -153,7 +173,7 @@ def task_history(git,factory,subject,storage):
 def evidence_changes(git,factory,evidence_dir,subject,storage):
     if subject==storage:return []
     git.read('merge-base','--is-ancestor',subject,storage)
-    records={factory+'/'+name for name in ('verification.md','task-plan.json','release-handoff.md','learning-log.md')}
+    records={factory+'/'+name for name in EVIDENCE_RECORDS}
     prefix=evidence_dir+'/'+subject+'/'
     fields=git.read('diff','--no-ext-diff','--no-textconv','--no-renames','--name-status','-z',subject,storage,'--').split(b'\0')
     if fields[-1]==b'':fields.pop()
@@ -165,14 +185,19 @@ def evidence_changes(git,factory,evidence_dir,subject,storage):
         elif path.startswith(prefix) and status=='A' and PurePosixPath(path).suffix.lower() in DATA_SUFFIXES:
             tree=git.read('ls-tree','-z',storage,'--',path)
             if not tree.startswith(b'100644 blob '):raise ValueError('Evidence additions must be non-executable regular data files')
-        else:raise ValueError('Not an allowed evidence-only change: '+json.dumps({'status':status,'path':path},ensure_ascii=True))
+        else:raise ValueError('Not an allowed evidence-only change: '+json.dumps({'status':status,'path':path},ensure_ascii=True)+
+                              '. Paths are relative to --repo; --factory is interpreted from that root. '+
+                              evidence_envelope(factory,evidence_dir,subject))
         changed.append(path)
     task_history(git,factory,subject,storage)
     return changed
 
 
 def assess_ci(repo,factory,subject,storage,stage,target=None,evidence_dir='docs/factory-evidence',required_tasks=(),git_executable='git'):
-    repo=safe_path(repo);factory=relative(factory);evidence_dir=relative(evidence_dir)
+    repo=safe_path(repo)
+    try:factory=relative(factory)
+    except ValueError as exc:raise ValueError(FACTORY_PATH_HELP+' '+str(exc)) from exc
+    evidence_dir=relative(evidence_dir)
     if evidence_dir==factory or evidence_dir.startswith(factory+'/') or factory.startswith(evidence_dir+'/') or evidence_dir.split('/')[0].casefold()=='.github':
         raise ValueError('Evidence data location must be outside the factory and CI configuration')
     subject=full_sha(subject);storage=full_sha(storage)
@@ -183,8 +208,10 @@ def assess_ci(repo,factory,subject,storage,stage,target=None,evidence_dir='docs/
     for sha in (subject,storage):
         if git.read('rev-parse','--verify',sha+'^{commit}').decode().strip()!=sha:raise ValueError('Expected exact commit object')
     clean_storage(git,storage)
+    try:root=bind_factory(git,factory,storage)
+    except FactoryPathError as exc:
+        raise ValueError(str(exc)+' '+evidence_envelope('<factory>',evidence_dir,subject)) from exc
     changed=evidence_changes(git,factory,evidence_dir,subject,storage)
-    root=bind_factory(git,factory,storage)
     found=assess(root,stage,subject,target)
     text=(root/'verification.md').read_text(encoding='utf-8-sig')
     skipped=waivers(text,stage)
@@ -207,10 +234,12 @@ def assess_ci(repo,factory,subject,storage,stage,target=None,evidence_dir='docs/
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--repo',required=True);parser.add_argument('--factory',default='.software-factory')
-    parser.add_argument('--subject',required=True);parser.add_argument('--storage',required=True)
+    parser.add_argument('--repo',required=True,help='Exact clean checkout root at the evidence-storage commit')
+    parser.add_argument('--factory',default='.software-factory',help=FACTORY_PATH_HELP+' Default: .software-factory')
+    parser.add_argument('--subject',required=True,help='Explicit full tested-subject commit SHA (40 or 64 hex digits); no aliases such as HEAD')
+    parser.add_argument('--storage',required=True,help='Explicit full evidence-storage commit SHA (40 or 64 hex digits), matching checkout HEAD; no aliases')
     parser.add_argument('--stage',required=True,choices=('pre-merge','post-merge'))
-    parser.add_argument('--target');parser.add_argument('--evidence-dir',default='docs/factory-evidence')
+    parser.add_argument('--target');parser.add_argument('--evidence-dir',default='docs/factory-evidence',help='Canonical path relative to --repo for subject-scoped data additions, outside the factory/CI configuration')
     parser.add_argument('--require-task',action='append',default=[]);parser.add_argument('--git',default='git')
     args=parser.parse_args()
     result=assess_ci(args.repo,args.factory,args.subject,args.storage,args.stage,args.target,args.evidence_dir,args.require_task,args.git)
