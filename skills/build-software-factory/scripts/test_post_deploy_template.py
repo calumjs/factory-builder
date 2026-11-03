@@ -2,7 +2,9 @@
 import copy
 import importlib.util
 import json
+import os
 from pathlib import Path
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -14,7 +16,14 @@ ASSETS = ROOT / 'assets/templates/ci'
 ADAPTER = ASSETS / 'post-deploy.example.py'
 spec = importlib.util.spec_from_file_location('post_deploy_template', ADAPTER)
 adapter = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(adapter)
+# This fixture is under assets/templates, which scaffold treats as text contracts.
+# Suppress importlib's pyc write even when this test is invoked without Python -B.
+_previous_bytecode_setting = sys.dont_write_bytecode
+try:
+    sys.dont_write_bytecode = True
+    spec.loader.exec_module(adapter)
+finally:
+    sys.dont_write_bytecode = _previous_bytecode_setting
 
 
 class PostDeployTemplateTests(unittest.TestCase):
@@ -126,7 +135,7 @@ class PostDeployTemplateTests(unittest.TestCase):
 
     def test_canonical_relative_factory_and_evidence_paths(self):
         for key in ('factory', 'evidence_directory'):
-            for value in ('/absolute', '../escape', 'a/../b', 'a//b', 'a\\b', 'a:b'):
+            for value in ('/absolute', '../escape', 'a/../b', 'a//b', 'a\\b', 'a:b', '--private-option'):
                 with self.subTest(key=key, value=value):
                     context = copy.deepcopy(self.context); context[key] = value
                     with self.assertRaises(ValueError): adapter.plan(context, self.event)
@@ -226,6 +235,22 @@ class PostDeployTemplateTests(unittest.TestCase):
         for link in re.findall(r'\]\(([^)]+)\)', guide.read_text()):
             if not link.startswith('https:'):
                 self.assertTrue((guide.parent / link).is_file(), link)
+
+    def test_clean_process_test_import_does_not_contaminate_copied_templates(self):
+        copied = self.root / 'copied/skills/build-software-factory'
+        shutil.copytree(ROOT, copied, ignore=shutil.ignore_patterns('__pycache__', '*.pyc'))
+        env = dict(os.environ)
+        env.pop('PYTHONDONTWRITEBYTECODE', None)
+        env.pop('PYTHONPYCACHEPREFIX', None)
+        # A fresh interpreter, deliberately without -B, imports the test module
+        # then exercises actual generation and copied adapter invocation. Only
+        # this one nonrecursive test is selected in the disposable source copy.
+        result = subprocess.run([sys.executable, '-m', 'unittest',
+                                 'test_post_deploy_template.PostDeployTemplateTests.test_generated_bundle_is_manifest_bound_inactive_and_read_only_without_B'],
+                                cwd=copied / 'scripts', env=env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertFalse(list((copied / 'assets/templates').rglob('*.pyc')))
+        self.assertFalse(list((copied / 'assets/templates').rglob('__pycache__')))
 
     def test_generated_bundle_is_manifest_bound_inactive_and_read_only_without_B(self):
         target = self.root / 'project'; target.mkdir()

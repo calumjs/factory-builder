@@ -16,6 +16,9 @@ template's literal `ci_evidence.py` argument builder. Read the
 stay outside `.github/workflows`; copying the YAML still leaves its job disabled
 and its first step refusing unconfigured use. A skipped job is not G3 evidence.
 This slice supplies the adapter and adoption procedure, not a ready hosted check.
+Use an independently pinned trusted adapter and sibling bundle, never a PR-supplied
+or source/evidence-checkout copy in a privileged job. Generated copies are proposals
+to review, not an independently trusted executable installation.
 Fresh factories include this inactive bundle as manifest-protected proposals.
 Existing factories are unchanged: use the complete pinned installed builder bundle
 for planning, or separately review adding its files/contracts using the documented
@@ -58,6 +61,12 @@ Invoke the pinned adapter with approved absolute Python and adapter paths:
 ```text
 python -B /trusted/templates/ci/post-deploy.example.py --context /trusted/context.json --event /runner/event.json
 ```
+
+The printed assessor argv uses Git resolved through the trusted job's PATH. This
+context schema does not forward `FACTORY_GIT`; configure and verify a trusted PATH
+for later assessment, or separately construct the existing CI template invocation
+with its approved absolute Git option. Do not inherit executable lookup from an
+untrusted checkout or assume setting `FACTORY_GIT` changes this adapter's output.
 
 Event mode accepts a native GitHub event with unrelated fields but extracts only
 `repository.full_name`, `deployment.id/sha/environment` and
@@ -137,6 +146,12 @@ The inert YAML uses a fixed trusted target concurrency lane and
 `cancel-in-progress: false`, so a later docs/evidence push does not request that a
 running verification be cancelled through this lane. GitHub's default pending-run
 replacement and ordering mean this is not a durable queue or distributed lock.
+This proposal subscribes to all deployment statuses in one lane: a Preview or other
+irrelevant status can replace a pending Production run before adapter validation.
+An inactive status does not trigger GitHub Actions, but other non-success statuses
+can. Reconcile the exact-S liveness deadline and use the authorized manual fallback
+after confirming ownership/termination; never treat a displaced pending run as G3
+evidence. Project-specific admission/filtering or queue choices need separate review.
 Include every adopted trigger for the target in the same reviewed lane; other
 workflows/providers/local workers remain outside it. Duplicate statuses/manual
 fallbacks must consume existing exact-attempt evidence or wait for the verified

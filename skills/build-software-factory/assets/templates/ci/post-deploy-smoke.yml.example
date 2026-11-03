@@ -17,6 +17,8 @@ on:
 permissions: {}
 # Fixed trusted target lane; change this label only during reviewed adoption.
 # A pending run may be replaced. This is not a durable queue or cross-system lock.
+# Even an irrelevant Preview/non-success event can displace pending Production;
+# see post-deploy.md for exact-S liveness reconciliation and manual fallback.
 concurrency:
   group: factory-production-verification
   cancel-in-progress: false

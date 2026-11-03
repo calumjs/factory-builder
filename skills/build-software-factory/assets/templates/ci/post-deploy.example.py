@@ -2,6 +2,8 @@
 
 Only a separately reviewed trusted bridge may supply context. An event is data,
 never proof of deployment identity, readiness, authority or successful testing.
+Run an independently pinned trusted adapter/sibling bundle, never a PR-supplied
+or source/evidence-checkout copy in a privileged job. Generated copies are proposals.
 """
 import argparse
 import hashlib
@@ -50,8 +52,8 @@ def target(value):
 
 def relative(value):
     label(value, 256)
-    if '\\' in value or ':' in value or value.startswith('/') or any(p in ('', '.', '..') for p in value.split('/')):
-        fail('Use canonical repository-relative evidence and factory paths')
+    if '\\' in value or ':' in value or value.startswith(('/', '-')) or any(p in ('', '.', '..') for p in value.split('/')):
+        fail('Use canonical repository-relative evidence and factory paths, without a leading dash')
     return value
 
 
