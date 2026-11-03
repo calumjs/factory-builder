@@ -2,7 +2,9 @@
 kill switch, run records outside the factory, scheduler rendering. No worker,
 scheduler or network action is performed."""
 import copy
+from contextlib import redirect_stdout
 from datetime import datetime, timedelta, timezone
+import io
 import json
 import os
 from pathlib import Path
@@ -16,6 +18,18 @@ from scaffold import ROOT, render, main as scaffold_main
 from integrity import check, digest
 
 NOW = datetime(2026, 10, 30, 12, 0, tzinfo=timezone.utc)
+
+
+class Pre311ZuluParser(datetime):
+    """Emulate only pre-3.11 fromisoformat's rejection of a trailing Z.
+
+    This is not a complete Python 3.9/3.10 runtime or parser emulation.
+    """
+    @classmethod
+    def fromisoformat(cls, value):
+        if isinstance(value, str) and value.endswith('Z'):
+            raise ValueError('Invalid isoformat string')
+        return datetime.fromisoformat(value)
 
 
 def task(i, deps=(), paths=(), status='pending'):
@@ -122,6 +136,59 @@ class RunTests(unittest.TestCase):
         self.assertEqual(result['capacity']['dispatched_last_hour'], 2)
         self.assertEqual(result['capacity']['rate_remaining'], 1)
         self.assertEqual([c['task_id'] for c in result['candidates']], ['T1'])
+
+    def test_record_timestamp_round_trip_select_and_plan_with_legacy_z_rejection(self):
+        root = self.write()
+        original = {p.relative_to(root): p.read_bytes() for p in root.rglob('*') if p.is_file()}
+        stamps = ('2026-10-30T11:30:00Z', '2026-10-30T11:30:00+00:00',
+                  '2026-10-30T17:00:00+05:30', '2026-10-30T11:30:00.123456Z')
+        for parser in (datetime, Pre311ZuluParser):
+            for index, stamp in enumerate(stamps):
+                with self.subTest(parser=parser.__name__, stamp=stamp):
+                    runs = self.project / (parser.__name__ + str(index))
+                    argv = ['run.py', '--factory', str(root), '--runs', str(runs), 'record',
+                            '--run-id', 'run-timestamp', '--dispatched', 'T9,T8',
+                            '--outcome', 'completed', '--started', stamp]
+                    with patch.object(run, 'datetime', parser), patch.object(run, 'utcnow', return_value=NOW):
+                        with patch.object(sys, 'argv', argv), redirect_stdout(io.StringIO()):
+                            run.main()
+                        self.assertFalse(runs.exists())
+                        with patch.object(sys, 'argv', argv + ['--apply']), redirect_stdout(io.StringIO()):
+                            run.main()
+                        record_path = runs / 'run-timestamp.json'
+                        original_record = record_path.read_bytes()
+                        self.assertEqual(json.loads(original_record)['started'], stamp)
+                        for command in ('select', 'plan'):
+                            output = io.StringIO()
+                            with patch.object(sys, 'argv', argv[:5] + [command]), redirect_stdout(output):
+                                self.assertEqual(run.main(), 0)
+                            result = json.loads(output.getvalue())
+                            self.assertEqual(result['capacity']['dispatched_last_hour'], 2)
+                            self.assertEqual(result['capacity']['rate_remaining'], 1)
+                            self.assertEqual([c['task_id'] for c in result['candidates']], ['T1'])
+                            if command == 'plan':
+                                self.assertEqual([w['task_id'] for w in result['workers']], ['T1'])
+                        self.assertEqual(record_path.read_bytes(), original_record)
+        self.assertEqual({p.relative_to(root): p.read_bytes() for p in root.rglob('*') if p.is_file()}, original)
+
+    def test_bad_naive_and_future_timestamps_still_block_record_select_and_plan(self):
+        root = self.write()
+        runs = self.project / '.factory-runs'
+        runs.mkdir()
+        path = runs / 'run-invalid.json'
+        for parser in (datetime, Pre311ZuluParser):
+            for stamp in ('not-a-timestamp', '2026-10-30T11:30:00', '2026-10-30T12:00:01Z',
+                          '2026-10-30T11:30:00ZZ', '2026-10-30T11:30:00z'):
+                with self.subTest(parser=parser.__name__, stamp=stamp), patch.object(run, 'datetime', parser):
+                    with self.assertRaises(ValueError):
+                        run.record_run(runs, 'run-invalid', ['T9'], 'completed', '', started=stamp, now=NOW)
+                    contents = json.dumps({'started': stamp, 'dispatched': ['T9']})
+                    path.write_text(contents)
+                    for operation in (run.select, run.plan_pass):
+                        with self.assertRaises(ValueError):
+                            operation(*self.load(root), runs=runs, now=NOW)
+                    self.assertEqual(path.read_text(), contents)
+        check(root, quiet=True)
 
     def test_manual_autonomy_has_no_rate_limit_but_continuous_intake_is_diagnosed(self):
         self.config['operations']['autonomy'] = {'mode': 'manual', 'kill_switch': 'x', 'max_items_per_hour': 0,

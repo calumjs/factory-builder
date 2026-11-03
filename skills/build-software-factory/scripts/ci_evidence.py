@@ -16,7 +16,7 @@ import threading
 import time
 sys.dont_write_bytecode=True
 from gates import assess, waivers
-from integrity import safe_path, validate_task_plan, strict_json
+from integrity import safe_path, validate_task_plan, strict_json, ManifestFileSetMismatch
 
 MAX_FILE=4*1024*1024
 MAX_TOTAL=32*1024*1024
@@ -26,6 +26,24 @@ EVIDENCE_RECORDS=('verification.md','task-plan.json','release-handoff.md','learn
 FACTORY_PATH_HELP=('--factory is a canonical path relative to the --repo checkout root, not the current directory. '
                    'For --repo project, use --factory .software-factory when that is the committed directory, '
                    'not project/.software-factory. Nested factory paths are supported; no prefix is stripped.')
+INTEGRITY_REPAIR_HELP=(
+    'Preserve the failed checkout. Inspect privately with the approved absolute interpreter and trusted installed helper: '
+    'scaffold.py --check <factory-directory>. '
+    'For reviewed recovery, preview recover_factory.py --factory <factory-directory> '
+    '--baseline <independently-accepted-baseline> --baseline-manifest-sha256 <accepted-baseline-raw-sha256> '
+    '--baseline-reference <accepted-provenance> --output <new-recovery-directory>; see references/recovery.md. '
+    'The baseline must be valid and independently accepted, not the broken merge. '
+    'A corrupt or semantically changed manifest needs manual recovery. '
+    'Do not rehash to bypass failure; review selective changes and preserve evidence. No files were modified.')
+
+
+def error_diagnostic(exc):
+    """Give CI integrity failures a fixed recovery hint without exposing names."""
+    if isinstance(exc,ManifestFileSetMismatch):
+        return 'Manifest file set mismatch; file names withheld. '+INTEGRITY_REPAIR_HELP
+    if str(exc).startswith('Contract integrity mismatch: '):
+        return 'Contract integrity mismatch; contract name withheld. '+INTEGRITY_REPAIR_HELP
+    return str(exc)
 
 
 class FactoryPathError(ValueError):
@@ -250,4 +268,4 @@ def main():
 if __name__=='__main__':
     try:sys.exit(main())
     except (ValueError,OSError,KeyError,TypeError,subprocess.TimeoutExpired) as exc:
-        print(json.dumps({'assessment':'error','error':str(exc)},ensure_ascii=True),file=sys.stderr);sys.exit(2)
+        print(json.dumps({'assessment':'error','error':error_diagnostic(exc)},ensure_ascii=True),file=sys.stderr);sys.exit(2)

@@ -90,7 +90,8 @@ def dispatched_last_hour(records, now):
     count = 0
     for record in records:
         try:
-            started = datetime.fromisoformat(record['started'])
+            # Match record_run validation on Python 3.9/3.10 as well as newer runtimes.
+            started = datetime.fromisoformat(record['started'].replace('Z', '+00:00'))
         except (ValueError,TypeError) as exc:
             raise ValueError('Malformed run timestamp; stop for review') from exc
         if started.tzinfo is None or started.utcoffset() is None or started>now:

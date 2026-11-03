@@ -41,6 +41,14 @@ They are retrospective supplied claims for advisory rate calculations, not
 reservations, independently verified events or budget enforcement. The helper refuses a path inside the factory so
 integrity is never disturbed.
 
+`record --started` accepts timezone-aware ISO timestamps with either `Z` or an
+explicit UTC offset. `select` and `plan` interpret either form consistently on
+the supported Python versions, including 3.9 and 3.10; the supplied record text
+is preserved. Malformed, timezone-naive or future timestamps stop the pass.
+This parsing lives in the installed `run.py`, not the copied dashboard bundle;
+updating the trusted installed helper needs no factory runtime migration or
+rewriting of existing run records.
+
 ## Issue pickup
 
 When `operations.admission` is present, `select` and `plan` require a satisfied

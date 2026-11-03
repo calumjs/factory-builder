@@ -8,7 +8,7 @@ from pathlib import Path
 import shutil
 import sys
 from research import apply_research, validate_research, PHASES
-from integrity import check, digest, manifest_for, read_json, safe_path
+from integrity import check, digest, manifest_for, read_json, safe_path, strict_json
 from operations import operations, controls, DELIVERY_POLICY
 from gates import control_differences, initial_table, policy_controls
 from dashboard import profile
@@ -241,12 +241,12 @@ def main():
         if args.config or args.target or args.apply or args.research: parser.error('--check cannot be combined with scaffold options')
         check_factory(args.check);return
     if not args.config or not args.target: parser.error('--config and --target are required')
-    c=json.loads(Path(args.config).read_text(encoding='utf-8'));validate(c)
+    c=strict_json(Path(args.config).read_text(encoding='utf-8'));validate(c)
     target=safe_path(args.target)
     if not target.is_dir(): raise ValueError('Target must already be an existing directory')
     output=target/'.software-factory'
     if output.exists() or output.is_symlink(): raise ValueError('Refusing existing .software-factory; no overwrite is supported')
-    research=json.loads(Path(args.research).read_text(encoding="utf-8")) if args.research else json.loads((ROOT/"assets/example-research.json").read_text(encoding="utf-8"))
+    research=strict_json(Path(args.research).read_text(encoding="utf-8")) if args.research else strict_json((ROOT/"assets/example-research.json").read_text(encoding="utf-8"))
     validate_research(research)
     files=render(c, research)
     print(('APPLY' if args.apply else 'DRY RUN — no files written')+': '+str(output))
