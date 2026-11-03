@@ -13,7 +13,7 @@ from integrity import safe_path
 from learning_table import LEARNING_HEADER, validate_learning_log
 import run_traces
 
-MAX_INPUT_BYTES = 1_000_000
+MAX_INPUT_BYTES = run_traces.MAX_BYTES
 MAX_OUTPUT_BYTES = 2_000_000
 MAX_UNITS = 100
 MAX_ATTEMPTS = 500
@@ -99,7 +99,8 @@ def measurement(trace, selector, currency=None, phase=None):
 NOTICE = ('Private operator-supplied claims; descriptive conditional summaries only. Pins and chronology do not prove '
           'preregistration, randomization, first-attempt identity, completeness, attribution or causality. '
           'Review every field before sharing. No collection, allocation or adoption is performed.')
-ESTIMAND = ('Mean among allocated units whose predeclared first attempt is supplied as merged and complete, '
+ESTIMAND = ('Mean among allocated units with an inventory supplied as complete and a predeclared first attempt '
+            'whose supplied start is within its variant window and which is supplied as merged and complete, '
             'with a compatible available metric in the declared cell. Retries are counted but their measures are excluded.')
 DISPOSITIONS = ('no_inventory', 'inventory_incomplete', 'first_attempt_missing', 'error', 'out_of_window',
                 'open_censored', 'closed', 'pr_state_unavailable', 'merged_incomplete', 'merged_complete',
@@ -307,7 +308,8 @@ def analyze(traces, experiment, assignments, *, experiment_pin, as_of):
     inventories, assigned_runs = validate_assignments(assignments, experiment, rows, as_of)
     variants = experiment['variants']
     limitations = {'descriptive_only', 'supplied_binding_not_verified', 'selection_and_survivorship_bias_possible',
-                   'retries_excluded_from_measures', 'minimum_units_is_not_power_analysis', 'phase_coverage_not_attested'}
+                   'retries_excluded_from_measures', 'minimum_units_is_not_power_analysis', 'phase_coverage_not_attested',
+                   'analysis_as_of_supplied_not_real_clock_validated'}
     if experiment['timing'] == 'retrospective': limitations.add('post_hoc_design')
     if experiment['method'] == 'randomized_claim': limitations.add('randomization_claim_not_verified')
     elif experiment['method'] == 'before_after': limitations.add('time_confounding')
@@ -405,18 +407,21 @@ def learn_proposal(result, experiment, decision=None):
     return text.replace('# Uncommitted Learn proposal', '# Uncommitted Learn proposal — review all text before committing', 1)
 
 
-def panel(result, decision=None):
+def panel(result, decision=None, *, overview_captured_at=None):
     def text(value): return escape(str(value), quote=True)
     def table(headers, rows):
         return '<div class="scroll"><table><thead><tr>'+''.join('<th>'+text(h)+'</th>' for h in headers)+'</tr></thead><tbody>'+''.join('<tr>'+''.join('<td>'+text(v)+'</td>' for v in row)+'</tr>' for row in rows)+'</tbody></table></div>'
     body = '<section class="panel"><h2>Private supplied experiment analysis</h2><p>'+text(result['notice'])+'</p>'
-    body += '<p>Analysis SHA256 '+text(result['analysis_digest'])+'; as of '+text(result['as_of'])+'. The separate factory overview is outside this digest.</p>'
+    body += '<p>Analysis SHA256 '+text(result['analysis_digest'])+'; supplied analysis as of '+text(result['as_of'])+'. This analysis time is not validated against the real clock. The separate factory overview is outside this digest.</p>'
+    if overview_captured_at is not None:
+        body += '<p>Current factory overview captured at '+text(overview_captured_at)+' using its own capture clock, separately from the supplied analysis as-of. Factory freshness uses this capture time; the overview is not a historical reconstruction.</p>'
     body += '<p>'+text(result['experiment_id'])+' version '+text(result['experiment_version'])+'; '+text(result['method_claim'])+'; '+text(result['timing_claim'])+'.</p>'
     body += '<p>Canonical design SHA256 '+text(result['canonical_input_digests']['experiment'])+'; population '+text(result['population'])+'; assignment unit task.</p>'
     body += table(('Variant','Definition version','Intervention claim','Start inclusive','End exclusive'),
                   [(v['id'],v['version'],v['intervention'],v['start'],v['end']) for v in result['variants']])
     body += '<p>Minimum usable units per variant: '+str(result['min_units'])+'. Rationale: '+text(result['minimum_rationale'])+'. Supplied stopping rule: '+text(result['stopping_rule'])+'. Confounders: '+text(result['confounders'])+'.</p>'
     body += '<p>Limitations: '+text(', '.join(result['limitations']))+'</p>'
+    body += '<p>Limitation flags are pooled across all metrics, including secondary metrics. Read each metric\'s per-variant counts and minimum alongside any observed guardrail threshold state; a non-exceeded mean does not establish sufficient evidence.</p>'
     body += '<p>Unassigned supplied traces excluded: '+str(result['unassigned_traces_excluded'])+'. Observation age is context only, never an eligibility rule.</p>'
     for metric in result['metrics']:
         definition = metric['definition']
@@ -473,7 +478,9 @@ def main():
         result = analyze(traces,experiment,assignments,experiment_pin=args.experiment_pin,as_of=now)
         decision = validate_decision(capture(args.decision)[0],result) if args.decision else None
         if args.format == 'learn': content = learn_proposal(result,experiment,decision)
-        elif args.format == 'html': content = dashboard.page(dashboard.read(args.factory,now=now),supplemental_html=panel(result,decision))
+        elif args.format == 'html':
+            overview = dashboard.read(args.factory)
+            content = dashboard.page(overview,supplemental_html=panel(result,decision,overview_captured_at=overview['captured_at']))
         else: content = json.dumps({'analysis':result,'supplied_decision':decision},indent=2,ensure_ascii=True)+'\n'
     write_output(args.factory,args.output,content,inputs,args.replace)
     print('Private supplied analytics output written. No collection, allocation or adoption performed.')

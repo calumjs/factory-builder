@@ -104,6 +104,9 @@ class ExperimentTests(unittest.TestCase):
         self.assertNotIn('evidence_ref',json.dumps(result))
         body={k:v for k,v in result.items() if k!='analysis_digest'}
         self.assertEqual(analytics.digest(body),result['analysis_digest'])
+        self.assertIn('inventory supplied as complete',result['metrics'][0]['estimand'])
+        self.assertIn('start is within its variant window',result['metrics'][0]['estimand'])
+        self.assertIn('analysis_as_of_supplied_not_real_clock_validated',result['limitations'])
 
     def test_output_tokens_missing_does_not_exclude_active_minutes(self):
         self.traces['runs'][0]['phases'][0]['output_tokens']={'status':'unavailable','value':None}
@@ -111,6 +114,7 @@ class ExperimentTests(unittest.TestCase):
         self.assertEqual(result['metrics'][0]['variants'][0]['included'],2)
         self.assertEqual(result['metrics'][2]['variants'][0]['included'],1)
         self.assertIn('insufficient_evidence',result['limitations'])
+        self.assertIn('Limitation flags are pooled across all metrics',analytics.panel(result))
 
     def test_selected_phase_missing_is_unavailable_not_zero(self):
         self.traces['runs'][0]['phases']=[p for p in self.traces['runs'][0]['phases'] if p['phase']!='build']
@@ -415,6 +419,32 @@ class AnalyticsCliTests(unittest.TestCase):
         os.utime(factory_file,(1_700_000_000,1_700_000_000))
         self.assertEqual(self.invoke(second).returncode,0)
         self.assertEqual(first.read_bytes(),second.read_bytes())
+
+    def test_historical_analysis_uses_separate_current_factory_capture_clock(self):
+        capture_time=datetime(2030,1,2,12,tzinfo=timezone.utc)
+        class CaptureClock(datetime):
+            @classmethod
+            def now(cls,tz=None):
+                return cls.fromtimestamp(capture_time.timestamp(),tz)
+        for path in self.factory.rglob('*'):
+            if path.is_file():os.utime(path,(capture_time.timestamp()-60,capture_time.timestamp()-60))
+        result=analytics.analyze(self.traces,self.experiment,self.assignments,
+                                 experiment_pin=analytics.digest(self.experiment),as_of=NOW)
+        output=self.base/'separate-clocks.html'
+        argv=['factory_analytics.py']+self.command[3:]+['--output',str(output),'--format','html']
+        with patch.object(sys,'argv',argv), patch.object(analytics.dashboard,'datetime',CaptureClock), \
+             patch.object(analytics.dashboard,'page',wraps=analytics.dashboard.page) as page:
+            analytics.main()
+        overview=page.call_args.args[0]
+        self.assertEqual(overview['captured_at'],capture_time.isoformat())
+        self.assertTrue(all(source['freshness']=='recent file change (not observation)' for source in overview['sources']))
+        html=output.read_text()
+        self.assertIn('Current factory overview captured at '+capture_time.isoformat(),html)
+        self.assertIn('supplied analysis as of '+NOW.isoformat(),html)
+        self.assertIn(result['analysis_digest'],html)
+        self.assertIn('not a historical reconstruction',html)
+        self.assertEqual(result,analytics.analyze(self.traces,self.experiment,self.assignments,
+                                                experiment_pin=analytics.digest(self.experiment),as_of=NOW))
 
     def test_decision_output_alias_is_refused_without_overwrite(self):
         report=self.base/'result.json';self.assertEqual(self.invoke(report).returncode,0)
