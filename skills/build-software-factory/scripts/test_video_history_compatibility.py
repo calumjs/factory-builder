@@ -10,7 +10,7 @@ import unittest
 from gates import gate_rows
 from incremental_records import preview, apply as record
 from scaffold import ROOT, render
-from update_operations import prepare, apply, video_reactivation_choices, VIDEO_HISTORY_HEADINGS
+from update_operations import prepare, apply, refreshed_verification, video_reactivation_choices, VIDEO_HISTORY_HEADINGS
 
 
 class VideoHistoryCompatibilityTests(unittest.TestCase):
@@ -60,6 +60,25 @@ class VideoHistoryCompatibilityTests(unittest.TestCase):
             self.assertIn('SYNTHETIC FAILED',text); self.assertIn('SYNTHETIC BLOCKED',text)
             self.assertEqual(text.count('## Historical observations (not current evidence)'),1)
             self.assertEqual(gate_rows(text)['G1']['result'],'NOT RUN')
+
+    def test_historical_notes_stay_ordered_with_their_rows_and_refresh_is_idempotent(self):
+        self.observe('G1','FAILED'); self.observe('G1','BLOCKED')
+        text=self.path.read_text()
+        rows=[line for line in text.splitlines() if line.startswith('> | ')]
+        text=text.replace(rows[0], 'Qualification before first observation.\n'+rows[0]+'\nQualification after first observation.')
+        text=text.replace(rows[1], 'Qualification before second observation.\n'+rows[1]+'\nQualification after second observation.')
+        text+='\n## Operator notes\nIndependent current note.\n'
+        config=json.loads((self.root/'config.json').read_text())
+        research=json.loads((self.root/'research.json').read_text())
+        result=refreshed_verification(text,config,research,prior_config=config)
+        history=result.split('## Historical observations (not current evidence)\n',1)[1].split('## Current delivery gate records',1)[0]
+        order=['Qualification before first observation.',rows[0],'Qualification after first observation.',
+               'Qualification before second observation.',rows[1],'Qualification after second observation.']
+        positions=[history.index(value) for value in order]
+        self.assertEqual(positions,sorted(positions))
+        self.assertNotIn('Independent current note.',history)
+        self.assertIn('## Operator notes\nIndependent current note.',result)
+        self.assertEqual(refreshed_verification(result,config,research,prior_config=config),result)
 
     def test_repeated_recognized_history_requires_choice_never_latest_preference(self):
         self.missing_video()

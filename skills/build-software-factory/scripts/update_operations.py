@@ -329,7 +329,9 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False, p
             while preserved and not preserved[-1].strip():preserved.pop()
             in_history=line in VIDEO_HISTORY_HEADINGS;table_header=False;skip_blank=True;continue
         if line.startswith('## '):in_history=False
-        if in_history and line.startswith('> | '):
+        if in_history and not ROW.match(line):
+            # Qualifying prose belongs with its historical rows, not in the
+            # current-record preamble. Keep order across repeated sections.
             history.append(line);skip_blank=True;continue
         if line == HEADER.splitlines()[0]:
             table_header=True;skip_blank=True;continue
@@ -383,7 +385,8 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False, p
             flag=cells[4].casefold()
             cells[4]='yes' if flag in ('yes','y','true') else 'no' if flag in ('no','n','false') else flag
         return tuple(cells)
-    seen={history_key(line) for line in history}
+    while history and not history[-1].strip():history.pop()
+    seen={history_key(line) for line in history if line.startswith('> | ') and ROW.match(line[2:])}
     for observation in observations:
         key=history_key(observation)
         if key not in seen:history.append(observation);seen.add(key)
