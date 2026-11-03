@@ -6,6 +6,18 @@ Three situations, one stance: preserve what exists, review every delta, accept n
 
 Use when hand-edited contracts or unregistered files block checks, status, gates or operations preview. Those refusals are intentional; recovery means a reviewed, selective manifest change, never accepting all current hashes.
 
+The trusted builder's `scaffold.py --check <factory>` checks recorded integrity,
+basic structure and config/policy control consistency before reporting PASS. It
+does not run application checks or attest delivery readiness. Matching hashes
+alone cannot reconcile conflicting controls. Scaffold and recovery diagnostics
+show up to ten differing field paths, each limited to 80 characters, with values
+omitted; inspect the full records privately when paths are truncated or omitted.
+Preserve both records and use the reviewed procedure below to establish intended
+controls. `update_operations.py` refuses existing disagreement: after reconciliation,
+preview subsequent changes with `update_operations.py --factory <factory>
+--operations <changes.json>`, and use `--apply --approve-plan <digest>` only for
+that reviewed preview. No diagnostic automatically reconciles or re-hashes files.
+
 **Baseline and backup**
 1. Confirm the target and local-write authority. Stop writers and watchers only within their existing authority; if a stable snapshot cannot be obtained, stop. Back up the current factory — original manifest and every living record — to a private, untracked location outside `.software-factory`, recording paths, sizes and raw SHA256 before and after, and verify byte-for-byte. Do not follow links or copy secrets into a shared location.
 2. Obtain an independently accepted baseline of this factory from a verified commit or verified backup, with its provenance and original manifest bytes. A newly generated factory, or a manifest from the same unreviewed edit, is not independent authority. Check the isolated baseline with the compatible trusted builder's `scaffold.py --check`.

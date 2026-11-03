@@ -8,9 +8,9 @@ from pathlib import Path
 import shutil
 import sys
 from research import apply_research, validate_research
-from integrity import check, digest, manifest_for, safe_path
+from integrity import check, digest, manifest_for, read_json, safe_path
 from operations import operations, controls, DELIVERY_POLICY
-from gates import initial_table
+from gates import control_differences, initial_table, policy_controls
 from dashboard import profile
 from dashboard_bundle import bundle
 from recipes import proposal
@@ -20,6 +20,28 @@ from readiness import emit
 ROOT = Path(__file__).resolve().parents[1]
 TEXT = ('project', 'outcome', 'stack', 'harness', 'deployment', 'data_policy')
 LISTS = ('users', 'scope', 'non_goals', 'providers', 'acceptance', 'test_commands', 'permissions', 'open_questions')
+
+def require_control_consistency(config, policy):
+    """Compare typed control records; report bounded paths, never their values."""
+    drift=control_differences(policy_controls(policy),controls(config))
+    if not drift:return
+    shown=[path if len(path)<=80 else path[:80]+'...' for path in drift[:10]]
+    omitted='; '+str(len(drift)-10)+' more paths omitted' if len(drift)>10 else ''
+    raise ValueError('Configuration and policy controls disagree at '+json.dumps(shown,ensure_ascii=True)+omitted+
+                     '; paths limited to 80 characters; no values printed. Preserve config.json and policy.md and reconcile the intended controls through reviewed recovery '+
+                     '(references/recovery.md section 1). update_operations.py refuses existing drift; after reconciliation, preview future changes with '+
+                     'update_operations.py --factory <factory> --operations <changes.json>, then --apply --approve-plan <digest> only after reviewing that preview. No automatic reconciliation or re-hash occurred.')
+
+
+def check_factory(factory):
+    """Check recorded integrity and control consistency, not application readiness."""
+    root=safe_path(factory)
+    manifest=check(root,quiet=True)
+    config=read_json(root/'config.json');validate(config)
+    require_control_consistency(config,(root/'policy.md').read_text(encoding='utf-8-sig'))
+    runtime_advisory(root);emit(config)
+    print(f"PASS: {len(manifest['contracts'])} contract files match; {len(manifest['living'])} living files have valid basic structure; config/policy controls agree. Living content and evidence truth are not attested; application checks were not run.")
+
 
 def runtime_advisory(factory):
     """Compare copied runtimes to this installed builder; never adopt or attest them."""
@@ -172,7 +194,7 @@ def main():
     args=parser.parse_args()
     if args.check:
         if args.config or args.target or args.apply or args.research: parser.error('--check cannot be combined with scaffold options')
-        check(args.check);runtime_advisory(args.check);emit(json.loads((safe_path(args.check)/'config.json').read_text(encoding='utf-8-sig')));return
+        check_factory(args.check);return
     if not args.config or not args.target: parser.error('--config and --target are required')
     c=json.loads(Path(args.config).read_text(encoding='utf-8'));validate(c)
     target=safe_path(args.target)

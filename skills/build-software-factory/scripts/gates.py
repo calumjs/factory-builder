@@ -197,7 +197,7 @@ def assess(factory, stage, revision, target=None):
                          '; no values printed. Preserve both records and reconcile the intended controls through reviewed recovery '+
                          '(references/recovery.md). update_operations.py refuses existing drift; once reconciled, preview future changes with '+
                          'update_operations.py --factory <factory> --operations <changes.json>, then --apply --approve-plan <digest> only after reviewing that preview. '+
-                         'scaffold.py --check checks integrity and basic structure, not controls consistency or delivery readiness.')
+                         'scaffold.py --check checks integrity, basic structure and controls consistency, not application delivery readiness.')
     expected = requirements(config,research)
     s = operations(config)['smoke_gates']
     rows=gate_rows((root/'verification.md').read_text(encoding='utf-8-sig'))
