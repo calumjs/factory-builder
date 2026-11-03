@@ -6,6 +6,12 @@ There is one requiredness system: `smoke_gates.required` sets the G1/G2/G3 defau
 
 Pass the directory containing the factory's `manifest.json`: from a repository root this is normally `--factory .software-factory`, or `scaffold.py --check .software-factory` for integrity checking. `--factory .` is valid when the current directory is the factory itself. Missing-manifest diagnostics name the supplied absolute root and expected manifest, and suggest a child `.software-factory` only when a regular manifest can be observed without traversing a symlink or junction. A hint does not validate or automatically select that child. Redirected paths remain rejected; use the intended non-redirected location rather than bypassing the check.
 
+## Evidence subject and files being checked
+
+`gates.py --factory <directory> --revision <subject> --stage <stage>` reads the current files in the supplied factory directory. `--revision` is the exact evidence subject identifier matched against recorded observations; it does not select, resolve or reconstruct a Git checkout. Use the full recorded commit ID for Git subjects. A short SHA and its full form are not automatically equivalent, and passing a revision does not prove the supplied files came from that revision. Records stored at one commit may describe tests of another subject; retain that provenance separately as described in [operation.md](operation.md).
+
+Integrity checks include all files under the selected factory, regardless of Git tracking or ignore rules, and still reject redirected paths. Unregistered runtime files remain errors; keep generated output outside the factory. If local extras obstruct assessment, preserve the original and prepare a separate clean, reviewed export or worktree from the intended record-storage revision. Identify any evidence overlay and its provenance, confirm its observations describe the intended tested subject, then explicitly pass that copy's factory directory. The checker does not stash, delete, ignore, select or repair files for you. A clean copy satisfies only the integrity prerequisite; missing, failed or stale required evidence still blocks readiness.
+
 ## Structured smoke recipes (`smoke_gates.checks`)
 
 Optional per-gate records mapping G1/G2/G3 to an exact design. A synthetic example — not a claim these commands exist:
