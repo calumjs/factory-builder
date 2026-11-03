@@ -142,8 +142,11 @@ passing subject to describe a newer failed delivery.
 State: “Pre-merge assessment subject H because these checks ran on H; integrated
 subject M; actual delivery subject D at target T; records stored at E.” Include
 the exact identities and links to observed evidence, not these literal placeholders.
-Report each stage separately when its subjects differ. The current dashboard shows
-each row's recorded revision and warns that single-subject readiness comes from the
-gate checker; it has no subject-selection-and-reason control. This recipe supplies
-the handoff explanation, not that requested dashboard feature. Do not interpret
-counts across recorded subjects as a PASS for HEAD or the delivered subject.
+Report each stage separately when its subjects differ. The dashboard's optional
+`--assessment-subject`, `--assessment-stage` and `--assessment-reason` select an
+explicit full-stage record assessment using the same gate checker. Supply the
+separately observed `--assessment-target` for post-merge confirmation when required.
+See [dashboard.md](dashboard.md#explicit-subject-assessment) for the opt-in snapshot
+and known-byte copied-runtime migration. The supplied explanation is not provenance
+validation. Default overview counts across recorded subjects remain recorded claims,
+never a PASS for HEAD or the delivered subject; no observation is relabeled.

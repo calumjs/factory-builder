@@ -381,6 +381,9 @@ PRE_ADMISSION_RUNTIME = {
     'operations.py':'0490290d091e30fad21f700fa1eba52a4cf451c686472813438ca3e7f3a92b94',
     'readiness.py':'4182ec36b619909823c2bbe9e1fbce2573ac41c121dcf408b0f56fb885bd6637'}
 
+# Exact published 2ca1470 dashboard, before opt-in subject assessment.
+PRE_SUBJECT_DASHBOARD = {'dashboard.py':'4754a7d98a9da9a6732ee9a88b07f58b59313670badecaf5939cdfc53cb780ac'}
+
 
 def gate_runtime_plan(root, original, replacement, opted_in):
     for filename in ('operations.py','recipes.py','gates.py'):
@@ -403,7 +406,7 @@ def context_runtime_plan(root, original, replacement, opted_in):
         path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename),PRE_SUBJECT_DASHBOARD.get(filename))
         if compatible and not opted_in:continue
         if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename) and not compatible:
             raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')
@@ -420,6 +423,17 @@ def context_runtime_plan(root, original, replacement, opted_in):
             raise ValueError('Customized/unsupported dashboard Learn parser preserved; review manually')
         if current is None:
             original[name]=None;replacement[name]=wanted
+
+
+def require_subject_assessment_runtime(root, original, replacement):
+    """Bind the unchanged backend too; explicit flags alone may replace known bytes."""
+    for filename in ('gates.py','operations.py','recipes.py'):
+        name='dashboard/'+filename;path=root/name
+        current=path.read_bytes() if path.is_file() else None
+        original.setdefault(name,current)
+        proposed=replacement.get(name,current)
+        if proposed is None or digest(proposed)!=digest((ROOT/'scripts'/filename).read_bytes()):
+            raise ValueError('Subject assessment needs the complete current copied gate backend; preview --context-runtime --gate-runtime for known predecessors. Missing/customized/unsupported copies are preserved and require manual review')
 
 
 def require_admission_runtime(root, original, replacement):
@@ -552,6 +566,8 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             raise ValueError('Dashboard recipe dependency missing; preview a reviewed --recipe-runtime migration')
     if 'admission' in configured and (root/'dashboard').is_dir():
         require_admission_runtime(root,original,replacement)
+    if context_runtime and (root/'dashboard').is_dir():
+        require_subject_assessment_runtime(root,original,replacement)
     if delivery_update or any(key in changes for key in ('smoke_gates','done_videos')):
         research_bytes=(root/'research.json').read_bytes()
         research=json.loads(research_bytes.decode('utf-8-sig'))
