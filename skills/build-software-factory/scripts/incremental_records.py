@@ -8,12 +8,18 @@ import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
+import stat
 import sys
 import tempfile
 from gates import gate_rows, problems, requirements, ROW
 from scoped_assessment import load
 from operations import operations, smoke_checks, unresolved
 from integrity import check, strict_json
+
+GATE_OBSERVATION_FIELDS=frozenset(('gate','result','revision','environment','evidence','target','checked_at','exit_status'))
+MAX_BATCH_ITEMS=64
+MAX_BATCH_INPUT_BYTES=262144
+MAX_BATCH_FIELD_CHARS=8192
 
 
 def _clean(value, label):
@@ -54,7 +60,7 @@ def task_change(plan, config, item):
 
 
 def gate_change(text, config, research, change):
-    mandatory={'gate','result','revision','environment','evidence','target','checked_at','exit_status'}
+    mandatory=GATE_OBSERVATION_FIELDS
     if not isinstance(change,dict) or set(change)!=mandatory:raise ValueError('Gate observation must match the documented schema')
     gate=_clean(change['gate'],'gate');rows=gate_rows(text);expected=requirements(config,research)
     if gate not in rows or gate not in expected:raise ValueError('Gate must be an existing configured row')
@@ -90,15 +96,64 @@ def gate_change(text, config, research, change):
     return result.encode('utf-8')
 
 
+def gate_batch_change(text, config, research, changes):
+    """Validate the whole explicit batch, then reuse the single-observation writer."""
+    if not isinstance(changes,list) or not 1<=len(changes)<=MAX_BATCH_ITEMS:
+        raise ValueError('Gate batch must be a nonempty array of at most 64 observations')
+    gates=set();subjects=set()
+    rows=gate_rows(text);expected=requirements(config,research)
+    for change in changes:
+        if not isinstance(change,dict) or len(change)!=len(GATE_OBSERVATION_FIELDS) or set(change)!=GATE_OBSERVATION_FIELDS:
+            raise ValueError('Every batch observation must match the existing gate observation schema')
+        if any(not isinstance(value,str) or len(value)>MAX_BATCH_FIELD_CHARS for value in change.values()):
+            raise ValueError('Batch observation fields must be strings of at most 8192 characters')
+        gate=_clean(change['gate'],'Batch gate');subject=_clean(change['revision'],'Batch revision')
+        if unresolved(subject):raise ValueError('Batch revision must identify a concrete subject, not an unresolved placeholder')
+        if gate in gates:raise ValueError('Duplicate gate in batch; supply exactly one observation per gate')
+        if gate not in rows or gate not in expected:raise ValueError('Every batch gate must be an existing configured row')
+        gates.add(gate);subjects.add(subject)
+    if len(subjects)!=1:raise ValueError('Batch observations must share one exact nonempty subject; mixed subjects are not accepted')
+    # Bound direct API inputs too; individual strings and item count were bounded
+    # before serialization. This is data, never interpreted as a command or report.
+    encoded_size=0
+    for chunk in json.JSONEncoder(ensure_ascii=True).iterencode(changes):
+        encoded_size+=len(chunk)
+        if encoded_size>MAX_BATCH_INPUT_BYTES:
+            raise ValueError('Serialized gate batch exceeds the 256 KiB input limit')
+    if {'G3','V1'}<=gates:
+        raise ValueError('G3 and V1 require separate reviewed recording steps; V1 must use an existing G3 record. Existing G3 waivers remain respected')
+    # Sorting stabilizes output/digests, not execution chronology. Keep supplied
+    # timestamps and let gate_change validate each PASSED claim against the records.
+    result=text
+    for change in sorted(changes,key=lambda item:item['gate']):
+        result=gate_change(result,config,research,change).decode('utf-8')
+    return result.encode('utf-8')
+
+
+def read_gate_batch(path):
+    """Bound a regular input before reading or strict JSON parsing; reveal no values."""
+    try:
+        path=safe_factory(path);before=path.lstat()
+        if not stat.S_ISREG(before.st_mode) or before.st_size>MAX_BATCH_INPUT_BYTES:
+            raise ValueError('Gate batch input must be a regular file of at most 256 KiB')
+        with path.open('rb') as stream:raw=stream.read(MAX_BATCH_INPUT_BYTES+1)
+        after=path.lstat()
+        if len(raw)>MAX_BATCH_INPUT_BYTES or len(raw)!=before.st_size or (before.st_dev,before.st_ino,before.st_size,before.st_mtime_ns)!=(after.st_dev,after.st_ino,after.st_size,after.st_mtime_ns):
+            raise ValueError('Gate batch input changed or exceeded the size limit')
+        return strict_json(raw.decode('utf-8-sig'))
+    except (UnicodeError,RecursionError) as exc:
+        raise ValueError('Gate batch input is not valid bounded JSON') from exc
+
+
 def preview(factory, kind, data):
-    if kind not in ('task','gate'):raise ValueError('Unknown record kind')
+    if kind not in ('task','gate','gate-batch'):raise ValueError('Unknown record kind')
     root=safe_factory(factory)
     check(root,quiet=True)
     before=inventory(root)
     root,config,research,text,plan=load(root)
     if inventory(root)!=before:raise ValueError('Factory changed during preview')
     name='task-plan.json' if kind=='task' else 'verification.md'
-    after=task_change(plan,config,data) if kind=='task' else gate_change(text,config,research,data)
+    after=task_change(plan,config,data) if kind=='task' else gate_batch_change(text,config,research,data) if kind=='gate-batch' else gate_change(text,config,research,data)
     h=hashlib.sha256();h.update(str(root).encode());h.update(b'\0'+name.encode())
     for key in sorted(before):h.update(b'\0'+key.encode()+b'\0'+hashlib.sha256(before[key]).digest())
     h.update(b'\0'+hashlib.sha256(after).digest())
@@ -138,8 +193,8 @@ def apply(root,name,before,after,token,approved):
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--factory',required=True);p.add_argument('--kind',choices=('task','gate'),required=True);p.add_argument('--input',required=True);p.add_argument('--apply',action='store_true');p.add_argument('--approve-plan');a=p.parse_args()
-    data=strict_json(Path(a.input).read_text(encoding='utf-8-sig'))
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--factory',required=True);p.add_argument('--kind',choices=('task','gate','gate-batch'),required=True,help='gate-batch records an explicit bounded array for one exact subject; G3/V1 need separate steps');p.add_argument('--input',required=True);p.add_argument('--apply',action='store_true');p.add_argument('--approve-plan');a=p.parse_args()
+    data=read_gate_batch(a.input) if a.kind=='gate-batch' else strict_json(Path(a.input).read_text(encoding='utf-8-sig'))
     root,name,before,after,token=preview(a.factory,a.kind,data)
     if a.apply:
         apply(root,name,before,after,token,a.approve_plan);print('RECORDED operator-supplied data; no checks were executed or attested.')
