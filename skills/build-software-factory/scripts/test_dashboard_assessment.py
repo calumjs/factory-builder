@@ -5,6 +5,7 @@ import importlib.machinery
 import importlib.util
 import json
 from pathlib import Path
+import re
 import subprocess
 import sys
 import tempfile
@@ -16,6 +17,51 @@ from gates import assess, gate_rows
 from integrity import check, digest
 from scaffold import ROOT, render
 import update_operations as updater
+
+
+GATE_PANEL_START = '<section class="panel"><h2>Required gates passed</h2>'
+ROW_RULE = '.row{display:flex;gap:18px;align-items:center}\n'
+TALLY_RULE = '.tally{list-style:none;margin:0 0 8px;padding:0;font-size:.85rem}.tally li{margin:2px 0}\n'
+RING_FIGURE = re.compile(r'<span(?: aria-hidden="true")?>(\d+/\d+)</span>')
+PILL = re.compile(r'<span class="pill [^"]*">[^<]*</span>')
+
+
+def gate_panel_drift(old_html, new_html):
+    """List differences beyond the intended Required gates tally panel and its single CSS rule.
+
+    Outside that panel the successor must equal the predecessor byte for byte, except that
+    TALLY_RULE is inserted exactly once, immediately after the existing .row rule. Inside the
+    panel the heading/note, gate pills and PASSED ring figure must be unchanged.
+    """
+    problems = []
+    parts = {}
+    for label, html in (('old', old_html), ('new', new_html)):
+        if html.count(GATE_PANEL_START) != 1:
+            return [label+' HTML must contain exactly one Required gates panel']
+        start = html.index(GATE_PANEL_START)
+        end = html.index('</section>', start)+len('</section>')
+        parts[label] = (html[:start], html[start:end], html[end:])
+    (old_pre, old_panel, old_post), (new_pre, new_panel, new_post) = parts['old'], parts['new']
+    if old_pre.count(ROW_RULE) != 1 or TALLY_RULE in old_html:
+        problems.append('predecessor CSS anchor changed')
+    elif old_pre.replace(ROW_RULE, ROW_RULE+TALLY_RULE, 1) != new_pre:
+        problems.append('HTML before the Required gates panel differs beyond the single tally CSS rule')
+    if new_html.count(TALLY_RULE) != 1:
+        problems.append('tally CSS rule must appear exactly once')
+    if old_post != new_post:
+        problems.append('HTML after the Required gates panel differs')
+    for label, panel in (('old', old_panel), ('new', new_panel)):
+        if panel.count('<div class="row">') != 1:
+            problems.append(label+' Required gates panel lost its row container')
+    if not problems:
+        if old_panel.split('<div class="row">')[0] != new_panel.split('<div class="row">')[0]:
+            problems.append('Required gates heading or note changed')
+        if PILL.findall(old_panel) != PILL.findall(new_panel):
+            problems.append('Required gates pills changed')
+        old_ring, new_ring = RING_FIGURE.findall(old_panel), RING_FIGURE.findall(new_panel)
+        if len(old_ring) != 1 or old_ring != new_ring:
+            problems.append('Required gates PASSED ring figure changed: '+repr((old_ring, new_ring)))
+    return problems
 
 
 class DashboardAssessmentTests(unittest.TestCase):
@@ -69,15 +115,42 @@ class DashboardAssessmentTests(unittest.TestCase):
         module = importlib.util.module_from_spec(importlib.util.spec_from_loader(loader.name, loader)); loader.exec_module(module)
         return module
 
-    def test_no_selection_dto_counts_sources_and_html_are_identical_to_published_predecessor(self):
+    def test_no_selection_dto_matches_predecessor_and_html_differs_only_by_gate_tally_panel_and_css_rule(self):
         before = self.snapshot(); prior = self.old_dashboard()
         expected = prior.read(self.factory, now=self.now)
         with patch.object(dashboard, 'assess_gates', side_effect=AssertionError('No implicit assessment')):
             actual = dashboard.read(self.factory, now=self.now)
         self.assertEqual(actual, expected)
         self.assertNotIn('assessment', actual)
-        self.assertEqual(dashboard.page(actual), prior.page(expected))
+        old_html, new_html = prior.page(expected), dashboard.page(actual)
+        self.assertNotEqual(new_html, old_html)  # The tally panel change is intentional.
+        self.assertEqual(gate_panel_drift(old_html, new_html), [])
         self.assertEqual(self.snapshot(), before)
+
+    def test_gate_panel_drift_probe_rejects_changes_outside_the_intended_presentation(self):
+        prior = self.old_dashboard(); data = prior.read(self.factory, now=self.now)
+        old_html, new_html = prior.page(data), dashboard.page(dashboard.read(self.factory, now=self.now))
+        start = new_html.index(GATE_PANEL_START); end = new_html.index('</section>', start)+len('</section>')
+        pre, panel, post = new_html[:start], new_html[start:end], new_html[end:]
+        figure = RING_FIGURE.search(panel).group(1); passed, total = figure.split('/')
+        first_pill = PILL.search(panel).group(0)
+        mutations = {
+            'before panel': new_html.replace('Recorded task states; not a live queue.', 'Recorded task states.', 1),
+            'after panel': pre+panel+post.replace('</main>', '<p>extra</p></main>', 1),
+            'extra CSS': new_html.replace(TALLY_RULE, TALLY_RULE+'.extra{color:red}\n', 1),
+            'missing CSS': new_html.replace(TALLY_RULE, '', 1),
+            'moved CSS': new_html.replace(TALLY_RULE, '', 1).replace('</style>', TALLY_RULE+'</style>', 1),
+            'duplicated CSS': new_html.replace(TALLY_RULE, TALLY_RULE+TALLY_RULE, 1),
+            'panel note': new_html.replace('readiness for one revision comes from the gate checker.', 'ready.', 1),
+            'pill': pre+panel.replace(first_pill, first_pill.replace('</span>', ' X</span>'), 1)+post,
+            'ring promotion': pre+panel.replace('>'+figure+'</span>', '>'+str(int(passed)+1)+'/'+total+'</span>', 1)+post,
+            'second panel': pre+panel+panel+post,
+        }
+        self.assertEqual(gate_panel_drift(old_html, new_html), [])
+        for name, mutated in mutations.items():
+            with self.subTest(mutation=name):
+                self.assertNotEqual(mutated, new_html)
+                self.assertTrue(gate_panel_drift(old_html, mutated))
 
     def test_explicit_subject_reason_full_stage_and_backend_result_are_exported_without_promotion(self):
         before = self.snapshot(); data = self.read(); result = data['assessment']

@@ -505,7 +505,7 @@ def page(data, *, supplemental_html=''):
     # Shown beside PASSED, never added to it: a recorded N/A may still lack a valid exception.
     not_applicable = [g for g in required if g['state'] == 'NOT APPLICABLE']
     optional = [g for g in gates if not g['required']]
-    pre =[g for g in gates if g['stage'] == 'pre-merge']
+    pre = [g for g in gates if g['stage'] == 'pre-merge']
     runs = data.get('runs', [])
     release = data['release']
 
