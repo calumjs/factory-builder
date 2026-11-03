@@ -2,6 +2,10 @@
 
 Requires Python 3.9+ and its standard library. No dependencies, network calls or paid services are performed by the helpers. The package may live anywhere readable.
 
+New task configurations use the [canonical status vocabulary](task-status.md).
+Unknown values fail before rendering or applying a factory; existing living
+records need a reviewed correction, not an automatic alias or re-scaffold.
+
 ## Interpreter and preview
 
 Choose a working interpreter before running a helper. On Windows, `python` can be a Store alias. The bundled `scripts/run-python.ps1` checks PATH candidates (`python`, `python3`, `py -3`) and per-user Python installations, skips Store aliases, verifies Python 3.9+, prints the executable used and forwards arguments. It installs nothing. Alternatively use an explicitly verified interpreter path. On other systems, verify `python3 --version` or the selected environment.

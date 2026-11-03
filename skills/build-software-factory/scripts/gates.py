@@ -80,6 +80,21 @@ def observed_time(value):
         raise ValueError('Evidence time requires an explicit timezone')
     return result
 
+def subject_abbreviation_hint(recorded, requested):
+    """Explain a recognizable spelling mismatch without resolving or equating IDs."""
+    def prefix(short, full):
+        return (len(full) in (40,64) and len(short) not in (40,64) and 7<=len(short)<len(full)
+                and re.fullmatch(r'[0-9a-fA-F]+',full) is not None
+                and re.fullmatch(r'[0-9a-fA-F]+',short) is not None
+                and full.casefold().startswith(short.casefold()))
+    if prefix(requested,recorded):
+        return ('Supplied --revision looks like a hexadecimal abbreviation of the recorded full subject. Independently verify the evidence provenance, '
+                'then pass the exact full recorded subject with --revision; prefixes are not accepted or resolved.')
+    if prefix(recorded,requested):
+        return ('The recorded subject looks like a hexadecimal abbreviation; this does not establish full-subject binding. Verify provenance and obtain '
+                'a new evidence record for the exact full subject; do not automatically expand the existing observation.')
+    return None
+
 def problems(text, stage, revision, required=None, target=None):
     if stage not in STAGES or not isinstance(revision,str) or not revision.strip():
         raise ValueError('Known stage and exact revision are required')
@@ -109,7 +124,8 @@ def problems(text, stage, revision, required=None, target=None):
             out.append(gate+' is '+row['result'])
             continue
         if row['revision'] != revision.strip():
-            out.append(gate+' has stale or missing revision')
+            hint=subject_abbreviation_hint(row['revision'],revision.strip())
+            out.append(gate+' has stale or missing revision'+('; '+hint if hint else ''))
         if 'recipe' in spec:
             if row['design']!=spec['design']:out.append(gate+' command record differs from the configured argv recipe')
             if row['environment']!=spec['recipe']['environment']:out.append(gate+' environment differs from the configured recipe')

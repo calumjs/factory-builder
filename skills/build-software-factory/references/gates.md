@@ -8,6 +8,18 @@ Pass the directory containing the factory's `manifest.json`: from a repository r
 
 ## Evidence subject and files being checked
 
+Recognizable hexadecimal abbreviations receive a diagnostic, never prefix acceptance
+or Git resolution. If the supplied subject abbreviates a recorded 40- or 64-character
+ID, independently verify its evidence provenance and pass that exact full recorded
+subject. If the observation itself records an abbreviation, a prefix match cannot
+establish full-subject evidence: verify provenance and obtain a new exact-subject
+evidence record rather than automatically expanding the old observation. Other
+identifiers retain exact-string matching, and optional rows remain waivers. The hint
+requires at least seven matching hex characters; that is a diagnostic threshold,
+not an accepted evidence format. Hex text alone does not prove a Git identity.
+Nonmatching identifiers and full 40-character versus full 64-character identifiers
+retain the generic mismatch diagnostic.
+
 `gates.py --factory <directory> --revision <subject> --stage <stage>` reads the current files in the supplied factory directory. `--revision` is the exact evidence subject identifier matched against recorded observations; it does not select, resolve or reconstruct a Git checkout. Use the full recorded commit ID for Git subjects. A short SHA and its full form are not automatically equivalent, and passing a revision does not prove the supplied files came from that revision. Records stored at one commit may describe tests of another subject; retain that provenance separately as described in [operation.md](operation.md).
 
 Integrity checks include all files under the selected factory, regardless of Git tracking or ignore rules, and still reject redirected paths. Unregistered runtime files remain errors; keep generated output outside the factory. If local extras obstruct assessment, preserve the original and prepare a separate clean, reviewed export or worktree from the intended record-storage revision. Identify any evidence overlay and its provenance, confirm its observations describe the intended tested subject, then explicitly pass that copy's factory directory. The checker does not stash, delete, ignore, select or repair files for you. A clean copy satisfies only the integrity prerequisite; missing, failed or stale required evidence still blocks readiness.
