@@ -102,6 +102,8 @@ candidates without treating the table as authority. Existing factories can consu
 the installed builder's template and use an external task copy; adopting changes to
 their reusable contract requires an explicit reviewed selective template/manifest
 update. Do not edit the hashed template as a living run record or auto-rebaseline it.
+Review the handoff, Plan and Build instructions together during selective adoption
+so all phases use the same external-copy rule; no automatic migration is performed.
 
 At each checkpoint confirm from the actual run ID, state, logs, expected artifact and branch whether a commit, PR or artifact already exists before retrying or switching; reconcile an existing artifact first to avoid duplicate commits. An auth, permission or data-boundary rejection stops that action — no identity or security change, no tool switch to get around it.
 

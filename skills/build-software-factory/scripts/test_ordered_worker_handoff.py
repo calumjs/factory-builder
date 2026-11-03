@@ -57,6 +57,16 @@ class OrderedWorkerHandoffTests(unittest.TestCase):
         check(self.root,quiet=True)
         self.assertEqual(before,self.snapshot());self.assertNotIn('T1-handoff.md',before)
 
+    def test_plan_and_build_both_direct_live_notes_to_external_copy(self):
+        files=render(self.config,self.research)
+        plan=files['.claude/skills/factory-plan/SKILL.md']
+        build=files['.claude/skills/factory-build/SKILL.md']
+        self.assertIn('approved task-specific location outside the factory',plan)
+        self.assertIn('worker-handoff.md as a template',build)
+        self.assertIn('Record worker/run provenance and remaining uncertainty in the approved external task-specific handoff copy',build)
+        self.assertNotIn('remaining uncertainty in worker-handoff.md',build)
+        self.assertEqual(list(self.project.iterdir()),[])
+
     def test_unreviewed_template_edit_fails_without_rebaselining(self):
         self.write();manifest=(self.root/'manifest.json').read_bytes()
         path=self.root/'worker-handoff.md';path.write_bytes(path.read_bytes()+b'\nSYNTHETIC unreviewed run note\n')
