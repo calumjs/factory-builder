@@ -19,6 +19,64 @@ from assumptions import refresh as refresh_assumptions
 def dumps(value):
     return json.dumps(value,indent=2,ensure_ascii=False)+'\n'
 
+def verification_explanations(original, replacement):
+    """Describe captured row transitions without disclosing free-form row values."""
+    def rows(data):
+        active={};history=set();in_history=False
+        for line in data.decode('utf-8-sig').splitlines():
+            if line.startswith('## '):
+                in_history=line=='## Historical observations (not current evidence)'
+            historical=in_history and line.startswith('> | ')
+            candidate=line[2:] if historical else line
+            match=ROW.match(candidate)
+            if not match:continue
+            cells=[cell.strip() for cell in candidate.strip().strip('|').split('|')]
+            if len(cells)==8:cells+=['','','']
+            if len(cells)!=11:return None
+            flag=cells[4].casefold()
+            cells[4]='yes' if flag in ('yes','y','true') else 'no' if flag in ('no','n','false') else flag
+            row=tuple(cells)
+            if historical:history.add(row)
+            elif cells[0] in active:return None
+            else:active[cells[0]]=row
+        return active,history
+
+    before=rows(original['verification.md'])
+    after=rows(replacement.get('verification.md',original['verification.md']))
+    if before is None or after is None:
+        return ['ROW SUMMARY unavailable: ambiguous or unrecognized row shape; review the captured diff.']
+    old,old_history=before;new,new_history=after;messages=[]
+    observation_columns=(5,6,7,8,9,10)
+    for ident in dict.fromkeys((*old,*new)):
+        prior=old.get(ident);current=new.get(ident);parts=[]
+        if prior is None:
+            parts.append('ADDED: new current row in the proposed plan')
+        elif current is None:
+            parts.append('RETIRED: absent from the proposed current rows')
+        elif prior==current:
+            parts.append('RETAINED: current row fields unchanged')
+        elif tuple(current[i] for i in observation_columns)==('','NOT RUN','','','','') and any(prior[i]!=current[i] for i in observation_columns):
+            parts.append('RESET: prior observation fields cleared; current result is NOT RUN')
+        else:
+            parts.append('UPDATED: current row fields differ in the proposed plan')
+        if prior is not None:
+            if prior in new_history:
+                if prior in old_history:
+                    parts.append('HISTORY RETAINED: matching prior row already historical; no new copy')
+                else:
+                    observed=prior[6]!='NOT RUN' or any(prior[i] for i in (5,7,8,9,10))
+                    reason='prior result or observation fields' if observed else 'prior optional unexecuted plan' if prior[4]=='no' else 'prior unexecuted row plan'
+                    parts.append('ARCHIVED: '+reason+' preserved as history, not current evidence')
+            elif prior not in old_history and current is not None:
+                parts.append('NOT ARCHIVED: no historical copy of the prior row added')
+        if current is not None:
+            if prior is not None and prior[4]!=current[4]:
+                parts.append('requiredness changed in the proposed row; review the diff')
+            elif current[4] in ('yes','no'):
+                parts.append(('requiredness retained: ' if prior is not None else 'requiredness: ')+('optional' if current[4]=='no' else 'required'))
+        messages.append('ROW '+ident+': '+'; '.join(parts)+'.')
+    return messages
+
 def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None):
     expected=requirements(config,research)
     previous=requirements(prior_config,research) if prior_config is not None else {}
@@ -355,6 +413,7 @@ def main():
     if args.assumptions and assumption_rows is None:raise ValueError('Assumptions input must be an array, not null')
     root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime)
     print('REVIEW PLAN: '+plan)
+    for explanation in verification_explanations(original,replacement):print(explanation)
     for name,data in replacement.items():
         before=hashlib.sha256(original[name]).hexdigest() if original[name] is not None else 'missing'
         print('FILE '+name+' raw SHA256: '+before+' -> '+hashlib.sha256(data).hexdigest())

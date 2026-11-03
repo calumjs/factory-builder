@@ -11,6 +11,16 @@ of an available safe upgrade. Preview a specific `--gate-runtime`, `--recipe-run
 `--context-runtime` or `--delivery-gates` without supplying a dummy operations file.
 Review the named file diffs and before/after raw SHA256 values. The exact plan digest
 is required for apply; unknown custom helpers are refused, not overwritten.
+The preview also compares captured current and proposed verification rows. `ROW`
+summaries identify retained, reset, updated, added or retired rows, newly archived
+observations/plans, existing historical copies, and retained or changed requiredness.
+These summaries expose gate IDs and fixed explanations, not free-form row values;
+the complete diff still contains the reviewed file content and belongs in private
+review storage. `RETAINED` describes unchanged fields, not fresh or passing evidence.
+An `ARCHIVED` row is historical only. Review the exact diff and hashes even when a
+summary says no new historical copy was added; summaries do not alter the plan digest
+or authorize apply. An unrelated update retains gate observations, while a repeated
+no-op reports unchanged current rows without inventing new resets or archives.
 Delivery-gates is a contract migration and can also update policy, templates and
 verification history. A runtime-only migration preserves config and policy bytes.
 Do not change `upstream-provenance.json` merely because some helpers were updated:
