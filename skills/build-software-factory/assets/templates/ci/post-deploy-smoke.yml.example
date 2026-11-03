@@ -1,0 +1,52 @@
+# INACTIVE proposal. This is not in .github/workflows and the job is disabled.
+# Read the adjacent post-deploy.md guide first.
+# Keep all code/runner/helper selection in a separately reviewed trusted bridge.
+name: Proposed post-deploy verification
+on:
+  deployment_status:
+  workflow_dispatch:
+    inputs:
+      subject:
+        description: Full intended merged SHA (untrusted selection, independently verify)
+        required: true
+        type: string
+      reason:
+        description: Why the independently checked manual fallback is needed
+        required: true
+        type: string
+permissions: {}
+# Fixed trusted target lane; change this label only during reviewed adoption.
+# A pending run may be replaced. This is not a durable queue or cross-system lock.
+# Even an irrelevant Preview/non-success event can displace pending Production;
+# see post-deploy.md for exact-S liveness reconciliation and manual fallback.
+concurrency:
+  group: factory-production-verification
+  cancel-in-progress: false
+jobs:
+  verify:
+    if: ${{ false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Refuse unconfigured adoption
+        shell: bash
+        run: |
+          echo 'Inactive proposal: configure and review a trusted project bridge first.' >&2
+          exit 2
+      # Replace the refusal only after separately authorizing this complete chain:
+      # 1. Trusted bridge reads GITHUB_EVENT_PATH as JSON (never shell interpolation).
+      #    Independently obtain repository + intended merged S + current READY
+      #    deployment ID/environment/target, provision trusted source S and tools,
+      #    then call pinned post-deploy.example.py --context ... [--event ...].
+      # 2. Execute only the reviewed project argv with shell=False, cwd=source S,
+      #    approved env names, bounded timeout, and any separately approved secret.
+      #    Reverify mutable target/deployment binding after smoke. Drift -> UNKNOWN.
+      # 3. Preserve real result/failure/cancellation evidence, exact S/target,
+      #    Playwright report/trace where applicable and redacted identity checks.
+      #    Add a pinned, reviewed artifact-upload action with an explicit path and
+      #    project-approved retention. Missing reports fail; never upload env/context.
+      #    An always() cleanup step cannot guarantee execution after cancellation.
+      # 4. Use the existing reviewed record_gate/batch transaction to record actual
+      #    observations; commit authorized evidence-only storage E separately.
+      #    Assess clean E with the emitted ci_evidence.py --stage post-merge argv.
+      #    Propagate blocked/error exit codes; a valid plan is not a successful gate.
