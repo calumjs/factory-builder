@@ -15,6 +15,7 @@ from operations import controls, operations, DELIVERY_POLICY
 from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS
 from scaffold import validate, ROOT, phase_skill, RETURN
 from assumptions import refresh as refresh_assumptions
+from backup_advisory import inspect_backup_directory
 
 def dumps(value):
     return json.dumps(value,indent=2,ensure_ascii=False)+'\n'
@@ -189,6 +190,7 @@ COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION = {
     'gates.py':'d1411d3f0d75e112d6d463c22c307f3407b6c9de0bfc862505f2c487761882bf',
     'operations.py':'c0a11db48df30f2b29f3770eb52a784d1b9b425a91420df8e5175470cb6eca2a'}
 COMPATIBLE_GATE_V113 = {'gates.py':'bb706626fb04bf509ff4cb8805d0da353c4add1309f310441bc1dbbde7fe5da4'}
+COMPATIBLE_GATE_V115 = {'gates.py':'cba74ee0273ad98461a23af1e52c2d486e60bd066947315ea07aa049cf1bcbde'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -197,7 +199,7 @@ def gate_runtime_plan(root, original, replacement, opted_in):
         wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename),COMPATIBLE_GATE_V115.get(filename))
         if compatible and not opted_in:continue
         known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
         if not known and not compatible and not (current is None and filename=='recipes.py'):
@@ -422,7 +424,10 @@ def main():
     if args.apply:
         backup=apply(root,original,replacement,plan,args.approve_plan)
         if backup is None:print('NO FILES WRITTEN; the reviewed plan contained no changes.')
-        else:print('APPLIED narrow operations update; backup: '+str(backup)+'. No command, watcher, video or integration was run or enabled.')
+        else:
+            print('APPLIED narrow operations update; backup: '+str(backup)+'. No command, watcher, video or integration was run or enabled.')
+            advice=inspect_backup_directory(root.parent,backup.parent)
+            if advice['status']!='ignored':print(advice['message'])
     else:print('PREVIEW ONLY: no files written. Review the diff and local write scope before --apply --approve-plan '+plan)
 
 if __name__=='__main__':

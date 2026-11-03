@@ -377,6 +377,9 @@ def main():
     if args.apply:
         backup=apply(result,args.approve_plan,args.stable_inputs)
         print('RECOVERED SNAPSHOT ONLY; original unchanged; no application checks or activation performed. Verified backup: '+display(str(backup)))
+        from backup_advisory import inspect_backup_directory
+        advice=inspect_backup_directory(result['target'].parent,backup.parent)
+        if advice['status']!='ignored':print(advice['message'])
     else:print('PREVIEW ONLY: no files written.')
 
 

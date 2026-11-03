@@ -12,9 +12,10 @@ Pass the directory containing the factory's `manifest.json`: from a repository r
 
 Integrity checks include all files under the selected factory, regardless of Git tracking or ignore rules, and still reject redirected paths. Unregistered runtime files remain errors; keep generated output outside the factory. If local extras obstruct assessment, preserve the original and prepare a separate clean, reviewed export or worktree from the intended record-storage revision. Identify any evidence overlay and its provenance, confirm its observations describe the intended tested subject, then explicitly pass that copy's factory directory. The checker does not stash, delete, ignore, select or repair files for you. A clean copy satisfies only the integrity prerequisite; missing, failed or stale required evidence still blocks readiness.
 
-`scaffold.py --check` verifies contract integrity and basic living-record structure;
-its PASS is not a config/policy consistency or delivery-readiness verdict. Gate
-assessment names differing control fields without printing their values. Preserve
+`scaffold.py --check` verifies contract integrity, basic living-record structure,
+and typed config/policy controls consistency before its single PASS. It does not
+run application checks or establish delivery readiness. Consistency diagnostics
+name differing control fields without printing their values. Preserve
 both versions and establish the intended settings through [reviewed recovery](recovery.md).
 The operations updater refuses existing disagreement, so it is not a repair shortcut.
 After reconciliation, preview future changes with

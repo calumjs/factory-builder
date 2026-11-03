@@ -1,5 +1,10 @@
 # Recovery: integrity, staged snapshots and worker health
 
+A completed snapshot recovery may emit a nonblocking [backup-ignore advisory](backup-advisory.md)
+after reporting its verified backup. An unknown/unignored/tracked result describes
+project-local Git protection only, not recovery failure. It changes no ignore rules
+and does not authorize deleting, uploading or retrying an already completed backup.
+
 Three situations, one stance: preserve what exists, review every delta, accept nothing wholesale, activate nothing automatically. The boundaries in the generated boundaries.md apply throughout.
 
 ## 1. Integrity recovery (manual procedure)

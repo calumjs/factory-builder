@@ -8,6 +8,7 @@ import sys
 import tempfile
 from dashboard_bundle import bundle
 from integrity import check, digest, safe_path
+from backup_advisory import inspect_backup_directory
 
 
 def prepare(factory):
@@ -75,8 +76,12 @@ def main():
         if name.endswith(('.html', '.md')):
             print(value.decode('utf-8'))
     print('Only new dashboard contracts and manifest are proposed; living records, custom skills, config and policy stay unchanged.')
+    print('IGNORE GUIDANCE: review project-root ignore rules for factory-overview.html, factory-overview.json, .factory-update-backups/ and .factory-recovery-backups/. Merge only applicable scoped entries manually; this helper does not edit ignore rules. Keep generated outputs outside the factory.')
     if args.apply:
-        print('APPLIED; preserved original manifest: '+str(apply(root, old, new, plan, args.approve_plan)))
+        backup=apply(root, old, new, plan, args.approve_plan)
+        print('APPLIED; preserved original manifest: '+str(backup))
+        advice=inspect_backup_directory(root.parent,backup.parent)
+        if advice['status']!='ignored':print(advice['message'])
     else:
         print('PREVIEW: no writes. Review generated files and manifest additions before --apply --approve-plan '+plan)
 
