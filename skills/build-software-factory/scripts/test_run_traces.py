@@ -7,6 +7,7 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest.mock import patch
 import dashboard
@@ -210,7 +211,9 @@ class TraceCliTests(unittest.TestCase):
         original=Path.stat
         calls=[]
         def changed(path,*args,**kwargs):
-            if path==self.source:
+            # Redirect checks use lstat first; change only between the reader's
+            # two following-stat observations, not before its initial capture.
+            if path==self.source and kwargs.get('follow_symlinks',True):
                 calls.append(path)
                 if len(calls)==2:self.source.write_text('{}')
             return original(path,*args,**kwargs)
@@ -218,6 +221,48 @@ class TraceCliTests(unittest.TestCase):
             self.assertEqual(traces.read_input(self.source)['schema_version'],1)
         # Simulate a file change after the initial metadata capture, without unsafe filesystem routes.
         with patch.object(Path,'stat',changed), self.assertRaises(ValueError):traces.read_input(self.source)
+
+    def test_reader_accepts_distinct_ctime_api_domains_but_refuses_changes_within_each(self):
+        path_stat=Path.stat;fd_stat=os.fstat
+        def fields(value,ctime):
+            return SimpleNamespace(**{name:getattr(value,name) for name in
+                ('st_dev','st_ino','st_mode','st_nlink','st_size','st_mtime_ns')},st_ctime_ns=ctime)
+        for changed_api in (None,'path','descriptor'):
+            calls={'path':0,'descriptor':0}
+            def path_observation(path,*args,**kwargs):
+                value=path_stat(path,*args,**kwargs)
+                if path==self.source and kwargs.get('follow_symlinks',True):
+                    calls['path']+=1
+                    return fields(value,10+int(changed_api=='path' and calls['path']>1))
+                return value
+            def fd_observation(fd):
+                calls['descriptor']+=1
+                return fields(fd_stat(fd),20+int(changed_api=='descriptor' and calls['descriptor']>1))
+            with patch.object(Path,'stat',path_observation),patch.object(os,'fstat',fd_observation):
+                if changed_api:
+                    with self.assertRaisesRegex(ValueError,'Trace input changed'):traces.read_input(self.source)
+                else:self.assertEqual(traces.read_input(self.source),fixture())
+            self.assertEqual(calls,{'path':2,'descriptor':2})
+
+    def test_reader_refuses_ordinary_path_swap_and_growth(self):
+        path_stat=Path.stat
+        for kind in ('swap','growth'):
+            self.source.write_text(json.dumps(fixture()))
+            replacement=self.base/'synthetic-replacement.json'
+            replacement.write_bytes(self.source.read_bytes())
+            calls=[]
+            def changed(path,*args,**kwargs):
+                if path==self.source and kwargs.get('follow_symlinks',True):
+                    calls.append(path)
+                    if kind=='swap' and len(calls)==1:
+                        before=path_stat(path,*args,**kwargs)
+                        os.replace(replacement,self.source)
+                        return before
+                    if kind=='growth' and len(calls)==2:
+                        with self.source.open('ab') as stream:stream.write(b' ')
+                return path_stat(path,*args,**kwargs)
+            with patch.object(Path,'stat',changed),self.assertRaisesRegex(ValueError,'Trace input changed'):
+                traces.read_input(self.source)
 
     def test_output_cannot_replace_input_or_live_factory(self):
         source=self.source.read_bytes();self.output=self.source

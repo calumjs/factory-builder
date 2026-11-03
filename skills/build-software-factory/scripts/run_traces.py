@@ -171,8 +171,12 @@ def read_input(path):
         data = stream.read(MAX_BYTES+1)
         after = os.fstat(stream.fileno())
     current = safe_path(source).stat()
-    signature = lambda s: (s.st_dev, s.st_ino, s.st_size, s.st_mtime_ns, s.st_ctime_ns)
-    if len(data) > MAX_BYTES or signature(before) != signature(after) or signature(after) != signature(current):
+    # Windows path-stat and descriptor-stat can expose different ctime meanings.
+    # Compare ctime only within the same API, retaining shared identity/content
+    # metadata checks across both APIs and every observation.
+    signature = lambda s: (s.st_dev, s.st_ino, s.st_mode, s.st_nlink, s.st_size, s.st_mtime_ns)
+    if (len(data) > MAX_BYTES or len({signature(s) for s in (before,opened,after,current)}) != 1
+            or before.st_ctime_ns != current.st_ctime_ns or opened.st_ctime_ns != after.st_ctime_ns):
         raise ValueError('Trace input changed or exceeds limit')
     return strict_json(data.decode('utf-8-sig'))
 
