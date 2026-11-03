@@ -475,6 +475,10 @@ PRE_TRACE_DASHBOARD = {'dashboard.py':'0b685b5dc80ff3bb1fb5e4dcfb24a0cb4af5b7f17
 PRE_REVIEW_RUNTIME = {'operations.py':'290ed8ffe9b3c65be654c3790d46cfd3b6e9f7a265f10d70c45b59204f8bbb16',
                       'gates.py':'fc9446952ec5d846e3171b947c0c443bb23dfb7b6ecd1c5bcae0c74fdd03290d',
                       'dashboard.py':'0b685b5dc80ff3bb1fb5e4dcfb24a0cb4af5b7f1725a60ae91ad4d7ac2cabc9a'}
+# Exact tracked v1.41 merge a2d33bbc (same tree f9315dc as candidate 20f2c117), with trace hook
+# and explicit gate tallies. Operations/gates are unchanged.
+PRE_REVIEW_V141_RUNTIME = {**PRE_REVIEW_RUNTIME,
+                          'dashboard.py':'aee71b805a1374cd58ae0f30b7dcbe599ed86777cadb8db425b8263e900a8256'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -498,7 +502,7 @@ def context_runtime_plan(root, original, replacement, opted_in):
         path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename),PRE_SUBJECT_DASHBOARD.get(filename),PRE_CONSISTENCY_CONTEXT.get(filename),PRE_TRACE_DASHBOARD.get(filename),PRE_REVIEW_RUNTIME.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename),PRE_SUBJECT_DASHBOARD.get(filename),PRE_CONSISTENCY_CONTEXT.get(filename),PRE_TRACE_DASHBOARD.get(filename),PRE_REVIEW_RUNTIME.get(filename),PRE_REVIEW_V141_RUNTIME.get(filename))
         if compatible and not opted_in:continue
         if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename) and not compatible:
             raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')
@@ -580,19 +584,21 @@ def compact_phase_plan(root, original, replacement):
 
 def review_runtime_plan(root, original, replacement, opted_in):
     """Adopt a complete known consumer set; never infer compatibility from a flag."""
-    states=[]
-    for filename,prior in PRE_REVIEW_RUNTIME.items():
+    captured={};current_set={}
+    for filename in PRE_REVIEW_RUNTIME:
         name='dashboard/'+filename;path=root/name
         current=path.read_bytes() if path.is_file() else None;wanted=(ROOT/'scripts'/filename).read_bytes()
         if name in original and original[name]!=current:raise ValueError('Review runtime changed during preview')
         original[name]=current
-        states.append('current' if current is not None and digest(current)==digest(wanted) else 'prior' if current is not None and digest(current)==prior else 'unsupported')
-    if 'unsupported' in states or len(set(states))!=1:
-        raise ValueError('Review needs a complete matching current or known v1.36 consumer set; customized/mixed helpers are preserved for separate migration')
-    if states[0]=='prior' and not opted_in:raise ValueError('Review needs explicit --review-workflow consumer adoption')
+        captured[filename]=digest(current) if current is not None else None
+        current_set[filename]=digest(wanted)
+    state='current' if captured==current_set else 'prior' if captured in (PRE_REVIEW_RUNTIME,PRE_REVIEW_V141_RUNTIME) else 'unsupported'
+    if state=='unsupported':
+        raise ValueError('Review needs a complete matching current or known v1.36/v1.41 consumer set; customized/mixed helpers are preserved for separate migration')
+    if state=='prior' and not opted_in:raise ValueError('Review needs explicit --review-workflow consumer adoption')
     for filename in PRE_REVIEW_RUNTIME:
         name='dashboard/'+filename;wanted=(ROOT/'scripts'/filename).read_bytes()
-        if states[0]=='prior':replacement[name]=wanted
+        if state=='prior':replacement[name]=wanted
     for filename in ('recipes.py','integrity.py','assumptions.py','readiness.py','learning_table.py','review_records.py','research.py'):
         name='dashboard/'+filename;path=root/name;current=path.read_bytes() if path.is_file() else None
         wanted=(ROOT/'scripts'/filename).read_bytes();original[name]=current
@@ -728,7 +734,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
         current=replacement.get(runtime,(root/runtime).read_bytes())
         wanted=(ROOT/'scripts/operations.py').read_bytes()
         if digest(current)!=digest(wanted):
-            if digest(current) not in (LEGACY_DASHBOARD_OPERATIONS,PRIOR_GATE_RUNTIME['operations.py'],COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION['operations.py'],PRE_ADMISSION_RUNTIME['operations.py']):
+            if digest(current) not in (LEGACY_DASHBOARD_OPERATIONS,PRIOR_GATE_RUNTIME['operations.py'],COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION['operations.py'],PRE_ADMISSION_RUNTIME['operations.py'],PRE_REVIEW_RUNTIME['operations.py']):
                 raise ValueError('Customized/unsupported dashboard runtime preserved; review a narrow manual compatibility migration')
             if digest(current)==LEGACY_DASHBOARD_OPERATIONS and not recipe_runtime:
                 raise ValueError('New recipe metadata needs a reviewed v1.2 dashboard migration; preview with --recipe-runtime')

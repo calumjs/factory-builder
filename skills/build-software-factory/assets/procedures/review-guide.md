@@ -20,9 +20,14 @@ review, reviewer, model family, provider, artifact inspection or permission.
    claim and record confirmed, refuted, resolved or unconfirmed with checker and
    evidence. Unconfirmed is unresolved; never downgrade it into approval by
    omission. Record blocked when required evidence is unavailable.
-   A later round for the same subject/base must explicitly resolve prior unresolved
-   Critical/Major references; an empty new finding list does not clear them. Other
-   subjects remain historical/unresolved, and fresh approval does not claim repair.
+   A later round sharing the exact subject (any base) or exact artifact digest must
+   explicitly resolve prior unresolved Critical/Major references; an empty new
+   finding list does not clear them. This is a conservative claim relationship,
+   not revision/prefix equivalence. With independent policy, the known checker
+   must differ from the known original and closing-round builders, as well as the
+   original reviewer. A prior unqualified closure can receive a new qualified check.
+   Other subject-and-artifact pairs remain historical/unresolved; fresh approval
+   does not claim repair. A shared base alone never proves a relationship.
 4. Decide whether optional inversion suits this change's risk, often medium/high.
    A selected inversion reviewer receives source/diff/spec independently, without
    the first review, implementer's reasoning or implementer's evidence package.
@@ -37,6 +42,8 @@ review, reviewer, model family, provider, artifact inspection or permission.
    inversion is unavailable, record the explicit named decision and reason to
    waive it. This is WAIVED, not approval, and does not satisfy required primary
    approvals, count, independence or provider constraints.
+   Explain escalation and changed choices in the new applicability rationale and
+   named inversion decision. A new verdict never claims historical consensus.
 6. Append the supplied round through the installed `incremental_records.py
    --factory <factory> --kind review --input <round.json>` preview. Inspect the
    exact diff and digest before the separately authorized `--apply --approve-plan

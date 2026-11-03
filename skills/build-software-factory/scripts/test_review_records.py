@@ -179,13 +179,15 @@ class ReviewParserTests(unittest.TestCase):
     def test_unrelated_subject_findings_remain_visibly_historical_not_claimed_repaired(self):
         original=copy.deepcopy(self.item)
         original['reviews'][0]['findings']=[{'id':'F1','severity':'critical','claim':'Prior subject concern','evidence':'synthetic source','verification':None}]
-        body=self.body(original);new=supplied_round(self.config,'round2','S2');following=rr.append_round(body,new).decode()
+        body=self.body(original);new=supplied_round(self.config,'round2','S2')
+        new['artifact']['sha256']='b'*64;new['reviews'][0]['artifact_sha256']='b'*64
+        following=rr.append_round(body,new).decode()
         self.assertEqual(rr.assessment(following,operations(self.config)['review'],original['policy_sha256'],'S2'),[])
-        summary=rr.history_summary(rr.parse(following));self.assertEqual(summary['unresolved_other_subject_or_base'],1)
+        summary=rr.history_summary(rr.parse(following));self.assertEqual(summary['unresolved_other_subject_and_artifact'],1)
         self.assertIn('does not assert their repair',summary['notice']);self.assertEqual(rr.parse(following)['rounds'][0],original)
         new['resolutions']=[{'round_id':'round1','review_id':'review1','finding_id':'F1','reviewer':'checker',
                             'disposition':'resolved','evidence':'synthetic','reason':'synthetic'}]
-        with self.assertRaisesRegex(ValueError,'cross-subject'):rr.append_round(body,new)
+        with self.assertRaisesRegex(ValueError,'unrelated subject/artifact'):rr.append_round(body,new)
 
 
 class ReviewFactoryTests(unittest.TestCase):

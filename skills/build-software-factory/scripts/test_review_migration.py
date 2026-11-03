@@ -48,6 +48,13 @@ class ReviewMigrationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'explicit --review-workflow'):updater.prepare(self.root,self.changes)
         self.changes={'review':{'record_schema':1}}
         prepared=self.prepare();self.assertEqual(gate_rows(prepared[2]['verification.md'].decode())['Q1']['required'],'no')
+
+    def test_increasing_zero_count_preserves_existing_optional_row_without_passing_it(self):
+        self.changes={'review':{'record_schema':1,'required_approvals':0}};self.adopt()
+        self.changes={'review':{'required_approvals':2}};prepared=self.prepare()
+        row=gate_rows(prepared[2]['verification.md'].decode())['Q1']
+        self.assertEqual((row['required'],row['result']),('no','NOT RUN'))
+        self.assertNotIn('release-handoff.md',prepared[2])
     def test_custom_and_mixed_consumers_or_skills_are_refused_without_writes(self):
         for name in ('operations.py','gates.py','dashboard.py'):
             path='dashboard/'+name;old=(self.root/path).read_bytes()

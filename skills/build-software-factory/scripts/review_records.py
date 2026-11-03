@@ -29,7 +29,7 @@ def label(value,limit=2000):return isinstance(value,str) and 0<len(value)<=limit
 def known(value):
     if value is None:return False
     normalized=' '.join(value.casefold().split()).rstrip(' .:')
-    return normalized not in ('unknown','unconfirmed','none','n/a','not configured','not set','pending','tbd') and not normalized.startswith(('unknown:','unconfirmed:','tbd:'))
+    return bool(normalized) and normalized not in ('unknown','unconfirmed','none','n/a','not configured','not set','pending','tbd') and not normalized.startswith(('unknown:','unconfirmed:','tbd:'))
 def ident(value):return isinstance(value,str) and re.fullmatch(r'[A-Za-z0-9][A-Za-z0-9_.:@/-]{0,127}',value) is not None
 def digest(value):return isinstance(value,str) and re.fullmatch('[0-9a-f]{64}',value) is not None
 def canonical(value):return json.dumps(value,sort_keys=True,ensure_ascii=True,separators=(',',':'),allow_nan=False).encode()
@@ -127,38 +127,47 @@ def validate(value,now=None):
 
 
 def finding_states(record):
-    """Exact prior references; no cross-subject lineage or implicit resolution."""
+    """Exact references; same subject or artifact carries claims, not Git lineage."""
     states={}
-    def closed(check):
-        return check is not None and check['disposition'] in ('refuted','resolved') and all(known(check[key]) for key in ('reviewer','evidence','reason'))
+    def closure(check,builders):
+        closed=check is not None and check['disposition'] in ('refuted','resolved') and all(known(check[key]) for key in ('reviewer','evidence','reason'))
+        independent=closed and all(known(builder) and check['reviewer'].casefold()!=builder.casefold() for builder in builders)
+        return closed,independent
     for item in record['rounds']:
         seen=set()
         for resolution in item['resolutions']:
             key=tuple(resolution[name] for name in ('round_id','review_id','finding_id'))
             need(key not in seen and key in states,'duplicate, unknown or future resolution reference');seen.add(key)
             state=states[key]
-            need(state['subject']==item['subject'] and state['base']==item['base'],'cross-subject/base resolution is outside this schema')
-            need(not state['closed'],'stale resolution reference already closed')
+            need(related(state,item),'unrelated subject/artifact resolution is outside this schema')
+            # An unqualified closure may be rechecked without rewriting its claim.
+            # Only a concrete independently-qualified closure is unrepeatably closed.
+            need(not state['independent_closed'],'stale resolution reference already closed')
             need(resolution['reviewer'].casefold()!=state['reviewer'].casefold(),'resolution checker must differ from original finding reviewer')
-            state['closed']=closed(resolution)
+            state['closed'],state['independent_closed']=closure(resolution,(state['builder'],item['builder']['identity']))
         for review in item['reviews']:
             for finding in review['findings']:
                 if finding['severity'] in ('critical','major'):
                     key=(item['id'],review['id'],finding['id'])
-                    states[key]={'subject':item['subject'],'base':item['base'],'reviewer':review['reviewer'],
-                                 'closed':closed(finding['verification']),'severity':finding['severity']}
+                    closed,independent=closure(finding['verification'],(item['builder']['identity'],))
+                    states[key]={'subject':item['subject'],'base':item['base'],'artifact_sha256':item['artifact']['sha256'],'reviewer':review['reviewer'],
+                                 'builder':item['builder']['identity'],'closed':closed,'independent_closed':independent,'severity':finding['severity']}
     return states
 
 
-def history_summary(record):
+def related(state,item):
+    return state['subject']==item['subject'] or state['artifact_sha256']==item['artifact']['sha256']
+
+
+def history_summary(record,independent=True):
     selected=record['rounds'][-1] if record['rounds'] else None
-    current=other=0
+    current=other=0;closure_key='independent_closed' if independent else 'closed'
     for state in finding_states(record).values():
-        if state['closed']:continue
-        if selected and state['subject']==selected['subject'] and state['base']==selected['base']:current+=1
+        if state[closure_key]:continue
+        if selected and related(state,selected):current+=1
         else:other+=1
-    return {'unresolved_selected_scope':current,'unresolved_other_subject_or_base':other,
-            'notice':'Other-subject/base findings remain historical and unresolved; a fresh approval does not assert their repair.'}
+    return {'unresolved_selected_scope':current,'unresolved_other_subject_and_artifact':other,
+            'notice':'Findings with another subject and artifact remain historical and unresolved; a fresh approval does not assert their repair. Matching artifact digests conservatively carry claims, not revision equivalence.'}
 
 
 def parse(body,now=None):
@@ -208,6 +217,15 @@ def append_round(body,item):
     return output.encode('utf-8')
 
 
+def append_round_bytes(raw,item):
+    """Preserve exact outside-section bytes, including a supplied UTF-8 BOM."""
+    need(isinstance(raw,bytes) and len(raw)<=MAX_HANDOFF,'handoff exceeds byte limit')
+    bom=b'\xef\xbb\xbf' if raw.startswith(b'\xef\xbb\xbf') else b''
+    output=bom+append_round(raw[len(bom):].decode('utf-8'),item)
+    need(len(output)<=MAX_HANDOFF,'handoff exceeds byte limit')
+    return output
+
+
 def assessment(body,policy,expected_policy,subject,*,required=True):
     record=parse(body)
     if not required:return []
@@ -238,14 +256,17 @@ def assessment(body,policy,expected_policy,subject,*,required=True):
             inv=inverse[0]
             if not independent(inv) or inv['inputs']!='source_only':out.append('Q1 inversion lacks supplied independent source-only input boundary')
             if not known(builder['model_family']) or not known(inv['model_family']) or ' '.join(builder['model_family'].casefold().split())==' '.join(inv['model_family'].casefold().split()):out.append('Q1 inversion needs known supplied family distinct from the builder family')
-    if history_summary(record)['unresolved_selected_scope']:
-        out.append('Q1 has unresolved or unconfirmed Critical/Major findings for the selected subject/base')
+    if history_summary(record,policy['independent'])['unresolved_selected_scope']:
+        out.append('Q1 has unresolved or unconfirmed Critical/Major findings for the selected subject or artifact')
     return list(dict.fromkeys(out))
 
 
 def supplement_waivers(body,stage):
     if stage!='pre-merge':return []
-    record=parse(body)
+    # Assessment reports malformed input as blocked. Formatting must not hide
+    # that result behind an exception or invent a waiver from invalid records.
+    try:record=parse(body)
+    except (ValueError,TypeError,KeyError,RecursionError,UnicodeError):return []
     return ['Q1 inversion WAIVED (explicit named decision; no secondary approval claimed)'] if record['rounds'] and record['rounds'][-1]['inversion']['choice']=='waived' else []
 
 
@@ -265,7 +286,7 @@ def context(factory):
     return {'schema_version':1,'policy_sha256':value,'review_policy':policy,
             'selected_round':None if selected is None else {'id':selected['id'],'subject':selected['subject'],'base':selected['base'],
                          'evidence_token':record_token(record),'artifact_target':'sha256:'+selected['artifact']['sha256']},
-            'review_history':history_summary(record),'notice':NOTICE}
+            'review_history':history_summary(record,policy['independent']),'notice':NOTICE}
 
 
 def main(argv=None):

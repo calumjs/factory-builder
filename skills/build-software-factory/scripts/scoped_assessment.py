@@ -90,6 +90,8 @@ def assess_scope(factory, scope, stage, revision, target=None):
     manifest=(root/'manifest.json').read_bytes()
     scope_id=hashlib.sha256(str(root).encode()+b'\0'+manifest+b'\0'+scope_bytes).hexdigest()
     records=[{'gate':g,'planned_stage':expected[g]['stage'],'planned_design':expected[g]['design'],'recorded':rows.get(g)} for g in sorted(selected)]
+    if review_text is not None and read_handoff(root/'release-handoff.md')!=review_text:
+        raise ValueError('Review handoff changed during scoped assessment; retry a stable snapshot')
     return {'scope_id':scope_id,'scope':scope,'stage':stage,'subject':revision,'assessment':'SCOPED BLOCKED' if found else 'SCOPED ELIGIBLE WITH WAIVERS' if waivers else 'SCOPED ELIGIBLE','problems':found,'waivers':waivers,'selected_records':records,'out_of_scope':excluded,'notice':'Only selected recorded claims were assessed; this is not project-wide readiness, execution, attestation or release authority.'}
 
 

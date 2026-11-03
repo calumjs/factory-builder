@@ -160,8 +160,8 @@ def preview(factory, kind, data):
     name='task-plan.json' if kind=='task' else 'release-handoff.md' if kind=='review' else 'verification.md'
     if kind=='review':
         if review_text is None:raise ValueError('Review recording requires explicit review-workflow adoption')
-        from review_records import append_round
-        after=append_round(review_text,data)
+        from review_records import append_round_bytes
+        after=append_round_bytes(before['release-handoff.md'],data)
     else:
         after=task_change(plan,config,data) if kind=='task' else gate_batch_change(text,config,research,data,review_text) if kind=='gate-batch' else gate_change(text,config,research,data,review_text)
     h=hashlib.sha256();h.update(str(root).encode());h.update(b'\0'+name.encode())

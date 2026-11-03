@@ -30,7 +30,7 @@ python scripts/update_operations.py --factory <factory> --operations <review-pat
 
 Inspect the exact diff and digest before using the separately authorized
 `--apply --approve-plan <digest>`. Adoption recognizes a complete current or known
-v1.36 operations/gates/dashboard consumer set, captures unchanged dependencies,
+v1.36/v1.41 operations/gates/dashboard consumer set with current compatible dependencies, captures unchanged inputs,
 adds the review parser and research validator, and refuses mixed/customized copies.
 Older factories first need their own reviewed compact-phase/runtime migrations.
 Unknown/custom phase entrypoints, guides, parser or dependencies are preserved by
@@ -105,15 +105,33 @@ empty field. Severity is critical, major or minor. Verification dispositions are
 confirmed, refuted, resolved or unconfirmed. Critical/Major findings remain blocking
 unless a separate checker supplies concrete refuted/resolved evidence. Unconfirmed
 findings are retained as unconfirmed, never downgraded into approval by omission.
+When policy requires independence, the checker must also differ from the known
+builders of both the original finding round and the closing round. Unknown builder
+identity cannot establish this. When independence is explicitly false, a builder's
+closure may count if the checker differs from the original reviewer. An earlier
+closure that lacks independent qualification may receive a later qualified check
+without rewriting its claim. Confirmed/unconfirmed rechecks remain blocking.
 
-`resolutions` explicitly references prior unresolved Critical/Major findings for
-the **same subject and base**. A new approval with no findings cannot erase them.
-Unknown, duplicate-in-round, future, already-closed or cross-subject/base references
-are refused. Confirmed/unconfirmed remains blocking; only a distinct checker's
-concrete refuted/resolved disposition closes that reference. Original claims remain
-unchanged. Other-subject/base findings remain visibly historical and unresolved in
-the context helper; fresh approval does not assert their repair. Cross-subject
-continuation/resolution is outside this first schema, not inferred from shared base.
+`resolutions` explicitly references prior unresolved Critical/Major findings that
+share the **exact subject, regardless of base**, or the **exact artifact SHA-256**.
+A new approval or different base label cannot erase those claims. Matching artifact
+digests conservatively retain a concern; they do not prove revision equivalence,
+prefix identity, execution or transitive branch lineage. No evidence is rebound.
+Unknown, duplicate-in-round, future, independently closed or unrelated references
+are refused. Concrete refuted/resolved dispositions close a reference according
+to the current independence policy; original claims remain unchanged. Findings
+with both another subject and another artifact remain visibly historical and
+unresolved in the context helper; fresh approval does not assert their repair.
+Sharing only a base never establishes a relationship.
+
+`resolved` and `refuted` are supplied outcomes of a bounded evidence/source check,
+not proof that code changed. Explain the actual correction or refutation; never
+claim a new source revision solely from a disposition. A later complete review
+can supersede a prior non-major verdict, retaining it in history. Explain escalation
+and changed inversion choices in `applicability_reason` and the named inversion
+decision. The helper checks the selected round and persistent Critical/Major
+claims; it does not authenticate that an operator escalated a disagreement or
+claim all historical reviewers reached consensus.
 
 Append one complete round JSON object through the existing reviewed record writer:
 
@@ -130,6 +148,11 @@ authenticate edits made outside the supplied writer or establish distributed his
 The selected round must be the final appended record, not whichever verdict is newest
 by timestamp or most favorable. Old-subject assessment uses its historical snapshot.
 A later disagreement cannot be bypassed by selecting an earlier approve.
+Appending preserves the exact bytes outside the marked section, including a UTF-8
+BOM and line endings. Canonical JSON formatting inside the section may change in
+the reviewable diff. Malformed sections never produce an inversion waiver; their
+assessment stays blocked. Future timestamps are refused even for optional Q1;
+clock uncertainty does not turn malformed observations into a waiver.
 
 Read the context helper again for `selected_round.evidence_token` and
 `artifact_target`. Separately record Q1 with the ordinary gate writer: evidence is
@@ -139,6 +162,9 @@ environment and manual/zero exit observation. Q1 time must follow the supplied
 reviewer verdicts. Typed content, policy, subject, token and target must agree.
 The token hashes the complete canonical section object, including historical
 rounds and explicit selection, so prior data used by assessment is also bound.
+Direct gates and scoped assessment recheck the handoff after their decision;
+ordinary concurrent changes fail. Stable inputs are still required: these are
+not atomic multi-file reads or distributed concurrency guarantees.
 Arbitrary freeform "approve" text cannot satisfy Q1. The two record writes are
 separate single-file transactions; intermediate or stale state remains blocked.
 

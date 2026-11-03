@@ -283,7 +283,10 @@ def assess(factory, stage, revision, target=None):
     if 'Q1' in expected and stage=='pre-merge':
         from review_records import read_handoff
         review_text=read_handoff(root/'release-handoff.md')
-    return problems((root/'verification.md').read_text(encoding='utf-8-sig'),stage,revision,expected,target,review_text)
+    found=problems((root/'verification.md').read_text(encoding='utf-8-sig'),stage,revision,expected,target,review_text)
+    if review_text is not None and read_handoff(root/'release-handoff.md')!=review_text:
+        raise ValueError('Review handoff changed during assessment; retry a stable snapshot')
+    return found
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -302,10 +305,17 @@ def main():
         return
     if not args.stage or not args.revision:
         parser.error('--stage and --revision are required for evidence assessment')
+    root=safe_path(args.factory);review_guard=None
+    if args.stage=='pre-merge' and 'record_schema' in operations(json.loads((root/'config.json').read_text(encoding='utf-8-sig')))['review']:
+        from review_records import read_handoff
+        review_guard=read_handoff(root/'release-handoff.md')
     found = assess(args.factory,args.stage,args.revision,args.target)
     skipped=waivers_for_factory(args.factory,args.stage)
+    rows=gate_rows((root/'verification.md').read_text(encoding='utf-8-sig'))
+    if review_guard is not None and read_handoff(root/'release-handoff.md')!=review_guard:
+        raise ValueError('Review handoff changed while preparing assessment output; retry a stable snapshot')
     for item in skipped:print(item+'; not evidence that the check ran or passed')
-    for row in gate_rows((safe_path(args.factory)/'verification.md').read_text(encoding='utf-8-sig')).values():
+    for row in rows.values():
         if row['stage']==args.stage and row['required']=='no' and row['result']=='FAILED':
             print('WAIVED observation only: '+failed_observation(row,args.revision))
     if found:
