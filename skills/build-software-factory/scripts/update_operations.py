@@ -375,6 +375,11 @@ COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION = {
 COMPATIBLE_GATE_V113 = {'gates.py':'bb706626fb04bf509ff4cb8805d0da353c4add1309f310441bc1dbbde7fe5da4'}
 COMPATIBLE_GATE_V115 = {'gates.py':'cba74ee0273ad98461a23af1e52c2d486e60bd066947315ea07aa049cf1bcbde'}
 COMPATIBLE_GATE_V117 = {'gates.py':'11b5ca9fce5e6eec5ec06c60d0417546e74aea05968d0346f7fe4f6076b4c697'}
+# Exact published helpers through v1.27, before optional admission metadata.
+# Compatible with legacy config; migrate only through the existing runtime flags.
+PRE_ADMISSION_RUNTIME = {
+    'operations.py':'0490290d091e30fad21f700fa1eba52a4cf451c686472813438ca3e7f3a92b94',
+    'readiness.py':'4182ec36b619909823c2bbe9e1fbce2573ac41c121dcf408b0f56fb885bd6637'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -383,7 +388,7 @@ def gate_runtime_plan(root, original, replacement, opted_in):
         wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename),COMPATIBLE_GATE_V115.get(filename),COMPATIBLE_GATE_V117.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename),COMPATIBLE_GATE_V115.get(filename),COMPATIBLE_GATE_V117.get(filename),PRE_ADMISSION_RUNTIME.get(filename))
         if compatible and not opted_in:continue
         known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
         if not known and not compatible and not (current is None and filename=='recipes.py'):
@@ -398,7 +403,7 @@ def context_runtime_plan(root, original, replacement, opted_in):
         path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename))
         if compatible and not opted_in:continue
         if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename) and not compatible:
             raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')
@@ -415,6 +420,20 @@ def context_runtime_plan(root, original, replacement, opted_in):
             raise ValueError('Customized/unsupported dashboard Learn parser preserved; review manually')
         if current is None:
             original[name]=None;replacement[name]=wanted
+
+
+def require_admission_runtime(root, original, replacement):
+    """Bind both copied consumers and refuse an unsupported proposed bundle."""
+    for filename in ('operations.py','readiness.py'):
+        name='dashboard/'+filename;path=root/name
+        current=path.read_bytes() if path.is_file() else None
+        if name in original and original[name]!=current:
+            raise ValueError('Admission runtime changed during preview; regenerate and review the plan')
+        original[name]=current  # Also bind supported, unchanged helpers for apply.
+        proposed=replacement.get(name,current)
+        wanted=(ROOT/'scripts'/filename).read_bytes()
+        if proposed is None or digest(proposed)!=digest(wanted):
+            raise ValueError('Admission needs supported copied operations and readiness helpers; preview with --context-runtime. Customized/unsupported helpers require manual review')
 
 
 def unchanged(root, name, expected):
@@ -486,7 +505,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
         current=replacement.get(runtime,(root/runtime).read_bytes())
         wanted=(ROOT/'scripts/operations.py').read_bytes()
         if digest(current)!=digest(wanted):
-            if digest(current) not in (LEGACY_DASHBOARD_OPERATIONS,PRIOR_GATE_RUNTIME['operations.py'],COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION['operations.py']):
+            if digest(current) not in (LEGACY_DASHBOARD_OPERATIONS,PRIOR_GATE_RUNTIME['operations.py'],COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION['operations.py'],PRE_ADMISSION_RUNTIME['operations.py']):
                 raise ValueError('Customized/unsupported dashboard runtime preserved; review a narrow manual compatibility migration')
             if digest(current)==LEGACY_DASHBOARD_OPERATIONS and not recipe_runtime:
                 raise ValueError('New recipe metadata needs a reviewed v1.2 dashboard migration; preview with --recipe-runtime')
@@ -503,6 +522,8 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             original[dependency]=None;replacement[dependency]=wanted
         else:
             raise ValueError('Dashboard recipe dependency missing; preview a reviewed --recipe-runtime migration')
+    if 'admission' in configured and (root/'dashboard').is_dir():
+        require_admission_runtime(root,original,replacement)
     if delivery_update or any(key in changes for key in ('smoke_gates','done_videos')):
         research_bytes=(root/'research.json').read_bytes()
         research=json.loads(research_bytes.decode('utf-8-sig'))
