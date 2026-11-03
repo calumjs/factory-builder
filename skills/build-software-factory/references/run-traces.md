@@ -104,6 +104,11 @@ static index, manifest, policies and evidence remain untouched. New generated
 dashboard code retains the same ordinary behavior; the internal supplement hook
 accepts only trusted renderer output, never a raw HTML field from trace JSON.
 Any separate copied-runtime update still uses the existing reviewed migration.
+The exact v1.36 dashboard predecessor is recognized and preserved during unrelated
+updates. An explicit `update_operations.py --context-runtime` preview may replace
+that known copy with the current compatible renderer after reviewed apply, retaining
+original backup bytes and unrelated evidence. Custom/unknown copies are refused;
+the supplied-trace helper itself remains installed-only and is never copied.
 
 Automatic session-end hooks, private log parsers, live PR adapters, cost pricing,
 independent provenance verification, outcome causality and automatic model routing

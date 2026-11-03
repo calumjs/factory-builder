@@ -467,6 +467,9 @@ PRE_SUBJECT_DASHBOARD = {'dashboard.py':'4754a7d98a9da9a6732ee9a88b07f58b5931367
 PRE_CONSISTENCY_CONTEXT = {
     'readiness.py':'7ab8b3e10d193d949c701e648c6d3ceee31ae0708e02253b9cd128ae2b880095',
     'integrity.py':'2a5e8d330070d25323ef6faf65d4510b88fd15d923e57df99185b6631b2e5707'}
+# Exact published v1.36 dashboard before the additive installed trace-render hook.
+# Preserve without opt-in; the fixture pins its complete original source bytes.
+PRE_TRACE_DASHBOARD = {'dashboard.py':'0b685b5dc80ff3bb1fb5e4dcfb24a0cb4af5b7f1725a60ae91ad4d7ac2cabc9a'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -490,7 +493,7 @@ def context_runtime_plan(root, original, replacement, opted_in):
         path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename),PRE_SUBJECT_DASHBOARD.get(filename),PRE_CONSISTENCY_CONTEXT.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename),PRE_SUBJECT_DASHBOARD.get(filename),PRE_CONSISTENCY_CONTEXT.get(filename),PRE_TRACE_DASHBOARD.get(filename))
         if compatible and not opted_in:continue
         if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename) and not compatible:
             raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')

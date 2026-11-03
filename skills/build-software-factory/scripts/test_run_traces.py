@@ -10,7 +10,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 import dashboard
-from integrity import check
+from integrity import check, digest
 from scaffold import ROOT, render
 import run_traces as traces
 
@@ -230,6 +230,62 @@ class TraceCliTests(unittest.TestCase):
         self.assertNotIn('supplied_run_traces',data)
         self.assertNotIn('Supplied private run traces',dashboard.page(data))
         self.assertEqual(dashboard.page(data),dashboard.page(data,supplemental_html=''))
+
+    def install_prior_dashboard(self, extra=b''):
+        # Synthetic fixture construction, never repair/re-hash a real failed factory.
+        prior=(ROOT/'scripts/fixtures/pre_trace_dashboard.txt').read_bytes()+extra
+        (self.factory/'dashboard/dashboard.py').write_bytes(prior)
+        path=self.factory/'manifest.json';manifest=json.loads(path.read_bytes())
+        manifest['contracts']['dashboard/dashboard.py']=digest(prior)
+        path.write_text(json.dumps(manifest),encoding='utf-8')
+        check(self.factory,quiet=True)
+        return prior
+
+    def test_exact_prior_dashboard_is_preserved_until_reviewed_context_migration(self):
+        import update_operations as updater
+        prior=self.install_prior_dashboard()
+        self.assertEqual(digest(prior),updater.PRE_TRACE_DASHBOARD['dashboard.py'])
+        # Retain a failed optional observation through a runtime-only migration.
+        path=self.factory/'verification.md'
+        lines=[]
+        for line in path.read_text(encoding='utf-8').splitlines():
+            if line.startswith('| G2 |'):line=line.replace('| yes |','| no |').replace('| NOT RUN |','| FAILED |')
+            lines.append(line)
+        path.write_text('\n'.join(lines)+'\n',encoding='utf-8')
+        before=self.snapshot()
+        _,_,unchanged,_=updater.prepare(self.factory,{})
+        self.assertFalse(unchanged)
+        root,old,new,token=updater.prepare(self.factory,{},context_runtime=True)
+        self.assertEqual(self.snapshot(),before)
+        self.assertEqual(set(new),{'dashboard/dashboard.py','manifest.json'})
+        self.assertEqual(old['dashboard/dashboard.py'],prior)
+        with self.assertRaises(ValueError):updater.apply(root,old,new,token,'wrong')
+        self.assertEqual(self.snapshot(),before)
+        backup=updater.apply(root,old,new,token,token)
+        self.assertEqual((backup/'dashboard/dashboard.py').read_bytes(),prior)
+        self.assertEqual((self.factory/'dashboard/dashboard.py').read_bytes(),(ROOT/'scripts/dashboard.py').read_bytes())
+        for name,data in before.items():
+            if name not in ('dashboard/dashboard.py','manifest.json'):
+                self.assertEqual((self.factory/name).read_bytes(),data)
+        self.assertFalse((self.factory/'dashboard/run_traces.py').exists());check(self.factory,quiet=True)
+        result=subprocess.run([sys.executable,'-B',str(self.factory/'dashboard/dashboard.py'),'--output',str(self.output),'--format','json'],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertNotIn('supplied_run_traces',json.loads(self.output.read_bytes()))
+
+    def test_custom_prior_dashboard_refused_and_concurrent_change_not_overwritten(self):
+        import update_operations as updater
+        self.install_prior_dashboard(b'\n# PRIVATE synthetic customization\n')
+        before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'Customized/unsupported'):
+            updater.prepare(self.factory,{},context_runtime=True)
+        self.assertEqual(self.snapshot(),before)
+        self.install_prior_dashboard()
+        root,old,new,token=updater.prepare(self.factory,{},context_runtime=True)
+        path=self.factory/'dashboard/dashboard.py'
+        path.write_bytes(path.read_bytes().replace(b'\n',b'\r\n'))
+        check(self.factory,quiet=True);changed=self.snapshot()
+        with self.assertRaises(ValueError):updater.apply(root,old,new,token,token)
+        self.assertEqual(self.snapshot(),changed)
 
 
 if __name__=='__main__':unittest.main()
