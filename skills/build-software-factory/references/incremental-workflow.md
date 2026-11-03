@@ -116,3 +116,8 @@ resolve conflicts deliberately, retain each subject's observations, unique task
 events and Learn entries, and rerun the checks for the subject being assessed.
 Never discard failures or blindly choose the newest row. The helper's lock is
 cooperative local coordination; it is not a Git merge or arbitrary-writer lock.
+
+For explicit base/left/right snapshots, [evidence-reconciliation.md](evidence-reconciliation.md)
+describes a read-only helper that proposes all three evidence records, requires
+source-bound current-row/status choices, and preserves branch history and Learn
+append occurrences. It does not apply or attest the proposal.
