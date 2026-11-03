@@ -304,6 +304,37 @@ class FeatureContractTests(unittest.TestCase):
         options = self.inputs();options['feature_base'] = invalid_base
         self.assertEqual(self.cli(self.base, options).returncode, 2)
 
+    def test_baseline_registration_and_nonancestor_are_checked_before_exemption(self):
+        self.request['contract'].update(classification='maintenance', issues=[])
+        self.request['closing_issues'] = []
+        original = self.base
+        manifest_path = self.factory/'manifest.json'
+        manifest = json.loads(manifest_path.read_text())
+        manifest['contracts']['config.json'] = '0'*64
+        manifest_path.write_text(json.dumps(manifest))
+        bad = self.commit()
+        self.git('reset', '--hard', original)
+        options = self.inputs();options['feature_base'] = bad
+        self.request['base'] = bad
+        self.request_path.write_text(json.dumps(self.request))
+        result = self.cli(original, options)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('COMMITTED_CONFIG_REGISTRATION_INVALID', result.stderr)
+        (self.repo/'branch-only.txt').write_text('SYNTHETIC divergent commit')
+        unrelated = self.commit()
+        self.git('reset', '--hard', original)
+        self.request['base'] = unrelated
+        options = self.inputs();options['feature_base'] = unrelated
+        self.assertEqual(self.cli(original, options).returncode, 2)
+
+    def test_adopted_required_review_is_not_bypassed_by_feature_policy(self):
+        self.regenerate(lambda c: c['operations'].update(review={'record_schema': 1, 'required_approvals': 1}))
+        self.policy.update(acceptance_delta='reuse', task_delta='reuse')
+        report = self.assess(self.record())
+        self.assertEqual(report['feature_check']['assessment'], 'structural_policy_satisfied')
+        self.assertEqual(report['assessment'], 'blocked')
+        self.assertTrue(any('Q1' in problem for problem in report['problems']))
+
 
 class FeatureContractBoundaryTests(unittest.TestCase):
     def test_strict_policy_types_and_properties(self):
