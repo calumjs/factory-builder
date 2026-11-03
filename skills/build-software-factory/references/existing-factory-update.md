@@ -18,6 +18,14 @@ the rest of the factory can still come from an older source and the builder may
 not know its immutable source revision. Record verified provenance only through a
 separately reviewed accurate change.
 
+Known pristine helpers predating the factory-path and revision-help diagnostics can
+be preserved, or migrated with the reviewed `--context-runtime --gate-runtime`
+preview. Customized helpers still require manual review. `--delivery-gates`
+can update known Verify/Release addenda with feature-confirmation guidance, retaining
+custom instructions and backup evidence. It does not rewrite the living release
+handoff or existing Plan/Build skills: adopt new handoff fields and those phases
+through a separate reviewed edit, preserving project choices and prior observations.
+
 Ambiguous duplicate policy keys and policy/config disagreement block the update;
 preserve and reconcile both records through a reviewed synchronized recovery.
 Known pristine v1.7 copied gate helpers remain unchanged by default; the installed

@@ -55,9 +55,18 @@ execution. It needs these non-secret variables from trusted CI configuration:
 | FACTORY_EVIDENCE_STORAGE_SHA | Full E that stores the supplied records; must match HEAD. |
 | FACTORY_STAGE | pre-merge (default) or post-merge. |
 | FACTORY_ACTUAL_TARGET | Actual web/artifact target for a still-required post-merge confirmation; explicit waived checks stay waived. |
-| FACTORY_DIRECTORY | Managed relative directory; default .software-factory. |
-| FACTORY_EVIDENCE_DIRECTORY | Reviewed data-only storage directory outside factory/CI config; default docs/factory-evidence. |
+| FACTORY_DIRECTORY | Managed directory relative to FACTORY_REPO's checkout root; default .software-factory. |
+| FACTORY_EVIDENCE_DIRECTORY | Reviewed data-only storage directory relative to FACTORY_REPO, outside factory/CI config; default docs/factory-evidence. |
 | FACTORY_REQUIRED_TASKS | Optional JSON array of project-selected task IDs required done for this job's subject; default []. |
+
+For the CLI, `--repo` names the exact checkout root; `--factory` and `--evidence-dir`
+are canonical forward-slash paths relative to that root, even when invoked from a
+parent directory. For example, use `--repo factory-sample-crm --factory .software-factory`,
+not `--factory factory-sample-crm/.software-factory`. A committed nested factory such
+as `apps/crm/.software-factory` is valid. The helper does not strip prefixes, search
+for another factory or rewrite an invalid path. `--subject` and `--storage` must be
+explicit full commit SHAs (40 or 64 hexadecimal digits), never `HEAD`, branch names
+or abbreviated SHAs.
 
 Use literal argv; never shell-evaluate variables or interpolate untrusted event
 titles/bodies into commands. Confirm selected Git/interpreter/helper commands against
@@ -81,6 +90,15 @@ tools.json is not allowed: living tool/permission configuration is not evidence-
 Task definitions must stay unchanged except status, and event history must retain
 the exact prior prefix. No config, policy, skill, manifest, source, dependency, test,
 CI or runtime change is treated as evidence-only.
+
+These record paths are beneath the selected `--factory`; the data path below is
+relative to `--repo`. The check compares the entire cumulative S-to-E tree diff,
+not just the last commit. Moving a disallowed file such as repository-level
+`DOGFOOD-NOTES.md` into a later commit on the same evidence branch does not help.
+Keep changes outside this envelope in a separate reviewed change. To assess an
+earlier evidence-only E, use a clean checkout whose HEAD is that exact E; pointing
+`--storage` at an earlier commit while HEAD remains later is rejected. A passing
+local `gates.py` record check does not prove this commit envelope is satisfied.
 
 New durable data may be added only under <evidence-directory>/<full-subject-SHA>/,
 as non-executable regular .txt/.log/.json/.md/.png/.jpg/.jpeg/.mp4/.webm files.

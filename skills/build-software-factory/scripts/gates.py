@@ -179,9 +179,9 @@ def assess(factory, stage, revision, target=None):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--factory',required=True)
+    parser.add_argument('--factory',required=True,help='Directory whose current on-disk files are checked, including files untracked or ignored by Git')
     parser.add_argument('--stage',choices=STAGES)
-    parser.add_argument('--revision')
+    parser.add_argument('--revision',help='Exact evidence subject identifier to match in records; does not select or reconstruct a Git checkout. Reads current --factory files; no short/full SHA equivalence')
     parser.add_argument('--target')
     parser.add_argument('--plan',action='store_true',help='Print proposed gate rows; writes and executes nothing')
     args = parser.parse_args()

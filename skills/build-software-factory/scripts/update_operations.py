@@ -85,10 +85,11 @@ COMPATIBLE_CONTEXT_V17 = {'integrity.py':'b03fb25cc9d78a55618e4a58504cda9d496b3c
                           'readiness.py':'b93eecff7f8cca84d015626b11b308f22853995981255d0c1cced1963072fea5'}
 COMPATIBLE_CONTEXT_PRE65 = {'integrity.py':'e76455b29979257e7f94cc418a629c46248547481ff31986c996d80edcbb4de0',
                            'readiness.py':'9ddda7edccbc0e90cb589fb871afad0bafa16213ab0e81e4ad764b89238d207d'}
+COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS = {'integrity.py':'8585924619380d8434083dd6f5915b75c312fdbdca61c9e2f254a44f037ec738'}
 V19_DELIVERY_ADDENDUM = {
     'intake': ('f48fc8e0956c99003f8c46bfaae76c9847cd086332cc99bf25cb74b134742b5d','c179a72f3b39cb7d181a9e04fa0cb2143747f4b7b1039bf0347d042d17900bc3'),
-    'verify': ('bfcae3e6622ec55ff2f232bb630ac7c340978c7dff9462c1ead95e7ff36592d9','2599dd944575f04c6a8a25916c7f63037d3168bbb5140f3c885b6d1b13e33a4c','4662208da23353e382335504b5035771f23d05f108833e2a3e86be13d518fcd3','393cbed734fc4011bcf52eaa1d48111fa49dcaac79c5b2e8fb3320f50194eafd'),
-    'release': ('ad1854c67d8c3ff699dcefa954f7eebfa5791adc3ac55ef16b36ced0cca72f87','8333d61b055b15996b37b8d8c4aec4740e05ec31be6daef27836214c6563bfcb',)}
+    'verify': ('8d861d2de61e8a4c14d7fcc1109a91395943bea8c38b30407a9962352b2e3e76','bfcae3e6622ec55ff2f232bb630ac7c340978c7dff9462c1ead95e7ff36592d9','2599dd944575f04c6a8a25916c7f63037d3168bbb5140f3c885b6d1b13e33a4c','4662208da23353e382335504b5035771f23d05f108833e2a3e86be13d518fcd3','393cbed734fc4011bcf52eaa1d48111fa49dcaac79c5b2e8fb3320f50194eafd'),
+    'release': ('23800c8a793c1498841236a213dd9b6c5981dd0e2f75a1eaadc5ff2b71d83527','ad1854c67d8c3ff699dcefa954f7eebfa5791adc3ac55ef16b36ced0cca72f87','8333d61b055b15996b37b8d8c4aec4740e05ec31be6daef27836214c6563bfcb',)}
 PRIOR_GATE_RUNTIME = {
     'operations.py':'0a964032c4680520b945f8103185a0cb04fa265a147c1b0bb7f547f5302b8d00',
     'recipes.py':'0290d43d98da9529dd20452c93c5d0bb037a794c3e9a8e68526a546391cd8d27',
@@ -99,6 +100,7 @@ COMPATIBLE_GATE_RUNTIME = {'gates.py':'4e998f0f9a1a013fc06fc9c391ea255d6d7ab57e4
 
 COMPATIBLE_GATE_PRE65 = {'gates.py':'4aba0903e6a87f9ad3e89b46d67284b2a9e9f397999bab073bbccbbbef50bf47'}
 COMPATIBLE_GATE_V19 = {'gates.py':'1114c6617a89295cc5a933852e8bd7eddb234182f2e682de2d8095b89ee93a76'}
+COMPATIBLE_GATE_PRE_DIAGNOSTICS = {'gates.py':'45ba27c4aeee79b8be18dd729526c2e795705bedf05b13b5351429795e1f9c33'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -107,7 +109,7 @@ def gate_runtime_plan(root, original, replacement, opted_in):
         wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename))
         if compatible and not opted_in:continue
         known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
         if not known and not compatible and not (current is None and filename=='recipes.py'):
@@ -122,7 +124,7 @@ def context_runtime_plan(root, original, replacement, opted_in):
         path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename))
         if compatible and not opted_in:continue
         if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename) and not compatible:
             raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')
