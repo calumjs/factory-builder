@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from phase_test_support import phase_text, phase_text_at
 
 from gates import gate_rows
 from integrity import check
@@ -26,7 +27,7 @@ class VerificationRetryGuidanceTests(unittest.TestCase):
         self.research = json.loads((ROOT/'assets/example-research.json').read_text(encoding='utf-8'))
 
     def test_generated_verify_requires_persistence_success_and_separate_interruption_probe(self):
-        verify = render(self.config, self.research)[VERIFY]
+        verify = phase_text(render(self.config,self.research),'verify')
         text = ' '.join(verify.split())
         for condition in ('application-level persistence success', 'committed-save acknowledgement or durable readback',
                           'zero pending requests or a finished response alone is not proof',
@@ -45,7 +46,7 @@ class VerificationRetryGuidanceTests(unittest.TestCase):
         self.assertLess(example.index('await page.reload()'), example.index('await assertPersistedValue('))
 
     def test_generated_release_preserves_failed_subject_and_reuses_task_with_canonical_checks(self):
-        release = ' '.join(render(self.config, self.research)[RELEASE].split())
+        release = ' '.join(phase_text(render(self.config,self.research),'release').split())
         for condition in ('actual FAILED or BLOCKED observation for deployed subject S1',
                           'deployed but unconfirmed', 'same release task ID',
                           "preserving S1's gate history and task events", 'new actual subject S2',
@@ -58,7 +59,7 @@ class VerificationRetryGuidanceTests(unittest.TestCase):
                 self.assertIn(condition, release)
 
     def test_documented_record_options_are_supported_by_the_actual_helper_clis(self):
-        release = render(self.config, self.research)[RELEASE].split('## Retry after failed G3', 1)[1].split('## Video', 1)[0]
+        release = phase_text(render(self.config,self.research),'release').split('## Retry after failed G3', 1)[1].split('## Video', 1)[0]
         for script in ('incremental_records.py', 'status.py'):
             help_result = subprocess.run([sys.executable, '-B', str(ROOT/'scripts'/script), '--help'],
                                          capture_output=True, text=True)
@@ -89,7 +90,7 @@ class VerificationRetryGuidanceTests(unittest.TestCase):
             self.assertEqual(rows['G3']['required'], 'no')
             self.assertEqual(rows['V1']['required'], 'yes')
             self.assertTrue(all(row['result'] == 'NOT RUN' for row in rows.values()))
-            self.assertEqual((root/RELEASE).read_text().count('## Retry after failed G3'), 1)
+            self.assertEqual(phase_text_at(root,'release').count('## Retry after failed G3'), 1)
 
 
 if __name__ == '__main__':

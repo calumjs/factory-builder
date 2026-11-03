@@ -5,6 +5,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from phase_test_support import phase_text
 
 from gates import gate_rows, problems, requirements, waivers
 from integrity import check
@@ -45,8 +46,8 @@ class InstallTrustSecretGuidanceTests(unittest.TestCase):
                        'affected task BLOCKED', 'a denied action remains denied',
                        'exact helper argv', 'only a non-executable proposal', 'never selects a tools.json command'):
             self.assertIn(clause, guide)
-        self.assertIn('launch-guide.md', files['.claude/skills/factory-intake/SKILL.md'])
-        self.assertIn('launch-guide.md', files['.claude/skills/factory-build/SKILL.md'])
+        self.assertIn('launch-guide.md', phase_text(files,'intake'))
+        self.assertIn('launch-guide.md', phase_text(files,'build'))
         self.assertNotIn('--bypass', guide)
         self.assertNotIn('--bg', guide)
 

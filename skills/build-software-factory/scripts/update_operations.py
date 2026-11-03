@@ -14,7 +14,7 @@ from gates import policy_controls, initial_table, requirements, gate_rows, ROW, 
 from integrity import check, digest, safe_path, strict_json
 from operations import controls, operations, DELIVERY_POLICY
 from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS, video_design, video_triggers
-from scaffold import validate, ROOT, phase_skill, RETURN
+from scaffold import validate, ROOT, phase_skill, RETURN, legacy_phase_template, phase_contracts, PHASE_GUIDES
 from assumptions import refresh as refresh_assumptions
 from backup_advisory import inspect_backup_directory
 
@@ -441,7 +441,35 @@ def unchanged(root, name, expected):
     return not path.exists() if expected is None else path.is_file() and path.read_bytes()==expected
 
 
-def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False, migration_receipt=False, selective_gates=False):
+def compact_phase_plan(root, original, replacement):
+    """Opt-in adoption of exact generated phase contracts; custom text is never extracted."""
+    for name in ('boundaries.md','launch-guide.md','worker-handoff.md','connection-string-review.md',
+                 'done-video-recipe.md','ci/README.md','ci/job.example.py','dashboard/README.md','research.md'):
+        if not (root/name).is_file():
+            raise ValueError('Referenced phase support is missing; preserve and review adoption before compact migration: '+name)
+        original[name]=(root/name).read_bytes()
+    original['research.json']=(root/'research.json').read_bytes()
+    research=strict_json(original['research.json'].decode('utf-8-sig'))
+    legacy=phase_contracts(research,legacy=True)
+    compact=phase_contracts(research)
+    for name,wanted in compact.items():
+        original[name]=(root/name).read_bytes()
+        current=digest(original[name])
+        if current not in (digest(wanted),digest(legacy[name])):
+            raise ValueError('Customized or unsupported phase skill preserved; compact migration requires exact supported generated contracts: '+name)
+        replacement[name]=original[name] if current==digest(wanted) else wanted.encode('utf-8')
+    for name in PHASE_GUIDES.values():
+        path=root/name
+        original[name]=path.read_bytes() if path.exists() else None
+        wanted=(ROOT/'assets/templates'/name).read_bytes()
+        if original[name] is not None and digest(original[name])!=digest(wanted):
+            raise ValueError('Customized or unsupported phase guide preserved: '+name)
+        replacement[name]=original[name] if original[name] is not None else wanted
+
+
+def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False, migration_receipt=False, selective_gates=False, compact_phases=False):
+    if compact_phases and (changes or delivery_update or recipe_runtime or assumptions_update is not None or context_runtime or gate_runtime or migration_receipt or selective_gates):
+        raise ValueError('--compact-phases requires a separate reviewed plan; do not combine operations or other migration options')
     if migration_receipt and not any((recipe_runtime,context_runtime,gate_runtime)):
         raise ValueError('--migration-receipt requires an explicit runtime migration flag')
     root=safe_path(factory)
@@ -552,7 +580,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             name=f'.claude/skills/factory-{phase}/SKILL.md'
             original[name]=(root/name).read_bytes()
             current=original[name].decode('utf-8-sig')
-            source=phase_skill((ROOT/'assets/templates'/name).read_text(encoding='utf-8')).split('---',2)[2].strip()+'\n\n'+RETURN
+            source=phase_skill(legacy_phase_template(phase)).split('---',2)[2].strip()+'\n\n'+RETURN
             seven='Confirm all seven skills (six phases plus factory-run) are discovered'
             six='Confirm the six existing phase skills are discovered; if factory-run was separately adopted, confirm it too'
             if phase=='intake' and seven not in source:raise ValueError('Unexpected intake discovery instructions; review migration manually')
@@ -573,11 +601,12 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
         if source in changes and updated.get(source)!=before.get(source):
             tools[dest]=updated[source]
             replacement['tools.json']=dumps(tools).encode('utf-8')
+    if compact_phases:compact_phase_plan(root,original,replacement)
     if migration_receipt:append_runtime_receipt(original,replacement,ledger)
     manifest=json.loads(original['manifest.json'].decode('utf-8-sig'))
     prior_manifest=copy.deepcopy(manifest)
     for name,data in replacement.items():
-        if name in manifest['contracts'] or name.startswith('dashboard/') or name in ('boundaries.md',MIGRATION_RECEIPTS):
+        if name in manifest['contracts'] or name.startswith('dashboard/') or name in ('boundaries.md',MIGRATION_RECEIPTS) or compact_phases and name in PHASE_GUIDES.values():
             manifest['contracts'][name]=digest(data)
     replacement['manifest.json']=dumps(manifest).encode('utf-8') if manifest!=prior_manifest else original['manifest.json']
     replacement={k:v for k,v in replacement.items() if v!=original[k]}
@@ -637,14 +666,15 @@ def main():
     parser.add_argument('--gate-runtime',action='store_true',help='Opt in to reviewed known dashboard operations/recipes/gates support for structured gate metadata')
     parser.add_argument('--migration-receipt',action='store_true',help='With a runtime migration flag, append a reviewed runtime-only byte receipt; preserve original factory provenance')
     parser.add_argument('--selective-gates',action='store_true',help='For operations gate updates, retain unchanged row bytes and reset changed plans/dependents; ambiguous migrations use the broad reset')
+    parser.add_argument('--compact-phases',action='store_true',help='Separately review exact generated phase entrypoints and complete detailed guides; preserve custom skills by refusing unsupported inputs')
     args=parser.parse_args()
     if args.approve_plan and not args.apply:parser.error('--approve-plan requires --apply')
-    if not any((args.operations,args.assumptions,args.delivery_gates,args.recipe_runtime,args.context_runtime,args.gate_runtime)):
+    if not any((args.operations,args.assumptions,args.delivery_gates,args.recipe_runtime,args.context_runtime,args.gate_runtime,args.compact_phases)):
         parser.error('Choose operations, assumptions, or a specific reviewed migration flag')
     changes=json.loads(Path(args.operations).read_text(encoding='utf-8-sig')) if args.operations else {}
     assumption_rows=json.loads(Path(args.assumptions).read_text(encoding='utf-8-sig')) if args.assumptions else None
     if args.assumptions and assumption_rows is None:raise ValueError('Assumptions input must be an array, not null')
-    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime,args.migration_receipt,args.selective_gates)
+    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime,args.migration_receipt,args.selective_gates,args.compact_phases)
     print('REVIEW PLAN: '+plan)
     if args.migration_receipt:
         print('RUNTIME-ONLY RECEIPT: '+('proposed component byte transition; declared version is not verified provenance.' if MIGRATION_RECEIPTS in replacement else 'no changed runtime components; no receipt appended.'))

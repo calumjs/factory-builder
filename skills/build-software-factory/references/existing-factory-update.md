@@ -1,5 +1,9 @@
 # Narrow existing-factory and operations update
 
+For shorter generated phase entrypoints with complete linked guidance, see
+[compact phase adoption](compact-phases.md). Its separate `--compact-phases`
+preview refuses unsupported/custom skills and never silently migrates a factory.
+
 After a successful update creates a backup, the CLI may print a nonblocking
 [backup-ignore advisory](backup-advisory.md). It distinguishes unignored, tracked
 and unknown status using project-local rules only. It does not change the write

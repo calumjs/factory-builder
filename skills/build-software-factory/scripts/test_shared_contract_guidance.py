@@ -7,6 +7,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from phase_test_support import phase_text
 
 from gates import gate_rows
 from integrity import check, digest
@@ -31,8 +32,8 @@ class SharedContractGuidanceTests(unittest.TestCase):
 
     def test_generated_plan_and_verify_connect_existing_assertions_to_run_evidence(self):
         files = render(self.config, self.research)
-        plan = ' '.join(files[PLAN].split())
-        verify = ' '.join(files[VERIFY].split())
+        plan = ' '.join(phase_text(files,'plan').split())
+        verify = ' '.join(phase_text(files,'verify').split())
         for clause in ('existing producers, consumers and tests',
                        'contract symbols and representative old values',
                        'affected existing test paths and assertions',

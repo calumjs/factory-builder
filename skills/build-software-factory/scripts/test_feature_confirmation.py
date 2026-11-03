@@ -3,6 +3,7 @@ import json
 from pathlib import Path
 import tempfile
 import unittest
+from phase_test_support import phase_text_at
 
 from gates import assess, gate_rows, waivers
 from incremental_records import preview, apply
@@ -130,8 +131,8 @@ class FeatureConfirmationTests(unittest.TestCase):
                          ['Actual post-release target differs from the configured target'])
 
     def test_generated_handoff_connects_mapping_safety_and_actual_results(self):
-        verify = (self.root / '.claude/skills/factory-verify/SKILL.md').read_text()
-        release = (self.root / '.claude/skills/factory-release/SKILL.md').read_text()
+        verify = phase_text_at(self.root,'verify')
+        release = phase_text_at(self.root,'release')
         handoff = (self.root / 'release-handoff.md').read_text()
         for clause in ('actual changed paths, acceptance IDs', 'comparison base', 'test-map.json',
                        'prod-safe tag alone', 'installed-artifact or consumer check'):

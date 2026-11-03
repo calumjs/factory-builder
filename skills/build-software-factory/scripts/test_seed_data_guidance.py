@@ -1,6 +1,7 @@
 """Inspect generated seed-prerequisite guidance; no database is touched."""
 import json
 import unittest
+from phase_test_support import phase_text
 from scaffold import ROOT,render
 
 class SeedDataGuidanceTests(unittest.TestCase):
@@ -8,8 +9,8 @@ class SeedDataGuidanceTests(unittest.TestCase):
         config=json.loads((ROOT/'assets/example-config.json').read_text(encoding='utf-8'))
         research=json.loads((ROOT/'assets/example-research.json').read_text(encoding='utf-8'))
         files=render(config,research)
-        build=' '.join(files['.claude/skills/factory-build/SKILL.md'].split())
-        verify=' '.join(files['.claude/skills/factory-verify/SKILL.md'].split())
+        build=' '.join(phase_text(files,'build').split())
+        verify=' '.join(phase_text(files,'verify').split())
         for term in ('review it together with assertions','data prerequisites','fresh CI database',
                      'authorized isolated disposable fixture','BLOCKED'):
             with self.subTest(term=term):self.assertIn(term,build)
@@ -18,7 +19,7 @@ class SeedDataGuidanceTests(unittest.TestCase):
                      'Retain meaningful feature assertions','optional row remains WAIVED'):
             with self.subTest(term=term):self.assertIn(term,verify)
         scenarios={}
-        for line in files['.claude/skills/factory-verify/SKILL.md'].splitlines():
+        for line in phase_text(files,'verify').splitlines():
             if line.startswith('| ') and ' | ' in line:
                 cells=[x.strip() for x in line.strip('| ').split('|')]
                 if len(cells)==2:scenarios[cells[0]]=cells[1]

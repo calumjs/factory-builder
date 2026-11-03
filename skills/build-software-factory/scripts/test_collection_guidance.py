@@ -1,6 +1,7 @@
 """Synthetic examples check generated guidance; no application runner is invoked."""
 import json
 import unittest
+from phase_test_support import phase_text
 from scaffold import ROOT, render
 
 class CollectionGuidanceTests(unittest.TestCase):
@@ -8,7 +9,7 @@ class CollectionGuidanceTests(unittest.TestCase):
         config=json.loads((ROOT/'assets/example-config.json').read_text(encoding='utf-8'))
         research=json.loads((ROOT/'assets/example-research.json').read_text(encoding='utf-8'))
         files=render(config,research)
-        guide=' '.join(files['.claude/skills/factory-verify/SKILL.md'].split())
+        guide=' '.join(phase_text(files,'verify').split())
         examples=('mapped spec excluded by a project filter: NOT RUN',
                   'a valid collection with zero tests: NOT RUN',
                   'collected test skipped: SKIPPED, not passed',
