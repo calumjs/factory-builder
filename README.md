@@ -74,6 +74,31 @@ and updates, follow the generated launch preflight to compare the loaded files w
 the trusted revision or checksum manifest. The inactive scheduler example requires
 an explicitly verified full commit; it does not assume a release tag exists.
 
+During release preparation, compare an independently identified prior release with
+the reviewed candidate, using full commit SHAs already present in a trusted local
+repository:
+
+```sh
+python3 skills/build-software-factory/scripts/release_identity.py --repo <repository> --base <prior-release-full-sha> --candidate <candidate-full-sha>
+```
+
+On Windows, use `py -3` or the explicit installed Python interpreter. The offline
+check compares all tracked regular files in this root-distributed package, including
+documentation and tests, by committed paths, modes and object IDs. It ignores the
+index and working-tree contents. Changed content requires a numerically higher
+stable `MAJOR.MINOR.PATCH` in `.claude-plugin/plugin.json`; plugin renames and a
+`2.0.0` candidate are supported. Prerelease/build labels, leading zeroes, redirected
+entries and submodules are explicitly unsupported. Limits are 4,096 entries, 2 MiB
+of tree metadata per commit, a 64 KiB manifest and a 90-second overall deadline.
+The JSON result exits 0 for consistent content/version identity, 1 for a required
+version advance, or 2 for invalid/unavailable inputs. It does not choose release
+commits, require version bumps on intermediate development commits, edit versions,
+fetch objects, create tags, activate CI or publish anything. A pass does not prove
+compatibility, release authorization or cache freshness. Numeric version ordering
+follows the stable core of [Semantic Versioning](https://semver.org/); inventory
+reads use [Git ls-tree](https://git-scm.com/docs/git-ls-tree) and
+[cat-file](https://git-scm.com/docs/git-cat-file), without checkout or filters.
+
 ## Validate and test
 
 ```sh
