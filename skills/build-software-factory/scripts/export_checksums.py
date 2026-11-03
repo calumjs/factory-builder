@@ -149,8 +149,13 @@ def export(repo, revision):
             'notice': 'Private path export explicitly requested by the caller. Independently pin and trust the commit and helper; this manifest does not authenticate provenance, establish authority, publish a release, or verify an installed cache. No MATCH verdict is provided.'}
 
 
+class PrivateArguments(argparse.ArgumentParser):
+    def error(self, message):
+        self.exit(2, 'ERROR: invalid checksum arguments; supply --repo and --revision, or use --help. No manifest was emitted.\n')
+
+
 def main(argv=None):
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = PrivateArguments(description=__doc__)
     parser.add_argument('--repo', required=True, help='Trusted local repository containing the selected objects')
     parser.add_argument('--revision', required=True, help='Independently pinned full commit SHA; not HEAD, a tag or an expression')
     args = parser.parse_args(argv)

@@ -141,6 +141,19 @@ class SyntheticGitTests(unittest.TestCase):
             self.assertEqual(env['GIT_NO_REPLACE_OBJECTS'],'1')
             self.assertIn('core.fsmonitor=false',argv)
 
+    def test_argument_errors_do_not_echo_unknown_arguments_or_private_paths(self):
+        script = str(Path(ec.__file__))
+        for args in [('--repo',str(self.repo),'--revision',self.sha,'PRIVATE-ARGUMENT-SENTINEL'),
+                     ('--repo',str(self.repo),'--revision'),
+                     ('--repo',str(self.repo),'--revision='+self.sha,'--PRIVATE-OPTION')]:
+            with self.subTest(args=args):
+                result = subprocess.run([sys.executable,'-B',script,*args],capture_output=True,text=True)
+                self.assertEqual(result.returncode,2);self.assertEqual(result.stdout,'')
+                self.assertIn('No manifest was emitted',result.stderr)
+                self.assertNotIn('PRIVATE-',result.stderr);self.assertNotIn(str(self.repo),result.stderr)
+        help_result = subprocess.run([sys.executable,'-B',script,'--help'],capture_output=True,text=True)
+        self.assertEqual(help_result.returncode,0);self.assertIn('--revision',help_result.stdout)
+
 
 class FakeGit:
     def __init__(self):
