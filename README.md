@@ -73,6 +73,11 @@ Run selection is advisory and does not reserve work or enforce budget. Scheduler
 
 ## Release identity
 
+For a deterministic private checksum inventory from an explicit full local commit,
+use the [immutable checksum exporter](skills/build-software-factory/references/checksum-export.md).
+It verifies committed object bytes and ignores the index/working tree; export alone
+does not authenticate a release, publish a manifest or verify an installed cache.
+
 Advance the plugin version for a new release containing changed plugin content;
 keep version references synchronized and identify the actual full source commit.
 A version bump alone does not prove an installed cache refreshed. For fresh installs
