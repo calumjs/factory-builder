@@ -46,8 +46,9 @@ No-selection DTOs, counts and source lists remain unchanged. The same gate check
 retains global expected-row/stage checks and waiver semantics; an all-waived stage
 may satisfy record rules while its rows still display WAIVED and their original
 failed or unrun result. Nothing becomes a new PASSED observation. Diagnostics are
-bounded to 100 messages and 600 characters each, with explicit truncation; truncation
-cannot turn a blocked result into success. Observation-age labels remain separate
+bounded to 100 messages. A longer message keeps a 600-character prefix plus the
+fixed ` [diagnostic truncated]` suffix (623 characters total); truncation cannot
+turn a blocked result into success. Observation-age labels remain separate
 from exact-subject gate rules.
 
 The chosen context is supplied data, not independently verified provenance, live
