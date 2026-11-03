@@ -16,6 +16,11 @@ Durable logs, screenshots, videos and reports go to existing project evidence st
 
 ## Default delivery gates
 
+When squash, rebase or merge changes a commit identity, follow
+[merge-subject-evidence.md](merge-subject-evidence.md) to distinguish reviewed,
+integrated, delivered and storage subjects. Tree equality is diagnostic context,
+not permission to rename evidence or satisfy a different subject's gates.
+
 Every factory requires G1 production-equivalent local smoke and G2 change-targeted tests, plus pre-merge acceptance (A) and research (R) checks, before readiness. G3 confirms the actual web URL or installed/published artifact for the merged revision after a separately authorized release, alongside required post-action A/R checks. Reuse inspected scripts, CI jobs and fixtures; greenfield first defines a representative fixture, production-equivalent artifact, critical success/failure assertions and the smoke implementation task.
 
 Readiness and confirmation are distinct: readiness needs every still-required pre-merge check passing for the exact reviewed revision (optional rows reported WAIVED, readiness WITH WAIVERS); future G3/V1 evidence is not a pre-action dependency; a failed, blocked, stale, missing or NOT RUN required post-action check goes immediately to the release owner with a diagnosis or rollback decision. Non-web releases confirm with an appropriate consumer or artifact smoke. Only an explicitly accepted no-release exclusion records G3 NOT APPLICABLE; an unknown target is blocked.
