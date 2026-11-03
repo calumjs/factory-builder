@@ -79,6 +79,67 @@ and refused for manual review. Original bytes are backed up, and unrelated updat
 preserve the known old dashboard. Existing copied README/index snapshots remain
 unchanged; use this installed guidance and refresh explicitly after migration.
 
+## Reviewed replacement of the static index
+
+The trusted installed `scripts/refresh_dashboard.py` provides an explicit,
+index-only alternative when an existing factory's hashed `dashboard/index.html`
+needs a new snapshot. Ordinary `dashboard.py --output` still writes outside the
+factory. Runtime migration alone does not refresh this static page.
+
+```text
+python <installed-builder>/scripts/refresh_dashboard.py --factory <factory-root> --as-of 2026-11-03T12:00:00+00:00
+python <installed-builder>/scripts/refresh_dashboard.py --factory <factory-root> --as-of 2026-11-03T12:00:00+00:00 --apply --approve-plan <reviewed-digest>
+```
+
+Choose an appropriate timezone-bearing as-of timestamp; the date above is an
+example, not the current observation time. Preview may omit `--as-of` to select
+the current UTC time, which it prints. Apply must repeat the exact selected time
+(an equivalent UTC representation is accepted) and reviewed digest. Preview is
+write-free and displays the old raw index hash, proposed hashes and full diff.
+Review it privately: existing custom HTML and exported record labels may be
+sensitive. The old index is arbitrary project content, not automatically
+recognized generated code. Approval **replaces its entire contents, including
+any custom design**; do not apply to retain that design. There is no extra
+authority implied by a manifest match or plan digest.
+
+The new page is rendered from captured config, task, verification and research
+records, with their actual captured file modification times and hashes. It is a
+fixed-as-of record snapshot, not live activity, a chosen-subject assessment or
+proof of execution. Run history and external metrics are deliberately not read
+and are labelled unavailable in their sections. Existing record counts and
+WAIVED/underlying-result semantics remain visible. No copied runtime is executed.
+
+Only the index and its named manifest hash change. Living records, evidence,
+waivers, custom runtimes, README, upstream provenance and migration receipts keep
+their original bytes. Runtime receipts describe runtime changes; this action
+does not invent a historical builder revision or claim a runtime upgrade. Review
+copied-runtime migrations separately if required.
+
+Support is deliberately bounded to a consistent schema-2/five-living-file
+factory with the static index already registered and valid config/policy/gate
+structure. The existing recovery snapshot bounds apply: UTF-8 regular files,
+256 KiB per file, 8 MiB total, at most 512 files and 512 directories, 1,024 total
+entries and depth 20; redirects and ambiguous paths are refused. Missing
+dashboard adoption, schema migration and malformed factories need their separate
+reviewed paths. This helper never resets unrelated hashes to make a check pass.
+
+The digest binds the full original raw file/directory inventory, captured file
+metadata, factory/dashboard/parent identities, selected time and exact proposed
+bytes. A changed input requires a new preview even when it would render the same
+page. Apply recomputes the plan and uses the existing exclusive update lock and
+`.factory-update-backups/<digest>/` backup of both original replaced files, then
+writes the index before the manifest. Inspect project ignore rules and manually
+merge an appropriate `.factory-update-backups/` entry if needed; the helper never
+edits root ignore rules.
+
+These checks detect ordinary concurrent changes; they are not a filesystem
+transaction or protection against a hostile concurrent writer. A late edit or
+interruption can leave a refreshed index/manifest or a partial write with the
+backup preserved and no success result. Preserve the files and backup, inspect
+the exact diff, then restore only reviewed originals or use the separate recovery
+workflow. There is no automatic rollback, overwrite of concurrent edits, resume,
+baseline adoption, live deployment or application-readiness claim.
+
 On a manifest file-set mismatch, the dashboard reports safe counts and flags unexpected dashboard bytecode without echoing arbitrary filenames. Run the trusted `scaffold.py --check` privately for named paths; preserve the evidence and use reviewed recovery rather than resetting hashes. Older copied dashboards retain their behavior until a separately reviewed runtime migration.
 
 Existing projects may lack optional root ignore rules for `factory-overview.html`, `factory-overview.json` and `.factory-recovery-backups/`. Inspect the project's root ignore policy and manually merge only the applicable scoped entries; never overwrite that policy. These rules keep local snapshots and recovery backups out of Git, not out of factory integrity checks. Do not ignore arbitrary unexpected manifest files to make a check pass.
