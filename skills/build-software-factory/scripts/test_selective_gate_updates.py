@@ -204,6 +204,52 @@ class SelectiveGateTests(unittest.TestCase):
         self.assertIn('plan_changed',decision['rows']['G1']['reasons']);self.assertNotIn('source_plan_misaligned',decision['rows']['G1']['reasons'])
         self.assertEqual(decision['rows']['A1']['action'],'retain')
 
+    def test_malformed_modern_rows_refused_before_each_prepare_fallback(self):
+        original=self.path.read_bytes()
+        cases=[({'smoke_gates':{'required':True}},{}),
+               ({'smoke_gates':{'exception':'Reviewed exception'}},{}),
+               ({}, {'delivery_update':True}),
+               ({'done_videos':{'enabled':True}}, {'assumptions_update':[]})]
+        for changes,kwargs in cases:
+            for column in (1,4,6):
+                with self.subTest(changes=changes,kwargs=kwargs,column=column):
+                    self.path.write_bytes(original);self.edit('G1',{column:'INVALID'})
+                    before=self.snapshot()
+                    with self.assertRaisesRegex(ValueError,'Invalid gate stage/required|Unknown gate result'):
+                        updater.prepare(self.root,changes,selective_gates=True,**kwargs)
+                    self.assertEqual(before,self.snapshot())
+
+    def test_mixed_legacy_modern_rows_validate_before_any_fallback(self):
+        original=self.path.read_bytes()
+        for column in (1,4,6):
+            self.path.write_bytes(original);self.edit('G1',{column:'INVALID'})
+            text=self.path.read_bytes().decode();mixed=[]
+            for line in text.splitlines(keepends=True):
+                if ROW.match(line) and ROW.match(line)[1]=='G2':
+                    line='| '+' | '.join([cell.strip() for cell in line.strip().strip('|').split('|')][:8])+' |\n'
+                mixed.append(line)
+            mixed=''.join(mixed)
+            for kwargs in ({},{'runtime_changed':True},{'delivery':True},{'assumptions':True}):
+                with self.subTest(column=column,kwargs=kwargs):
+                    with self.assertRaisesRegex(ValueError,'Invalid gate stage/required|Unknown gate result'):
+                        updater.classify_gate_update(mixed,self.config,self.config,self.research,{'smoke_gates':{'required':True}},**kwargs)
+            self.path.write_bytes(mixed.encode());before=self.snapshot()
+            with self.assertRaisesRegex(ValueError,'Invalid gate stage/required|Unknown gate result'):
+                updater.prepare(self.root,{'done_videos':{'enabled':True}},selective_gates=True)
+            self.assertEqual(before,self.snapshot())
+
+    def test_valid_mixed_legacy_modern_rows_still_migrate_and_archive_failure(self):
+        self.observe();text=self.path.read_bytes().decode();mixed=[]
+        for line in text.splitlines(keepends=True):
+            if ROW.match(line) and ROW.match(line)[1]=='G2':
+                line='| '+' | '.join([cell.strip() for cell in line.strip().strip('|').split('|')][:8])+' |\n'
+            mixed.append(line)
+        self.path.write_bytes(''.join(mixed).encode())
+        prepared=self.preview({'done_videos':{'enabled':True}})
+        self.assertTrue(all(row['result']=='NOT RUN' for row in self.active(prepared).values()))
+        self.assertIn('> | G1 |',prepared[2]['verification.md'].decode());self.assertIn('FAILED',prepared[2]['verification.md'].decode())
+        self.assertIn('legacy_schema',str(updater.selective_explanations(prepared[1],prepared[2],{'done_videos':{}})))
+
     def test_broad_fallback_reasons_for_unmodeled_changes(self):
         for kwargs,reason in (({'delivery':True},'delivery_migration'),({'assumptions':True},'assumptions_changed'),({'runtime_changed':True},'runtime_changed')):
             decision=updater.classify_gate_update(self.path.read_text(),self.config,self.config,self.research,{},**kwargs)

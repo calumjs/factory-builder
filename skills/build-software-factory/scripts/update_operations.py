@@ -188,6 +188,7 @@ def classify_gate_update(text, before, after, research, changes, *, delivery=Fal
         width=len(raw.strip().strip('|').split('|'))
         if width==8:fallback.append('legacy_schema')
         elif width!=11:raise ValueError('Cannot migrate malformed gate row; review it manually')
+        else:gate_rows(raw)  # A fallback may reset valid plans, never repair malformed modern rows.
     if '\r' in text.replace('\r\n',''):fallback.append('unsupported_line_endings')
     if fallback:return {'mode':'fallback','reasons':sorted(set(fallback)),'rows':{}}
     rows=gate_rows(text)
