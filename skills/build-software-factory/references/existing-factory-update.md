@@ -72,11 +72,74 @@ When step 1 fails because contracts were hand-edited or files were added, follow
 activation remains separate. `update_operations.py` cannot preview or approve an
 invalid source; detailed path diagnostics do not change that boundary. No force switch exists.
 
-1. Confirm the exact factory path and authorized local write scope. Run the integrity check. Unreviewed contract edits must be resolved first; the updater refuses them. Schema 1 is unsupported and needs a separate reviewed migration.
-2. In approved scratch, write an operations-change JSON object, such as `{"done_videos":{"enabled":true,"scope":"Agreed narrated release demonstration"}}`. This is a partial operations patch, not a complete product config. Existing omitted fields are preserved. No credentials belong here.
-3. Preview with `python scripts/update_operations.py --factory <factory-root> --operations <changes.json>`. To opt an older factory into current delivery gates and Intake/Verify/Release guidance, add `--delivery-gates`. An empty `{}` operations patch is valid for that opt-in.
-4. Inspect the full diff and `REVIEW PLAN` digest. Check config/policy consistency, retained custom rules and evidence, gate stage/rationale, video handoff, backup path and permission boundaries. Broader product/acceptance changes require a separately reviewed synchronized diff; this helper cannot rescope the project.
-5. Within existing applicable local-write authorization and after reviewing that exact diff (an optional-test choice needs no extra approval), repeat with `--apply --approve-plan <digest>`. The plan is bound to the factory path and old/new file hashes; changed input or concurrent edits require a fresh preview and review. Approval of one plan is not standing authority for unrelated updates.
+## Worked upgrade checklist
+
+The complete [synthetic operations patch](../assets/example-operations-update.json)
+combines continuous around-the-clock intent, structured G1/G2/G3 recipes and both
+video triggers. It is an **operations object**, without an outer `operations` key
+or product-config fields. Intake fields such as `coverage` and `cadence` are flat
+members of `issue_intake`; command, environment, env names and target belong under
+`smoke_gates.checks.G1` (likewise G2/G3).
+
+This is a schema/workflow example, **not a working project pipeline**. Intake stays
+disabled, autonomy manual with no allowed submitters, and videos disabled; selecting
+triggers while disabled creates no V rows. Scheduler, provider and action authority
+remain unverified. Its concrete Python argv are fail-stop fixtures: they would exit
+with a synthetic message, not run application checks. The `.invalid` URL is a planned
+fixture target, not a deployment. No fixture command has been executed as evidence.
+
+1. Pin the trusted installed builder and exact existing factory. Run the integrity
+   check below; resolve broken contracts or policy drift through reviewed recovery
+   first. Do not recreate the factory. Schema 1 needs a separate migration.
+2. Copy the example into private scratch and adapt only the intended changes to the
+   project's inspected commands, actual design and existing preferences. Do not apply
+   its manual/disabled values wholesale to a configured factory. Omitted top-level
+   sections and section fields are preserved, but supplied nested values such as
+   `checks` replace that whole map: include every existing recipe you intend to keep.
+   No secrets or environment values belong in the patch. The example deliberately
+   omits `smoke_gates.required` so existing smoke defaults and row waivers survive.
+3. Preview using the trusted helper. The commands below use placeholders for your
+   inspected Python interpreter, trusted skill root, approved factory and scratch
+   patch; replace them before invocation:
+
+   ```sh
+   python <trusted-skill-root>/scripts/scaffold.py --check <factory-root>
+   python <trusted-skill-root>/scripts/update_operations.py --factory <factory-root> --operations <scratch>/operations-update.json
+   ```
+
+   For a known older copied runtime, add only the needed reviewed flags to the
+   preview: `--gate-runtime` for structured-gate compatibility, `--recipe-runtime`
+   for known older recipe metadata, or `--context-runtime` for context diagnostics.
+   `--delivery-gates` additionally adopts current Intake/Verify/Release addenda and
+   delivery records. These are migrations, not bypasses; unknown custom code stays
+   preserved and refused. A current compatible factory needs no migration flag.
+4. Inspect the **complete** diff and `REVIEW PLAN` digest: intended fields, preserved
+   custom policy/runtime, every recipe and trigger, row waivers/history/reset effects,
+   backup paths and selective manifest entries. A valid patch or preview establishes
+   no watcher, passing check, video or permission. With videos disabled, the explicit
+   triggers remain stored design only; choosing enabled videos later is a separate
+   preference update within existing scope, not capture/narration authorization.
+5. Within the applicable local-write scope, apply that exact reviewed plan using the
+   same patch and migration flags, then recheck:
+
+   ```sh
+   python <trusted-skill-root>/scripts/update_operations.py --factory <factory-root> --operations <scratch>/operations-update.json --apply --approve-plan <exact-preview-digest>
+   python <trusted-skill-root>/scripts/scaffold.py --check <factory-root>
+   python <trusted-skill-root>/scripts/gates.py --factory <factory-root> --plan
+   ```
+
+   Changed input requires a fresh preview. Review the backup and resulting rows;
+   unexecuted required checks remain NOT RUN and explicit optional rows are WAIVED,
+   never promoted to PASSED. Assess an actual stage only with its independently
+   selected tested subject (and actual target after release). Keep the example's
+   different per-gate targets distinct; a single `--target` is not needed for a
+   pre-merge plan or assessment.
+
+On an invalid patch, compare its section/key nesting with the linked example and
+[operations-config.md](operations-config.md); do not broaden the update or erase
+existing controls to satisfy validation. An empty `{}` patch is valid for a selected
+migration; runtime/delivery flags can also be previewed without an operations file.
+Product scope, acceptance and unrelated files require their own reviewed changes.
 
 ## Preservation and recovery
 
