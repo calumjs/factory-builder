@@ -175,6 +175,9 @@ def legacy_phase_template(phase):
         # Freeze the supported legacy identity; new guide examples must not
         # silently redefine a previously reviewed migration source.
         guide=(ROOT/'scripts/fixtures/pre_latency_verify_guide.txt').read_text(encoding='utf-8')
+    elif phase=='plan':
+        # Preserve the reviewed legacy identity when adding spec-challenge guidance.
+        guide=(ROOT/'scripts/fixtures/pre_spec_challenge_plan_guide.txt').read_text(encoding='utf-8')
     return '---'+template.split('---',2)[1]+'---\n\n'+guide
 
 

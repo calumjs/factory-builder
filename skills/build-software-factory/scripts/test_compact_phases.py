@@ -62,6 +62,12 @@ class CompactGenerationTests(unittest.TestCase):
                 start=prior.index('### Optional targeted mutation-delay probe\n')
                 end=prior.index('## Reconcile shared-contract impact\n',start)
                 prior=prior[:start]+prior[end:]
+            elif phase=='plan':
+                # Additive spec-challenge guidance must not redefine the reviewed
+                # legacy template or discard any earlier Plan procedure.
+                start=prior.index('## Challenge acceptance before decomposition\n')
+                end=prior.index('1. Read the accepted brief',start)
+                prior=prior[:start]+prior[end:]
             self.assertEqual(digest(prior),baseline['templates'][phase])
             self.assertEqual(digest(legacy[f'.claude/skills/factory-{phase}/SKILL.md']),baseline['minimal_skills'][phase])
             source=phase_skill(legacy_phase_template(phase)).split('---',2)[2].strip()+'\n\n'+RETURN
