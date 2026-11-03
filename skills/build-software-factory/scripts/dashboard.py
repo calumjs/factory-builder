@@ -450,6 +450,7 @@ header h1{margin:0;font-size:1.9rem;letter-spacing:-.01em}header .sub{color:var(
 .ring{width:96px;height:96px;border-radius:50%;display:grid;place-items:center;flex:none}
 .ring span{width:72px;height:72px;border-radius:50%;background:var(--panel);display:grid;place-items:center;font-weight:700;font-size:1.1rem}
 .row{display:flex;gap:18px;align-items:center}
+.tally{list-style:none;margin:0 0 8px;padding:0;font-size:.85rem}.tally li{margin:2px 0}
 table{border-collapse:collapse;width:100%;font-size:.88rem}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);overflow-wrap:anywhere;vertical-align:top}
 th{color:var(--muted);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}tr:last-child td{border-bottom:0}
 .scroll{overflow:auto;min-width:0}.gate-table th,.gate-table td{white-space:nowrap;overflow-wrap:normal}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--off);margin-right:6px}.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
@@ -470,7 +471,8 @@ RUN_CLASS = {'completed': 'ok', 'failed': 'bad', 'blocked': 'warn', 'stopped': '
 TASK_CLASS = {'done': 'ok', 'in_progress': 'run', 'blocked': 'warn', 'pending': ''}
 
 
-def page(data):
+def page(data, *, supplemental_html=''):
+    # Internal extension point for trusted escaped renderers, never raw supplied markup.
     def text(value):
         return escape(str(value), quote=True)
     def when(value):
@@ -500,6 +502,9 @@ def page(data):
     total = sum(counts.values()) or 1
     required = [g for g in gates if g['required']]
     passed = [g for g in required if g['state'] == 'PASSED']
+    # Shown beside PASSED, never added to it: a recorded N/A may still lack a valid exception.
+    not_applicable = [g for g in required if g['state'] == 'NOT APPLICABLE']
+    optional = [g for g in gates if not g['required']]
     pre = [g for g in gates if g['stage'] == 'pre-merge']
     runs = data.get('runs', [])
     release = data['release']
@@ -542,11 +547,22 @@ def page(data):
     bar = ''.join('<i style="width:'+str(round(100*counts[k]/total, 2))+'%;background:'+c+'"></i>' for k, _, c in segs)
     legend = ''.join('<span><i style="background:'+c+'"></i>'+text(l)+' '+str(counts[k])+'</span>' for k, l, c in segs)
     pct = round(100*len(passed)/len(required)) if required else 0
-    ring = ('<div class="ring" style="background:conic-gradient(var(--ok) '+str(pct)+'%,var(--chip) 0)"><span>'+str(len(passed))+'/'+str(len(required))+'</span></div>')
+    ring = ('<div class="ring" role="img" aria-label="'+text(str(len(passed))+' of '+str(len(required))+' required gate rows recorded PASSED')+'"'
+            ' style="background:conic-gradient(var(--ok) '+str(pct)+'%,var(--chip) 0)"><span aria-hidden="true">'+str(len(passed))+'/'+str(len(required))+'</span></div>')
+    if required:
+        tally = ('<ul class="tally" aria-label="Required gate rows by recorded result">'
+                 '<li><b>'+str(len(passed))+'</b> recorded PASSED</li>'
+                 '<li><b>'+str(len(not_applicable))+'</b> recorded NOT APPLICABLE; shown separately, not counted as passed, and its exception is not validated here</li>'
+                 '<li><b>'+str(len(required)-len(passed)-len(not_applicable))+'</b> other recorded result (FAILED, BLOCKED, NOT RUN or unrecognized)</li></ul>')
+    else:
+        tally = '<p class="empty">No required gate rows recorded.</p>'
+    if optional:
+        tally += '<p class="note">'+str(len(optional))+' optional row'+('' if len(optional)==1 else 's')+' shown as WAIVED; excluded from these counts.</p>'
+    tally += '<p class="note">Counts span recorded revisions; they are not release readiness. Use the gate checker or selected record assessment for one subject.</p>'
     gate_pills = ' '.join(pill(g['id']+' '+g['state'], GATE_CLASS.get(g['state'], 'warn')) for g in gates)
     body += '<div class="grid g2" style="margin-bottom:16px">'
     body += panel('Progress', 'Recorded task states; not a live queue.', '<div class="bar">'+bar+'</div><div class="legend">'+legend+'</div>')
-    body += panel('Required gates passed', 'For the recorded revisions; readiness for one revision comes from the gate checker.', '<div class="row">'+ring+'<div>'+gate_pills+'</div></div>')
+    body += panel('Required gates passed', 'For the recorded revisions; readiness for one revision comes from the gate checker.', '<div class="row">'+ring+'<div>'+tally+gate_pills+'</div></div>')
     body += '</div>'
 
     # Tables: the wider gate evidence needs a full row and an independently scrollable table.
@@ -583,6 +599,7 @@ def page(data):
     details += '<details><summary>Project observations and usage</summary>'+table([('name','Metric'),('value','Value'),('unit','Unit'),('freshness','State'),('source','Source'),('observed_at','Observed')], data['metrics'])+'<p class="note">'+text(data['usage'])+'</p></details>'
     details += '<details><summary>Artifact provenance</summary>'+table([('artifact','Artifact'),('modified_at','Modified'),('freshness','Freshness'),('sha256','SHA256')], data['sources'])+'</details>'
     body += '<section class="panel">'+details+'</section>'
+    body += supplemental_html
     body += '<footer>'+text(data['mode'])+'. No application check, release, watcher or worker was executed by this overview.</footer>'
     return '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta http-equiv="Content-Security-Policy" content="default-src \'none\'; style-src \'unsafe-inline\'; base-uri \'none\'; form-action \'none\'"><title>'+title+'</title><style>'+STYLE+'</style></head><body><main>'+body+'</main></body></html>\n'
 
