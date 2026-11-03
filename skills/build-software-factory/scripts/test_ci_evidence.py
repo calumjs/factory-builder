@@ -10,7 +10,7 @@ import time
 import unittest
 from unittest.mock import patch
 
-from ci_evidence import Git, assess_ci, bounded_run, full_sha, relative
+from ci_evidence import Git, assess_ci, bounded_run, error_diagnostic, full_sha, relative
 from scaffold import ROOT, render
 
 
@@ -107,7 +107,7 @@ class CIEvidenceTests(unittest.TestCase):
         from integrity import digest
         baseline=self.subject
         for name in ('config.json','test-map.json'):
-            for mode in ('changed','wrong-digest','missing-entry'):
+            for mode in ('changed','wrong-digest','missing-entry','missing-file'):
                 with self.subTest(name=name,mode=mode):
                     self.git('reset','--hard',baseline)
                     manifest_path=self.factory/'manifest.json';manifest=json.loads(manifest_path.read_text())
@@ -119,13 +119,68 @@ class CIEvidenceTests(unittest.TestCase):
                         path.write_bytes(path.read_bytes()+b' \n')
                     elif mode=='wrong-digest':
                         manifest['contracts'][name]='0'*64
-                    else:
+                    elif mode=='missing-entry':
                         del manifest['contracts'][name]
+                    else:
+                        path.unlink()
                     manifest_path.write_text(json.dumps(manifest),encoding='utf-8')
                     subject=self.commit()
+                    before={p.relative_to(self.factory).as_posix():p.read_bytes() for p in self.factory.rglob('*') if p.is_file()}
                     result=subprocess.run([sys.executable,str(ROOT/'scripts/ci_evidence.py'),'--repo',str(self.repo),'--factory','.software-factory','--subject',subject,'--storage',subject,'--stage','pre-merge'],capture_output=True,text=True)
                     self.assertEqual(result.returncode,2,result.stderr)
-                    self.assertIn('Manifest file set mismatch' if mode=='missing-entry' else 'Contract integrity mismatch',result.stderr)
+                    self.assertIn('Manifest file set mismatch' if mode in ('missing-entry','missing-file') else 'Contract integrity mismatch',result.stderr)
+                    diagnostic=json.loads(result.stderr)
+                    self.assertEqual(diagnostic['assessment'],'error')
+                    for hint in ('scaffold.py --check <factory-directory>',
+                                 'recover_factory.py --factory <factory-directory>',
+                                 '--baseline <independently-accepted-baseline>',
+                                 '--baseline-manifest-sha256 <accepted-baseline-raw-sha256>',
+                                 '--baseline-reference <accepted-provenance>',
+                                 '--output <new-recovery-directory>',
+                                 'not the broken merge', 'needs manual recovery',
+                                 'Do not rehash to bypass failure', 'No files were modified'):
+                        self.assertIn(hint,diagnostic['error'])
+                    self.assertNotIn('--apply',diagnostic['error'])
+                    self.assertEqual(result.stdout,'')
+                    self.assertEqual(before,{p.relative_to(self.factory).as_posix():p.read_bytes() for p in self.factory.rglob('*') if p.is_file()})
+                    self.assertEqual(self.git('status','--porcelain'),'')
+
+    def test_template_integrity_failure_hides_private_names_and_propagates_error(self):
+        from integrity import digest
+        baseline=self.subject
+        for mode in ('wrong-digest','missing-entry','missing-file'):
+            with self.subTest(mode=mode):
+                self.git('reset','--hard',baseline)
+                name='PRIVATE_SYNTHETIC_CONTRACT.txt'
+                path=self.factory/name;path.write_text('PRIVATE_SYNTHETIC_CONTENT',encoding='utf-8')
+                manifest_path=self.factory/'manifest.json';manifest=json.loads(manifest_path.read_text())
+                if mode!='missing-entry':manifest['contracts'][name]='0'*64 if mode=='wrong-digest' else digest(path.read_bytes())
+                if mode=='missing-file':path.unlink()
+                manifest_path.write_text(json.dumps(manifest),encoding='utf-8')
+                subject=self.commit()
+                before={p.relative_to(self.factory).as_posix():p.read_bytes() for p in self.factory.rglob('*') if p.is_file()}
+                env=dict(os.environ,FACTORY_PYTHON=sys.executable,
+                         FACTORY_TRUSTED_HELPER=str(ROOT/'scripts/ci_evidence.py'),
+                         FACTORY_REPO=str(self.repo),FACTORY_TESTED_SUBJECT_SHA=subject,
+                         FACTORY_EVIDENCE_STORAGE_SHA=subject,FACTORY_STAGE='pre-merge')
+                result=subprocess.run([sys.executable,'-B',str(ROOT/'assets/templates/ci/job.example.py')],
+                                      capture_output=True,text=True,env=env)
+                self.assertEqual(result.returncode,2,result.stderr)
+                self.assertEqual(json.loads(result.stderr)['assessment'],'error')
+                self.assertIn('recover_factory.py --factory',result.stderr)
+                self.assertNotIn('PRIVATE_SYNTHETIC',result.stdout+result.stderr)
+                self.assertNotIn(str(self.repo),result.stdout+result.stderr)
+                self.assertEqual(before,{p.relative_to(self.factory).as_posix():p.read_bytes() for p in self.factory.rglob('*') if p.is_file()})
+                self.assertEqual(self.git('status','--porcelain'),'')
+
+    def test_integrity_hint_does_not_redirect_unrelated_errors_into_recovery(self):
+        for message in ('HEAD must be the explicit evidence-storage commit',
+                        'Local Git rev-parse failed', 'Expected a canonical relative repository path'):
+            self.assertEqual(error_diagnostic(ValueError(message)),message)
+        result=subprocess.run([sys.executable,'-B',str(ROOT/'scripts/recover_factory.py'),'--help'],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        for flag in ('--factory','--baseline','--baseline-manifest-sha256','--baseline-reference','--output'):
+            self.assertIn(flag,result.stdout)
 
     def test_evidence_only_storage_keeps_original_tested_subject_and_future_post_stage(self):
         self.record();storage=self.commit()

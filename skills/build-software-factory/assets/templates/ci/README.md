@@ -82,6 +82,16 @@ helper regression cannot establish that hosted CI runs, propagates failure or is
 required by repository policy. Never automatically rehash a failed contract to
 make CI green; preserve the input and use reviewed recovery.
 
+Contract digest and manifest file-set failures retain a nonzero exit and give a
+private inspection command plus a preview-only `recover_factory.py` command.
+CI output withholds arbitrary contract filenames; inspect them within approved
+private access using the trusted `scaffold.py --check <factory-directory>` helper.
+Supply approved absolute interpreter/helper paths and an independently accepted,
+valid baseline, never the broken merge merely because it is current. Follow
+`references/recovery.md` in the installed builder; corrupt or semantically changed
+manifests require manual recovery. The hint neither repairs nor rehashes anything,
+and recovery preview does not approve selective changes or activate its output.
+
 ## Evidence-only envelope
 
 For S != E the stock helper permits only modifications to four existing living
