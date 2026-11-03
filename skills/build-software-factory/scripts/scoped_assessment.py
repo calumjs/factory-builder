@@ -4,9 +4,9 @@ import hashlib
 import json
 from pathlib import Path
 import sys
-from gates import gate_rows, problems, requirements, policy_controls, ROW
+from gates import gate_rows, problems, requirements, policy_controls, post_target_problems, ROW
 from integrity import check, safe_path, strict_json
-from operations import controls, operations, smoke_checks, unresolved
+from operations import controls, operations, smoke_checks
 
 
 def load(factory):
@@ -66,8 +66,7 @@ def assess_scope(factory, scope, stage, revision, target=None):
     if stage=='post-merge' and smoke['post_merge_applicability']=='applicable' and rows.get('G3',{}).get('required')=='yes':
         recipe=smoke_checks(smoke).get('G3');kind=recipe['target']['kind'] if recipe else smoke['target_kind']
         planned=recipe['target']['value'] if recipe else smoke['deployed_url']
-        if kind=='unconfirmed' or unresolved(target):found.append('Actual post-release target or target kind is unresolved')
-        elif not unresolved(planned) and target!=planned:found.append('Actual post-release target differs from the configured target')
+        found.extend(post_target_problems(kind,planned,target))
     for tid in scope['tasks']:
         events=[e for e in plan.get('events',[]) if e['task_id']==tid]
         if tasks[tid]['status']!='done' or not events or any(events[-1][k]!=v for k,v in (('status','done'),('result','passed'),('revision',revision))):

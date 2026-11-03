@@ -12,7 +12,7 @@ import re
 import stat
 import unicodedata
 from gates import gate_rows, policy_controls, requirements
-from integrity import check, digest, LIVING, safe_path
+from integrity import check, digest, json_diagnostic, LIVING, safe_path
 from operations import controls
 from research import validate_research
 from scaffold import validate
@@ -115,7 +115,9 @@ def capture(root):
                     raise ValueError('File changed while reading; obtain a stable snapshot')
                 if len(data)!=meta.st_size:raise ValueError('Incomplete/changed recovery read')
                 data.decode('utf-8-sig')
-                if name.casefold().endswith('.json'):strict_json(data)
+                if name.casefold().endswith('.json'):
+                    try:strict_json(data)
+                    except ValueError as exc:raise json_diagnostic(path,data.decode('utf-8-sig'),exc) from exc
                 total+=len(data)
                 if total>MAX_TOTAL:raise ValueError('Recovery total-size limit exceeded')
                 files[name]=data;identities[name]=(meta.st_dev,meta.st_ino,meta.st_size,meta.st_mtime_ns)
@@ -294,7 +296,8 @@ def read_metadata(path):
         raise ValueError('Recovery metadata must be a bounded regular non-redirected file')
     with path.open('rb') as stream:data=stream.read(MAX_TOTAL+1)
     if len(data)>MAX_TOTAL:raise ValueError('Recovery metadata grew beyond limit')
-    return strict_json(data)
+    try:return strict_json(data)
+    except ValueError as exc:raise json_diagnostic(path,data.decode('utf-8-sig'),exc) from exc
 
 
 def verify_output(output,backup,plan):

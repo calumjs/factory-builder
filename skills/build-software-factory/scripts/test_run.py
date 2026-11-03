@@ -10,6 +10,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 import run
 from scaffold import ROOT, render, main as scaffold_main
 from integrity import check, digest
@@ -194,6 +195,56 @@ class RunTests(unittest.TestCase):
         self.config['tasks']=[task('T1',paths=['src/../other'])]
         root=self.write();result=run.select(*self.load(root),runs=self.project/'.factory-runs',now=NOW)
         self.assertEqual(result['candidates'],[]);self.assertIn('unsafe',result['blocked'][0]['reason'])
+
+    def test_literal_bracket_paths_are_narrow_and_overlap_conservatively(self):
+        self.config['tasks']=[task('T1',paths=['app/(crm)/contacts/[id]/']),task('T2',paths=['app/(crm)/contacts/[id]/edit']),task('T3',paths=['app/(crm)/contacts/[slug]/'])]
+        root=self.write();result=run.select(*self.load(root),runs=self.project/'.factory-runs',now=NOW)
+        self.assertEqual([x['task_id'] for x in result['candidates']],['T1','T3'])
+        self.assertTrue(any(x['task_id']=='T2' and 'overlap' in x['reason'] for x in result['blocked']))
+        self.assertTrue(run.overlaps({'allowed_paths':['app/[ID]']},{'allowed_paths':['APP/[id]/edit']}))
+        self.assertTrue(run.overlaps({'allowed_paths':['café']},{'allowed_paths':['cafe\u0301/file']}))
+        for value in ('app/*','app/?','app/../other','app/x.','app\\[id]'):
+            self.assertFalse(run.valid_paths(root,[value]),value)
+        with patch.object(run,'safe_path',side_effect=ValueError('synthetic redirected path')) as safe:
+            self.assertFalse(run.valid_paths(root,['app/(crm)/contacts/[id]/']))
+            safe.assert_called_once_with(root.parent/'app/(crm)/contacts/[id]/')
+
+    def test_issue_snapshot_documentation_and_repository_diagnostic(self):
+        guide=(ROOT/'references/running.md').read_text(encoding='utf-8')
+        for part in ('JSON array', '"submitter"', '"created_at"', '"depends_on"', 'before the', 'selective manifest entries'):
+            self.assertIn(part,guide)
+        self.config['operations']['issue_intake']['status']='enabled'
+        root=self.write();issue=[{'id':'42','submitter':'alice','labels':['ready'],'depends_on':[]}]
+        wrong={'repository':'other/repo','ready_label':'ready','excluded_labels':[]}
+        result=run.select(*self.load(root),runs=self.project/'.factory-runs',issues=issue,now=NOW,issue_policy=wrong)
+        self.assertIn('does not match configured issue_intake.github_scope',result['issues']['rejected'][0]['reason'])
+
+    def test_snapshot_fixture_and_field_diagnostics(self):
+        self.config['operations']['issue_intake']['status']='enabled'
+        self.config['operations']['autonomy']['allowed_submitters']=['operator']
+        root=self.write();before={p.relative_to(root):p.read_bytes() for p in root.rglob('*') if p.is_file()}
+        issues=json.loads((ROOT/'assets/example-issue-snapshot.json').read_text())
+        policy={'repository':'org/repo','ready_label':'ready','excluded_labels':['paused']}
+        result=run.select(*self.load(root),runs=self.project/'.factory-runs',issues=issues,now=NOW,issue_policy=policy)
+        self.assertEqual([i['id'] for i in result['issues']['eligible']],['42'])
+        for field,value,reason in (('id',42,'string id'),('labels',[{'name':'ready'}],'labels'),('submitter',{'login':'operator'},'submitter'),('created_at',17,'created_at'),('depends_on',False,'depends_on')):
+            bad=copy.deepcopy(issues);bad[0][field]=value
+            result=run.select(*self.load(root),runs=self.project/'.factory-runs',issues=bad,now=NOW,issue_policy=policy)
+            self.assertEqual(result['issues']['eligible'],[])
+            self.assertIn(reason,result['issues']['rejected'][0]['reason'])
+        self.assertEqual(before,{p.relative_to(root):p.read_bytes() for p in root.rglob('*') if p.is_file()})
+        self.assertFalse((self.project/'.factory-runs').exists())
+
+    def test_runs_option_and_snapshot_cli_are_read_only(self):
+        self.config['operations']['issue_intake']['status']='enabled'
+        self.config['operations']['autonomy']['allowed_submitters']=['operator']
+        root=self.write();policy=self.project/'policy.json'
+        policy.write_text(json.dumps({'repository':'org/repo','ready_label':'ready','excluded_labels':[]}))
+        runs=self.project/'external-runs'
+        result=subprocess.run([sys.executable,'-B',str(ROOT/'scripts/run.py'),'--factory',str(root),'--runs',str(runs),'select','--issues',str(ROOT/'assets/example-issue-snapshot.json'),'--issue-policy',str(policy)],capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr)
+        self.assertEqual([i['id'] for i in json.loads(result.stdout)['issues']['eligible']],['42'])
+        self.assertFalse(runs.exists());check(root,quiet=True)
 
     def test_policy_config_drift_blocks_runner_load(self):
         root=self.write();path=root/'policy.md'

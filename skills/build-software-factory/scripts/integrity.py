@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path, PurePosixPath
 from assumptions import assumptions
+from learning_table import validate_learning_log
 
 LIVING = frozenset(('verification.md', 'task-plan.json', 'learning-log.md', 'release-handoff.md', 'tools.json'))
 
@@ -53,7 +54,24 @@ def strict_json(text):
             if key in result: raise ValueError('Duplicate JSON object key')
             result[key] = value
         return result
-    return json.loads(text, object_pairs_hook=unique)
+    def constant(value): raise ValueError('Non-finite JSON number')
+    return json.loads(text, object_pairs_hook=unique, parse_constant=constant)
+
+def json_diagnostic(name, text, error):
+    """Identify the input without displaying content or parser-supplied values."""
+    label = json.dumps(str(name), ensure_ascii=True)
+    if any(line.lstrip().startswith(('<<<<<<<', '=======', '>>>>>>>')) for line in text.splitlines()):
+        return ValueError('Unresolved merge conflict in ' + label + '; preserve original bytes and both sides; use references/recovery.md section 1. No automatic re-hash or repair was performed.')
+    location = (' (line ' + str(error.lineno) + ', column ' + str(error.colno) + ')') if isinstance(error, json.JSONDecodeError) else ''
+    kind = ('Duplicate JSON object key' if str(error) in ('Duplicate JSON object key', 'Duplicate JSON key') else
+            'Non-finite JSON number' if str(error) == 'Non-finite JSON number' else 'Invalid JSON')
+    return ValueError(kind + ' in ' + label + location + '; inspect the named input and references/recovery.md before any repair')
+
+def read_json(path):
+    path = safe_path(path)
+    text = path.read_text(encoding='utf-8-sig')
+    try: return strict_json(text)
+    except ValueError as exc: raise json_diagnostic(path, text, exc) from exc
 
 def validate_task_plan(plan):
     if not isinstance(plan, dict) or not isinstance(plan.get('tasks'), list) or not isinstance(plan.get('events', []), list):
@@ -94,8 +112,8 @@ def check(path, *, quiet=False):
     for item in p.rglob('*'):
         if redirected(item):
             raise ValueError('Redirected path inside factory ' + json.dumps(str(p)) + ': ' + json.dumps(str(item)))
-    m = json.loads(manifest.read_text(encoding='utf-8-sig'))
-    if m.get('schema') != 2 or m.get('hash_mode') != 'utf8-lf' or not isinstance(m.get('contracts'), dict) or not isinstance(m.get('living'), list):
+    m = read_json(manifest)
+    if not isinstance(m, dict) or m.get('schema') != 2 or m.get('hash_mode') != 'utf8-lf' or not isinstance(m.get('contracts'), dict) or not isinstance(m.get('living'), list):
         raise ValueError('Unsupported manifest; legacy schema 1 requires a reviewed migration, never automatic rebaselining')
     names = list(m['contracts']) + m['living']
     if len(names) != len(set(names)) or set(m['living']) != LIVING:
@@ -116,15 +134,19 @@ def check(path, *, quiet=False):
     for name, expected in m['contracts'].items():
         if digest((p/name).read_bytes()) != expected:
             raise ValueError('Contract integrity mismatch: ' + name)
+        if name.endswith('.json'):
+            read_json(p/name)
     for name in m['living']:
         body = (p/name).read_text(encoding='utf-8-sig')
+        if name == 'learning-log.md':
+            validate_learning_log(body)
         if name.endswith('.json'):
-            value = strict_json(body)
+            value = read_json(p/name)
             if name == 'task-plan.json':
                 validate_task_plan(value)
             elif not isinstance(value, dict):
                 raise ValueError('Invalid living tool registry')
-    assumptions(json.loads((p/'config.json').read_text(encoding='utf-8-sig')))
+    assumptions(read_json(p/'config.json'))
     if not quiet:
         print(f"PASS: {len(m['contracts'])} contract files match; {len(m['living'])} living files have valid basic structure. Living content and evidence truth are not attested; application checks were not run.")
     return m

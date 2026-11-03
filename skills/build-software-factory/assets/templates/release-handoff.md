@@ -16,6 +16,9 @@ Migration-before-traffic or compatible expand/contract evidence; automatic promo
 Owner start, latest observation and terminal timestamps (UTC); outcome SUCCESS / FAILED / CANCELLED / UNKNOWN:
 If a terminal marker is absent, record UNKNOWN, not success. Check the actual action and durable evidence before reporting an outcome. A stale or missing owner needs diagnosis and an authorized handoff under the agreed coordination procedure; a local claim alone proves neither exclusion nor permission to take over.
 Actual intended web/artifact target:
+For recorded post-action assessment, supply the separately observed target explicitly:
+`python <builder-scripts>/gates.py --factory <factory-root> --stage post-merge --revision <actual-subject> --target <actual-target>`.
+The planned target is not deployment evidence. This command checks records and does not deploy or execute acceptance tests.
 Changed-feature confirmation: comparison base, reviewed subject, changed paths, acceptance IDs and test-map/equivalent references:
 Selected target-safe tests/assertions and G3 or named post-action row; approved actors, data/setup/cleanup prerequisites and unresolved authority:
 Named authorizer, allowed action and boundaries:

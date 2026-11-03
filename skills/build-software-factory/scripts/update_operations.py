@@ -111,6 +111,7 @@ COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS = {'integrity.py':'8585924619380d8434083dd6f5
 COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION = {
     'integrity.py':'0a830ff249d538daf1783e58a0318bafaf6c022ec768c648d06d72df7e33894d',
     'dashboard.py':'cdc39b7c105c6270b0d491676dd05c4a081a149e5c17704fcfa256808e95ead7'}
+COMPATIBLE_CONTEXT_V113 = {'integrity.py':'87c8fdc0f300917a08af9afddf5275e5b744ac529b6e8d405e7919ddc26912f7'}
 V19_DELIVERY_ADDENDUM = {
     'intake': ('f48fc8e0956c99003f8c46bfaae76c9847cd086332cc99bf25cb74b134742b5d','c179a72f3b39cb7d181a9e04fa0cb2143747f4b7b1039bf0347d042d17900bc3'),
     'verify': ('8d861d2de61e8a4c14d7fcc1109a91395943bea8c38b30407a9962352b2e3e76','bfcae3e6622ec55ff2f232bb630ac7c340978c7dff9462c1ead95e7ff36592d9','2599dd944575f04c6a8a25916c7f63037d3168bbb5140f3c885b6d1b13e33a4c','4662208da23353e382335504b5035771f23d05f108833e2a3e86be13d518fcd3','393cbed734fc4011bcf52eaa1d48111fa49dcaac79c5b2e8fb3320f50194eafd'),
@@ -129,6 +130,7 @@ COMPATIBLE_GATE_PRE_DIAGNOSTICS = {'gates.py':'45ba27c4aeee79b8be18dd729526c2e79
 COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION = {
     'gates.py':'d1411d3f0d75e112d6d463c22c307f3407b6c9de0bfc862505f2c487761882bf',
     'operations.py':'c0a11db48df30f2b29f3770eb52a784d1b9b425a91420df8e5175470cb6eca2a'}
+COMPATIBLE_GATE_V113 = {'gates.py':'bb706626fb04bf509ff4cb8805d0da353c4add1309f310441bc1dbbde7fe5da4'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -137,7 +139,7 @@ def gate_runtime_plan(root, original, replacement, opted_in):
         wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename))
         if compatible and not opted_in:continue
         known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
         if not known and not compatible and not (current is None and filename=='recipes.py'):
@@ -152,13 +154,23 @@ def context_runtime_plan(root, original, replacement, opted_in):
         path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename))
         if compatible and not opted_in:continue
         if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename) and not compatible:
             raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')
         if not opted_in:
             raise ValueError('Assumptions need updated dashboard context; preview with --context-runtime')
         original[name]=current;replacement[name]=wanted
+    # Older helpers have no dependency on the Learn parser. Preserve that bundle
+    # during unrelated updates; the explicit context plan adds the new dependency.
+    if opted_in:
+        name='dashboard/learning_table.py';path=root/name
+        wanted=(ROOT/'scripts/learning_table.py').read_bytes()
+        current=path.read_bytes() if path.exists() else None
+        if current is not None and digest(current)!=digest(wanted):
+            raise ValueError('Customized/unsupported dashboard Learn parser preserved; review manually')
+        if current is None:
+            original[name]=None;replacement[name]=wanted
 
 
 def unchanged(root, name, expected):

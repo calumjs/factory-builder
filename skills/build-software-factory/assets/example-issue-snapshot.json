@@ -1,0 +1,10 @@
+[
+  {
+    "id": "42",
+    "title": "SYNTHETIC snapshot schema example; no issue was fetched",
+    "submitter": "operator",
+    "created_at": "2026-01-01T00:00:00Z",
+    "labels": ["ready"],
+    "depends_on": []
+  }
+]

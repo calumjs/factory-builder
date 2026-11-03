@@ -56,6 +56,19 @@ V2 never certifies V1. Missing, moved or duplicate expected rows are errors; eac
 
 ## Existing factories
 
+Each acceptance ID has one stage and one canonical row. Do not duplicate an A row
+to record post-action confirmation. Keep its original evidence and reference the
+acceptance IDs actually exercised by the G3 check, or define a distinct unique
+post-action acceptance criterion when needed. A reference is not evidence that the
+check executed or passed. For optional machine-readable cross-references without
+changing gate rows, see [acceptance-links.md](acceptance-links.md).
+
+For actual post-action confirmation, record the complete command and result:
+`gates.py --factory <factory> --stage post-merge --revision <actual-subject> --target <actual-target>`.
+The actual subject and target must be observed independently of the configured
+plan. A missing `--target` and an unconfirmed configured target kind are separate
+diagnostics; a planned URL never supplies a missing observation automatically.
+
 Use `update_operations.py`'s preview/digest/apply flow. New checks or triggers need compatible copied dashboard, recipes and gates helpers: `--gate-runtime` upgrades known original v1.2-v1.5.1 sources, the exact published v1.7 gate helper, and a known missing v1.2 recipes dependency; custom or unknown code is refused and preserved. The published v1.7 gate helper remains in place by default and needs the opt-in to receive duplicate-policy diagnostics. Review code, config, policy, rows, manifest and the backup together. A plugin upgrade alone rewrites nothing.
 
 ## Risk-focused verification

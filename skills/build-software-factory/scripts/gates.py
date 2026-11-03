@@ -160,6 +160,16 @@ def waivers(text,stage):
     return [gate+' WAIVED (recorded '+row['result']+')' for gate,row in gate_rows(text).items() if row['stage']==stage and row['required']=='no']
 
 
+def post_target_problems(kind, planned_target, target):
+    """Require separately observed target evidence; planned values are not proof."""
+    issues=[]
+    if kind=='unconfirmed':issues.append('Configured post-release target kind is unconfirmed; resolve the release design')
+    if unresolved(target):issues.append('Post-merge confirmation requires the actual --target; pass the observed deployment or artifact target')
+    if not issues and not unresolved(planned_target) and target!=planned_target:
+        issues.append('Actual post-release target differs from the configured target')
+    return issues
+
+
 def control_differences(left, right, path='controls'):
     """Return differing field paths without exposing configured or recorded values."""
     if type(left) is not type(right):return [path]
@@ -195,10 +205,8 @@ def assess(factory, stage, revision, target=None):
         recipe=smoke_checks(s).get('G3')
         kind=recipe['target']['kind'] if recipe else s['target_kind']
         planned_target=recipe['target']['value'] if recipe else s['deployed_url']
-        if kind=='unconfirmed' or unresolved(target):
-            return ['Actual post-release target or target kind is unresolved']
-        if not unresolved(planned_target) and target!=planned_target:
-            return ['Actual post-release target differs from the configured target']
+        issues=post_target_problems(kind,planned_target,target)
+        if issues:return issues
     return problems((root/'verification.md').read_text(encoding='utf-8-sig'),stage,revision,expected,target)
 
 def main():
@@ -206,7 +214,7 @@ def main():
     parser.add_argument('--factory',required=True,help='Directory whose current on-disk files are checked, including files untracked or ignored by Git')
     parser.add_argument('--stage',choices=STAGES)
     parser.add_argument('--revision',help='Exact evidence subject identifier to match in records; does not select or reconstruct a Git checkout. Reads current --factory files; no short/full SHA equivalence')
-    parser.add_argument('--target')
+    parser.add_argument('--target',help='Observed deployment or artifact target required for still-required post-merge confirmation; never inferred from the planned target')
     parser.add_argument('--plan',action='store_true',help='Print proposed gate rows; writes and executes nothing')
     args = parser.parse_args()
     if args.plan:
