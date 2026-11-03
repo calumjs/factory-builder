@@ -8,6 +8,10 @@ records need a reviewed correction, not an automatic alias or re-scaffold.
 
 ## Interpreter and preview
 
+For CI or unattended workers, first use the [headless preflight](headless-intake-preflight.md).
+The sibling-import helpers currently do not support Python `-I`; if isolated mode
+is mandatory, keep the command blocked rather than weakening that policy.
+
 Choose a working interpreter before running a helper. On Windows, `python` can be a Store alias. The bundled `scripts/run-python.ps1` checks PATH candidates (`python`, `python3`, `py -3`) and per-user Python installations, skips Store aliases, verifies Python 3.9+, prints the executable used and forwards arguments. It installs nothing. Alternatively use an explicitly verified interpreter path. On other systems, verify `python3 --version` or the selected environment.
 
 From the skill directory, after the user authorizes local scaffolding:

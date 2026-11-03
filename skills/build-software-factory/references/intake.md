@@ -9,6 +9,7 @@ Record each answer as **confirmed / inferred / unknown** with its source, owner 
 - What may it do without another approval, and what stays human-gated?
 
 ## Follow-ups, only where relevant
+- **Existing automation:** inspect permitted agent/bot workflow and configuration sources, trigger/state labels and owners; record an explicit coexist, replace or wrap decision using the [automation inventory](headless-intake-preflight.md#inspect-existing-automation-before-proposing-another-loop). Unresolved overlap keeps the proposed path inactive; inventory changes no other tool or settings.
 - **Product:** scope and non-goals, a representative first work item, deadline, release owner.
 - **Context:** architecture, business rules, authoritative docs, environments, existing repository instructions.
 - **Overview:** who operates the factory and which decisions need visibility; real task, worker, verification, release and usage sources; non-secret labels and freshness expectations ([dashboard.md](dashboard.md)).

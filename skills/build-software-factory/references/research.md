@@ -21,3 +21,8 @@ Use `assets/example-research.json`; `scripts/research.py` validates its structur
 Only a `complete` record applies practices. The helper appends each selected instruction and check to every mapped phase skill, writes the checks into verification.md as NOT RUN, and keeps full traceability in research.json and research.md. Anything else produces an explicitly labelled unresearched draft — ask whether to wait or deliver it. Synthetic records are for the offline tests only; never mark a fabricated source `read` in a real deliverable.
 
 Before handoff, trace each selected practice from source to phase instruction to planned check, confirm nothing rejected was applied, and state scope, exclusions and remaining gaps. Recheck version-specific claims when regenerating later.
+
+Research gate IDs follow selected-practice order, not practice IDs: the first
+selected P7 is R1, even when an unselected practice precedes it. Generated
+verification.md shows the mapping. Review the [worked mapping and setup/item scope](headless-intake-preflight.md#research-ids-and-setup-versus-per-item-assessment)
+before assigning stage overrides or changing selections; excluded scope is not a waiver.

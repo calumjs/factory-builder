@@ -31,6 +31,10 @@ not verify that a supplied revision is a Git commit or execute an application te
 There is no automatic evidence carry-forward. Assess the whole project separately
 with `gates.py`; only separately authorized actions may merge or deploy.
 
+For one-off setup mixed with per-item work, see the [explicit setup/item scope example](headless-intake-preflight.md#research-ids-and-setup-versus-per-item-assessment).
+It uses this existing helper and reports exclusions; it supplies no automatic
+setup exemption, evidence carry-forward or project-wide readiness claim.
+
 ## Feature-to-contract preflight
 
 Before a feature PR claims to close an issue, review its actual diff against the
