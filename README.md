@@ -32,6 +32,12 @@ claude --add-dir .software-factory      # keep --setting-sources project for hea
 
 The repository is private; the installing account needs access and working Git auth. For a session-only preview without installing: `claude --plugin-dir /path/to/software-factory-plugin`. Helpers need Python 3.9+ and only the standard library; see the [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for Windows interpreter selection.
 
+To run this plugin's offline tests from its checkout, use `python3 run_tests.py`
+(or `py -3 run_tests.py` on Windows). The runner locates the suite relative to
+itself, so an absolute path to `run_tests.py` also works from another directory.
+It reports a failure if discovery finds no tests. These checks do not run a live factory
+or verify a deployed application.
+
 ## How a pass works
 
 `run.py select` and `plan` inspect recorded task status and produce an advisory
@@ -103,7 +109,7 @@ reads use [Git ls-tree](https://git-scm.com/docs/git-ls-tree) and
 
 ```sh
 claude plugin validate . --strict
-python -m unittest discover -s skills/build-software-factory/scripts -p "test_*.py" -v
+python3 run_tests.py  # Windows: py -3 run_tests.py
 ```
 
 Tests use isolated temporary folders and synthetic records; they prove the helpers, not any application. Keep credentials, caches, backups and downstream factory outputs out of this repository.
