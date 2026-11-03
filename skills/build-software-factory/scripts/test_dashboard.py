@@ -99,6 +99,7 @@ class DashboardTests(unittest.TestCase):
         self.assertNotIn('PRIVATE',json.dumps([records,errors]))
 
     @unittest.skipUnless(os.name=='nt','Windows native reader')
+    @unittest.skipIf(os.name=='nt','Real Windows junction creation is not authorized in this test environment')
     def test_windows_history_absent_empty_and_reparse_entry(self):
         runs=self.base/'.factory-runs'
         self.assertEqual(run_records(runs,self.now,60),([],[]))
@@ -147,6 +148,7 @@ class DashboardTests(unittest.TestCase):
         self.assertEqual(name.read_text(encoding='utf-8'),'unchanged private value')
 
     @unittest.skipUnless(os.name=='nt','Windows native reader')
+    @unittest.skipIf(os.name=='nt','Real Windows junction creation is not authorized in this test environment')
     def test_windows_history_rejects_directory_junction(self):
         runs=self.base/'.factory-runs';target=self.base/'outside';target.mkdir()
         result=subprocess.run(['cmd','/c','mklink','/J',str(runs),str(target)],capture_output=True,text=True)
