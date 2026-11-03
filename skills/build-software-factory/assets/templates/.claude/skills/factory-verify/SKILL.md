@@ -12,6 +12,23 @@ description: Perform revision-bound pre-merge application verification and prepa
 4. Review promised failure properties beyond the happy path. Where the task uses caller IDs or durable persistence, exercise special-key and collision behaviour, save/load with fresh-process retries, removal semantics, and multibyte, short, zero and failed writes with disposable fault fixtures; seek independent review when risk warrants. A kill-before-commit smoke proves no complete-write guarantee.
 5. When a task-fitted secret or connection-string check applies, use connection-string-review.md: review candidate provenance with synthetic positive and negative fixtures. Localhost, fixture usernames and documentation paths are not exemptions. A revised check needs a reviewed contract change and fresh evidence.
 
+## Verify persistence and relevant environment parity
+For optimistic UI or asynchronous mutations, ordinary persistence assertions need a bounded wait for the relevant mutation's application-level persistence success, such as a committed-save acknowledgement or durable readback. A visible optimistic update, zero pending requests or a finished response alone is not proof of a successful save; surface failures and timeouts. Then reload or navigate and assert the persisted state. Keep separate interruption-during-write tests where the task requires them, so settling the ordinary assertion does not hide lost-write behavior. For relevant soft navigation, rapid input or concurrent changes, consider an authorized isolated latency/concurrency probe with distinct output/report locations; record the local-versus-target assumptions and limits.
+
+Adaptable Playwright-style sequence (synthetic helper names and selector): `armCommittedSave` must register observation before the action, correlate the intended mutation and resolve only on a project-verified committed-save signal; it must reject failed saves and timeouts. Implement and verify that project-specific helper first. `assertPersistedValue` checks the actual state after reload.
+
+```javascript
+const committed = armCommittedSave(page, expectedMutation);
+await Promise.all([
+  committed,
+  page.getByRole("button", { name: "Save" }).click()
+]);
+await page.reload();
+await assertPersistedValue(page, expectedValue);
+```
+
+When the task accepts query parameters through server rendering and client navigation, probe relevant encoded and malformed inputs across the initial server response, hydration and subsequent navigation. Compare outcomes and errors against the actual contract; local-server success does not establish hosting or edge parity. If an equivalent target cannot be exercised within authority, record the parity gap and carry the required check into the scoped release handoff for authorized actual-target confirmation. Do not convert an untested parity assumption into a passing observation.
+
 ## Reconcile shared-contract impact
 For a changed shared serialized shape or selection rule, compare the final diff with the Plan inventory and recheck producer, consumer and assertion references for omissions. Account for affected existing tests as well as new feature tests. Confirm each changed expectation follows the intended compatibility decision; preserve still-valid assertions and investigate an unexpected break rather than merely updating snapshots or loosening assertions until green. An append-only change can require an old exact-header test to change while a consumer that selects named fields stays unchanged.
 
