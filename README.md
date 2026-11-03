@@ -77,6 +77,9 @@ For a deterministic private checksum inventory from an explicit full local commi
 use the [immutable checksum exporter](skills/build-software-factory/references/checksum-export.md).
 It verifies committed object bytes and ignores the index/working tree; export alone
 does not authenticate a release, publish a manifest or verify an installed cache.
+The same guide documents `verify_install.py --manifest` for a read-only comparison
+requiring both an independently trusted raw manifest digest and full source commit.
+The existing `--source` comparison retains its clean-checkout requirement.
 
 Advance the plugin version for a new release containing changed plugin content;
 keep version references synchronized and identify the actual full source commit.

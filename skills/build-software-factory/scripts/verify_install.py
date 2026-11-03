@@ -162,8 +162,21 @@ def compare(installed, source, revision):
 
 def main():
     p=argparse.ArgumentParser(description=__doc__)
-    p.add_argument('--installed',required=True);p.add_argument('--source',required=True);p.add_argument('--revision',required=True)
-    args=p.parse_args();result=compare(args.installed,args.source,args.revision)
+    p.add_argument('--installed',required=True);p.add_argument('--revision',required=True)
+    mode=p.add_mutually_exclusive_group(required=True)
+    mode.add_argument('--source');mode.add_argument('--manifest',help='Exporter-v1 JSON outside the installation; requires an independent raw digest pin')
+    p.add_argument('--manifest-sha256',help='Independently obtained raw manifest SHA-256, never inferred from the supplied file')
+    args=p.parse_args()
+    if args.manifest is not None:
+        if not args.manifest_sha256:p.error('--manifest requires --manifest-sha256')
+        from verify_manifest import compare_manifest
+        try:result=compare_manifest(args.installed,args.manifest,args.manifest_sha256,args.revision)
+        except (ValueError,OSError,UnicodeError,TypeError,OverflowError,RecursionError):
+            print('ERROR: manifest comparison refused: invalid, untrusted, ambiguous, redirected, changed or over-limit inputs. No comparison result was emitted.',file=sys.stderr)
+            return 2
+    else:
+        if args.manifest_sha256 is not None:p.error('--manifest-sha256 requires --manifest, not --source')
+        result=compare(args.installed,args.source,args.revision)
     print(json.dumps(result,ensure_ascii=True,indent=2));return 0 if result['comparison']=='MATCH' else 1
 
 
