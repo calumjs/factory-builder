@@ -352,6 +352,12 @@ def apply(result,approved,stable_inputs=False):
     return backup
 
 
+def verification_argv(output,backup,plan):
+    """Literal process arguments for this trusted helper, never a shell command."""
+    return [sys.executable,'-B',str(Path(__file__).resolve()),'--verify-output',str(output),
+            '--backup',str(backup),'--plan-id',plan]
+
+
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
     for flag in ('factory','baseline','output','baseline-manifest-sha256','baseline-reference'):parser.add_argument('--'+flag)
@@ -377,6 +383,7 @@ def main():
     if args.apply:
         backup=apply(result,args.approve_plan,args.stable_inputs)
         print('RECOVERED SNAPSHOT ONLY; original unchanged; no application checks or activation performed. Verified backup: '+display(str(backup)))
+        print('VERIFY OUTPUT ARGV: '+json.dumps(verification_argv(result['target'],backup,result['plan']),ensure_ascii=True))
         from backup_advisory import inspect_backup_directory
         advice=inspect_backup_directory(result['target'].parent,backup.parent)
         if advice['status']!='ignored':print(advice['message'])
