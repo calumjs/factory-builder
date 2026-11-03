@@ -68,6 +68,20 @@ class VideoReactivationTests(unittest.TestCase):
         self.assertEqual(gate_rows(self.path.read_text())['V1']['required'],before)
         self.assert_fresh({'V2':True})
 
+    def test_missing_current_row_with_enabled_prior_config_requires_explicit_restoration(self):
+        self.edit();text=self.path.read_text()
+        old=next(line for line in text.splitlines() if line.startswith('| V1 |'))
+        text=text.replace(old+'\n','')
+        text+='\n## Historical observations (not current evidence)\n> '+old+'\n'
+        self.path.write_bytes(text.encode());before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'explicit current requiredness'):
+            prepare(self.root,{'done_videos':{'enabled':True}})
+        self.assertEqual(before,self.snapshot())
+        self.update({'done_videos':{'enabled':True}},video_requiredness={'V1':False})
+        self.assert_fresh({'V1':False})
+        self.assertEqual(gate_rows(self.path.read_text())['V2']['required'],'no')
+        self.assertIn('> '+old,self.path.read_text())
+
     def test_multiple_cycles_never_infer_latest_historical_preference(self):
         self.edit()
         for selective,choice in ((False,False),(True,True),(False,False)):

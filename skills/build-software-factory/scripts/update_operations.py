@@ -244,7 +244,7 @@ def selective_explanations(original, replacement, changes, *, delivery=False, as
             for gate,row in decision['rows'].items()]
 
 
-def video_reactivation_choices(text, expected, previous, choices):
+def video_reactivation_choices(text, expected, choices):
     """History identifies prior occurrence only; it never supplies a preference."""
     choices={} if choices is None else choices
     if not isinstance(choices,dict) or any(g not in ('V1','V2') or type(v) is not bool for g,v in choices.items()):
@@ -278,7 +278,7 @@ def video_reactivation_choices(text, expected, previous, choices):
         else:
             if gate in active:raise ValueError('Duplicate source gate row requires review: '+gate)
             active.add(gate)
-    added={g for g in ('V1','V2') if g in expected and g not in previous and g not in active}
+    added={g for g in ('V1','V2') if g in expected and g not in active}
     if set(choices)-added:
         raise ValueError('Video requiredness choices apply only to newly activated V1/V2 rows; unused choices refused')
     missing=sorted((added & retired)-set(choices))
@@ -302,7 +302,7 @@ def parse_video_requiredness(values):
 def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None, retained_rows=None, video_requiredness=None):
     expected=requirements(config,research)
     previous=requirements(prior_config,research) if prior_config is not None else {}
-    choices=video_reactivation_choices(text,expected,previous,video_requiredness)
+    choices=video_reactivation_choices(text,expected,video_requiredness)
     if retained_rows is not None and set(retained_rows)==set(expected)==set(gate_rows(text)):
         return text
     baseline=gate_rows(initial_table(prior_config,research)) if prior_config is not None else {}

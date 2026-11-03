@@ -209,7 +209,9 @@ being activated. The preview labels each choice and binds the resulting row to
 the normal `--apply --approve-plan <digest>` flow. Choosing optional adds no
 separate permission or approval step. A supplied user choice can be used directly.
 The helper refuses a missing choice for a gate identified in the explicit history
-section instead of silently making an old optional check required. History only
+section instead of silently making an old optional check required. When
+configuration still expects the gate but its current row is missing, historical
+occurrence also requires an explicit restoration choice. History only
 identifies prior occurrence: it never supplies instructions, preferences or
 current evidence. Malformed/ambiguous history requires manual review.
 
