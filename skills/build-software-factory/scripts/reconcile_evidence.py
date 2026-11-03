@@ -68,7 +68,17 @@ def text(raw):
     require(len(raw)<=MAX_RECORD,'Evidence record exceeds the byte limit')
     body=raw.decode('utf-8-sig')
     require('\r' not in body.replace('\r\n',''),'Lone carriage returns require separate record review')
+    require(not any(re.match(r'^[ \t]*(?:<{7,}|={7,}|>{7,}|\|{7,})(?:[ \t]|$)',line) for line in body.splitlines()),
+            'Unresolved merge markers require separate record reconciliation')
     return body
+
+
+def byte_format(raw):
+    """Expose byte-only changes that ordinary rendered diffs can hide."""
+    crlf=raw.count(b'\r\n')
+    return {'utf8_bom':raw.startswith(b'\xef\xbb\xbf'),'bytes':len(raw),
+            'line_endings':{'crlf':crlf,'lf':raw.count(b'\n')-crlf,'lone_cr':raw.count(b'\r')-crlf},
+            'final_newline':'crlf' if raw.endswith(b'\r\n') else 'lf' if raw.endswith(b'\n') else 'none'}
 
 
 def gate_document(raw):
@@ -283,8 +293,9 @@ def derive(sources,subject,decisions=None,decision_sha256=None):
     candidate={**base,**proposed};validate_snapshot(candidate)
     binding={'sources':source_hashes,'decisions':decisions,'decision_bytes':decision_sha256,'proposed':{name:sha(raw) for name,raw in proposed.items()}}
     report.update(status='PROPOSED',plan_sha256=sha(encoded(binding)),decisions_sha256=decision_sha256,
-                  proposed={name:{'sha256':sha(raw),'utf8':raw.decode()} for name,raw in proposed.items()},
-                  diffs={name:''.join(difflib.unified_diff(base[name].decode('utf-8-sig').splitlines(True),raw.decode().splitlines(True),fromfile=name+' (base)',tofile=name+' (proposed)')) for name,raw in proposed.items()},
+                  proposed={name:{'base_sha256':sha(base[name]),'sha256':sha(raw),'utf8':raw.decode()} for name,raw in proposed.items()},
+                  byte_formats={name:{'before':byte_format(base[name]),'after':byte_format(raw)} for name,raw in proposed.items()},
+                  diffs={name:''.join(difflib.unified_diff(base[name].decode('utf-8').splitlines(True),raw.decode().splitlines(True),fromfile=name+' (base)',tofile=name+' (proposed)')) for name,raw in proposed.items()},
                   history_origins=history_origins,event_origins=event_origins,learn_origins=learn_origins,
                   current_rows_outside_subject=[gate for gate,line in current_values.items() if gate_rows(line)[gate]['revision']!=subject],
                   task_status_notice='Task statuses are explicit copied side values; underlying event revisions remain unchanged and are not rebound to the selected subject.')

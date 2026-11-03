@@ -235,5 +235,30 @@ class ReconciliationTests(unittest.TestCase):
         (self.roots['left']/'verification.md').unlink()
         with self.assertRaises((ValueError,KeyError)):self.review()
 
+    def test_shared_merge_markers_in_prose_and_footer_refused(self):
+        for name in ('verification.md','learning-log.md'):
+            originals={side:self.read(side,name) for side in rec.SIDES}
+            for marker in ('<<<<<<< HEAD','=======','>>>>>>> branch','||||||| base','  <<<<<<< indented',
+                           '<<<<<<<< left','========','>>>>>>>> right','|||||||| base'):
+                for side in rec.SIDES:self.write(side,name,originals[side]+('\n'+marker+'\n').encode())
+                with self.subTest(name=name,marker=marker):
+                    with self.assertRaisesRegex(ValueError,'Unresolved merge markers'):self.review()
+            for side in rec.SIDES:self.write(side,name,originals[side])
+
+    def test_bom_crlf_and_final_newline_changes_are_visible(self):
+        for side in rec.SIDES:
+            for name in rec.RECORDS:
+                raw=self.read(side,name).replace(b'\r\n',b'\n').replace(b'\n',b'\r\n').rstrip(b'\r\n')
+                self.write(side,name,b'\xef\xbb\xbf'+raw)
+        self.choices();before=self.snapshot();result=self.review(True)
+        self.assertEqual(before,self.snapshot())
+        for name in rec.RECORDS:
+            info=result['byte_formats'][name];old=self.read('base',name);new=result['proposed'][name]['utf8'].encode()
+            self.assertTrue(info['before']['utf8_bom']);self.assertFalse(info['after']['utf8_bom'])
+            self.assertEqual(info['before']['final_newline'],'none');self.assertGreater(info['before']['line_endings']['crlf'],0)
+            self.assertEqual(info['before']['bytes'],len(old));self.assertEqual(info['after']['bytes'],len(new))
+            self.assertEqual(result['proposed'][name]['base_sha256'],rec.sha(old));self.assertEqual(result['proposed'][name]['sha256'],rec.sha(new))
+            self.assertIn('\ufeff',result['diffs'][name]);self.assertTrue(result['diffs'][name])
+
 
 if __name__=='__main__':unittest.main()

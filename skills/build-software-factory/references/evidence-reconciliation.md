@@ -66,7 +66,8 @@ not arbitrate conflicting task registrations, acceptance IDs, plans, stage/desig
 changes, deliberate requiredness changes, or contract migrations. Preserve both
 versions and reconcile those choices separately; refusal does not require making
 optional gates mandatory. Unknown task/event fields, unsupported/custom tables,
-fenced/comment-hidden gate or Learn tables, malformed quoted observations and
+fenced/comment-hidden gate or Learn tables, unresolved Git/diff3 marker lines,
+malformed quoted observations and
 differing non-history prose are refused. The supported current gate table is the
 generated eleven-column table. Learn uses the generated seven-column header and
 one contiguous table; its surrounding prose must agree exactly. Gate blank-line
@@ -75,7 +76,10 @@ formatting is taken from base, while nonblank surrounding prose must agree.
 ## Read the proposal, then reconcile deliberately
 
 `PROPOSED` contains exact UTF-8 text, SHA-256 hashes and base-to-proposal unified
-diffs for `verification.md`, `task-plan.json`, and `learning-log.md`. It also contains
+diffs for `verification.md`, `task-plan.json`, and `learning-log.md`. Explicit
+`byte_formats` before/after metadata shows UTF-8 BOM presence, byte length, CRLF/LF
+counts and final newline; each proposal includes both raw base and proposed hashes.
+This makes byte-only normalization visible even when a renderer hides it. It also contains
 source attributions and a `plan_sha256` binding all three captured inventories,
 the exact raw decision-file bytes, parsed choices and proposed bytes. JSON/row
 formatting may be normalized in the explicit diff. This digest is a review identity,
