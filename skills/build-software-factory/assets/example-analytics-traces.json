@@ -1,0 +1,473 @@
+{
+  "schema_version": 1,
+  "runs": [
+    {
+      "run_id": "run-0",
+      "subject": "synthetic-code-0",
+      "observed_at": "2026-11-03T08:00:00Z",
+      "source_label": "Synthetic reviewed export",
+      "evidence_ref": "Private synthetic evidence reference; withheld from output",
+      "complete": true,
+      "pr_state": "merged",
+      "risk": "medium",
+      "rounds": {
+        "status": "supplied",
+        "value": 1
+      },
+      "verdict": "approve",
+      "phases": [
+        {
+          "phase": "build",
+          "model": "synthetic-model",
+          "sessions": {
+            "status": "supplied",
+            "value": 1
+          },
+          "active_minutes": {
+            "status": "supplied",
+            "value": 2
+          },
+          "human_turns": {
+            "status": "supplied",
+            "value": 1
+          },
+          "input_tokens": {
+            "status": "supplied",
+            "value": 500
+          },
+          "output_tokens": {
+            "status": "supplied",
+            "value": 600
+          },
+          "cache_read_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cache_write_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cost": {
+            "status": "supplied",
+            "value": 1.0,
+            "currency": "USD"
+          }
+        },
+        {
+          "phase": "verify",
+          "model": "synthetic-model",
+          "sessions": {
+            "status": "supplied",
+            "value": 1
+          },
+          "active_minutes": {
+            "status": "supplied",
+            "value": 2.5
+          },
+          "human_turns": {
+            "status": "supplied",
+            "value": 1
+          },
+          "input_tokens": {
+            "status": "supplied",
+            "value": 500
+          },
+          "output_tokens": {
+            "status": "supplied",
+            "value": 400
+          },
+          "cache_read_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cache_write_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cost": {
+            "status": "unavailable",
+            "value": null,
+            "currency": null
+          }
+        }
+      ],
+      "outcome": {
+        "files_changed": {
+          "status": "unavailable",
+          "value": null
+        },
+        "lines_added": {
+          "status": "unavailable",
+          "value": null
+        },
+        "lines_removed": {
+          "status": "unavailable",
+          "value": null
+        },
+        "commits_after_handoff": {
+          "status": "unavailable",
+          "value": null
+        },
+        "human_review_comments": {
+          "status": "unavailable",
+          "value": null
+        },
+        "failed_checks": {
+          "status": "unavailable",
+          "value": null
+        }
+      }
+    },
+    {
+      "run_id": "run-1",
+      "subject": "synthetic-code-1",
+      "observed_at": "2026-11-03T08:00:00Z",
+      "source_label": "Synthetic reviewed export",
+      "evidence_ref": "Private synthetic evidence reference; withheld from output",
+      "complete": true,
+      "pr_state": "merged",
+      "risk": "medium",
+      "rounds": {
+        "status": "supplied",
+        "value": 1
+      },
+      "verdict": "approve",
+      "phases": [
+        {
+          "phase": "build",
+          "model": "synthetic-model",
+          "sessions": {
+            "status": "supplied",
+            "value": 1
+          },
+          "active_minutes": {
+            "status": "supplied",
+            "value": 3
+          },
+          "human_turns": {
+            "status": "supplied",
+            "value": 1
+          },
+          "input_tokens": {
+            "status": "supplied",
+            "value": 500
+          },
+          "output_tokens": {
+            "status": "supplied",
+            "value": 600
+          },
+          "cache_read_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cache_write_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cost": {
+            "status": "supplied",
+            "value": 1.5,
+            "currency": "USD"
+          }
+        },
+        {
+          "phase": "verify",
+          "model": "synthetic-model",
+          "sessions": {
+            "status": "supplied",
+            "value": 1
+          },
+          "active_minutes": {
+            "status": "supplied",
+            "value": 2.5
+          },
+          "human_turns": {
+            "status": "supplied",
+            "value": 1
+          },
+          "input_tokens": {
+            "status": "supplied",
+            "value": 500
+          },
+          "output_tokens": {
+            "status": "supplied",
+            "value": 400
+          },
+          "cache_read_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cache_write_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cost": {
+            "status": "unavailable",
+            "value": null,
+            "currency": null
+          }
+        }
+      ],
+      "outcome": {
+        "files_changed": {
+          "status": "unavailable",
+          "value": null
+        },
+        "lines_added": {
+          "status": "unavailable",
+          "value": null
+        },
+        "lines_removed": {
+          "status": "unavailable",
+          "value": null
+        },
+        "commits_after_handoff": {
+          "status": "unavailable",
+          "value": null
+        },
+        "human_review_comments": {
+          "status": "unavailable",
+          "value": null
+        },
+        "failed_checks": {
+          "status": "unavailable",
+          "value": null
+        }
+      }
+    },
+    {
+      "run_id": "run-2",
+      "subject": "synthetic-code-2",
+      "observed_at": "2026-11-03T08:00:00Z",
+      "source_label": "Synthetic reviewed export",
+      "evidence_ref": "Private synthetic evidence reference; withheld from output",
+      "complete": true,
+      "pr_state": "merged",
+      "risk": "medium",
+      "rounds": {
+        "status": "supplied",
+        "value": 1
+      },
+      "verdict": "approve",
+      "phases": [
+        {
+          "phase": "build",
+          "model": "synthetic-model",
+          "sessions": {
+            "status": "supplied",
+            "value": 1
+          },
+          "active_minutes": {
+            "status": "supplied",
+            "value": 4
+          },
+          "human_turns": {
+            "status": "supplied",
+            "value": 1
+          },
+          "input_tokens": {
+            "status": "supplied",
+            "value": 500
+          },
+          "output_tokens": {
+            "status": "supplied",
+            "value": 600
+          },
+          "cache_read_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cache_write_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cost": {
+            "status": "supplied",
+            "value": 2.0,
+            "currency": "USD"
+          }
+        },
+        {
+          "phase": "verify",
+          "model": "synthetic-model",
+          "sessions": {
+            "status": "supplied",
+            "value": 1
+          },
+          "active_minutes": {
+            "status": "supplied",
+            "value": 2.5
+          },
+          "human_turns": {
+            "status": "supplied",
+            "value": 1
+          },
+          "input_tokens": {
+            "status": "supplied",
+            "value": 500
+          },
+          "output_tokens": {
+            "status": "supplied",
+            "value": 400
+          },
+          "cache_read_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cache_write_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cost": {
+            "status": "unavailable",
+            "value": null,
+            "currency": null
+          }
+        }
+      ],
+      "outcome": {
+        "files_changed": {
+          "status": "unavailable",
+          "value": null
+        },
+        "lines_added": {
+          "status": "unavailable",
+          "value": null
+        },
+        "lines_removed": {
+          "status": "unavailable",
+          "value": null
+        },
+        "commits_after_handoff": {
+          "status": "unavailable",
+          "value": null
+        },
+        "human_review_comments": {
+          "status": "unavailable",
+          "value": null
+        },
+        "failed_checks": {
+          "status": "unavailable",
+          "value": null
+        }
+      }
+    },
+    {
+      "run_id": "run-3",
+      "subject": "synthetic-code-3",
+      "observed_at": "2026-11-03T08:00:00Z",
+      "source_label": "Synthetic reviewed export",
+      "evidence_ref": "Private synthetic evidence reference; withheld from output",
+      "complete": true,
+      "pr_state": "merged",
+      "risk": "medium",
+      "rounds": {
+        "status": "supplied",
+        "value": 1
+      },
+      "verdict": "approve",
+      "phases": [
+        {
+          "phase": "build",
+          "model": "synthetic-model",
+          "sessions": {
+            "status": "supplied",
+            "value": 1
+          },
+          "active_minutes": {
+            "status": "supplied",
+            "value": 5
+          },
+          "human_turns": {
+            "status": "supplied",
+            "value": 1
+          },
+          "input_tokens": {
+            "status": "supplied",
+            "value": 500
+          },
+          "output_tokens": {
+            "status": "supplied",
+            "value": 600
+          },
+          "cache_read_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cache_write_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cost": {
+            "status": "supplied",
+            "value": 2.5,
+            "currency": "USD"
+          }
+        },
+        {
+          "phase": "verify",
+          "model": "synthetic-model",
+          "sessions": {
+            "status": "supplied",
+            "value": 1
+          },
+          "active_minutes": {
+            "status": "supplied",
+            "value": 2.5
+          },
+          "human_turns": {
+            "status": "supplied",
+            "value": 1
+          },
+          "input_tokens": {
+            "status": "supplied",
+            "value": 500
+          },
+          "output_tokens": {
+            "status": "supplied",
+            "value": 400
+          },
+          "cache_read_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cache_write_tokens": {
+            "status": "unavailable",
+            "value": null
+          },
+          "cost": {
+            "status": "unavailable",
+            "value": null,
+            "currency": null
+          }
+        }
+      ],
+      "outcome": {
+        "files_changed": {
+          "status": "unavailable",
+          "value": null
+        },
+        "lines_added": {
+          "status": "unavailable",
+          "value": null
+        },
+        "lines_removed": {
+          "status": "unavailable",
+          "value": null
+        },
+        "commits_after_handoff": {
+          "status": "unavailable",
+          "value": null
+        },
+        "human_review_comments": {
+          "status": "unavailable",
+          "value": null
+        },
+        "failed_checks": {
+          "status": "unavailable",
+          "value": null
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "experiment_id": "synthetic-procedure-comparison",
+  "version": 1,
+  "created_at": "2026-10-30T00:00:00Z",
+  "timing": "prospective_claim",
+  "method": "operator_allocated",
+  "population": "Four synthetic tasks; no production users",
+  "assignment_unit": "task",
+  "assignment_description": "Operator supplies fixed task allocations; no allocator executed",
+  "assignment_evidence_ref": "Private synthetic allocation notes; withheld",
+  "variants": [
+    {
+      "id": "A",
+      "version": 1,
+      "intervention": "Synthetic A procedure",
+      "start": "2026-11-01T00:00:00Z",
+      "end": "2026-11-02T00:00:00Z"
+    },
+    {
+      "id": "B",
+      "version": 1,
+      "intervention": "Synthetic B procedure",
+      "start": "2026-11-01T00:00:00Z",
+      "end": "2026-11-02T00:00:00Z"
+    }
+  ],
+  "analysis_attempt": "predeclared_first",
+  "min_units": 2,
+  "minimum_rationale": "Synthetic demonstration threshold; not a power analysis",
+  "stopping_rule": "Review after both supplied windows close; no automatic stop",
+  "confounders": "Task difficulty and model definitions may differ; allocation is unverified",
+  "allocations": [
+    {
+      "unit_id": "unit-0",
+      "task_id": "task-0",
+      "variant": "A",
+      "first_attempt_id": "attempt-0"
+    },
+    {
+      "unit_id": "unit-1",
+      "task_id": "task-1",
+      "variant": "A",
+      "first_attempt_id": "attempt-1"
+    },
+    {
+      "unit_id": "unit-2",
+      "task_id": "task-2",
+      "variant": "B",
+      "first_attempt_id": "attempt-2"
+    },
+    {
+      "unit_id": "unit-3",
+      "task_id": "task-3",
+      "variant": "B",
+      "first_attempt_id": "attempt-3"
+    }
+  ],
+  "metrics": [
+    {
+      "id": "build-minutes",
+      "version": 1,
+      "description": "Synthetic build-minutes",
+      "selector": "active_minutes",
+      "phase": "build",
+      "unit": "minutes",
+      "role": "primary",
+      "cell": {
+        "status": "supplied",
+        "source_label": "Synthetic reviewed export",
+        "currency": null
+      },
+      "threshold": null
+    },
+    {
+      "id": "build-cost",
+      "version": 1,
+      "description": "Synthetic build-cost",
+      "selector": "cost",
+      "phase": "build",
+      "unit": "currency",
+      "role": "guardrail",
+      "cell": {
+        "status": "supplied",
+        "source_label": "Synthetic reviewed export",
+        "currency": "USD"
+      },
+      "threshold": {
+        "direction": "max_mean",
+        "value": 5
+      }
+    },
+    {
+      "id": "build-output",
+      "version": 1,
+      "description": "Synthetic build-output",
+      "selector": "output_tokens",
+      "phase": "build",
+      "unit": "tokens",
+      "role": "secondary",
+      "cell": {
+        "status": "supplied",
+        "source_label": "Synthetic reviewed export",
+        "currency": null
+      },
+      "threshold": null
+    }
+  ],
+  "learn": {
+    "hypothesis": "The proposed procedure may change recorded build effort",
+    "proposed_change": "Run a separately approved evaluation before any adoption",
+    "owner": "Synthetic operator"
+  }
+}
