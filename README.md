@@ -67,6 +67,7 @@ Two mechanisms enforced by code, and one stated once and applied everywhere:
 - [Recovery](skills/build-software-factory/references/recovery.md): manual integrity recovery, the staged recovery helper, worker health and fallback.
 - [Operations config](skills/build-software-factory/references/operations-config.md): identities, headless recipes, autonomy, continuous intake, assumptions.
 - [Evidence lifecycle](skills/build-software-factory/references/operation.md#evidence-chain) and the inactive [CI evidence job](skills/build-software-factory/assets/templates/ci/README.md).
+- [Post-deployment verification proposal](skills/build-software-factory/assets/templates/ci/post-deploy.md): an inactive event/manual adapter with exact deployment identity, liveness checks and an explicit project adoption boundary.
 - [Dashboard](skills/build-software-factory/references/dashboard.md), [done videos](skills/build-software-factory/references/done-videos.md), [release preflight](skills/build-software-factory/references/operation.md#approval-and-execution).
 - [Supplied run traces](skills/build-software-factory/references/run-traces.md) and [analytics for Learn and experiments](skills/build-software-factory/references/factory-analytics.md): optional private dashboard supplements from explicitly supplied sanitized exports, with denominators, limitations and uncommitted Learn proposals. They do not collect sessions, run experiments or adopt changes.
 
