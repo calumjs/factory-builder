@@ -41,7 +41,7 @@ def check_factory(factory):
     config=read_json(root/'config.json');validate(config)
     require_control_consistency(config,(root/'policy.md').read_text(encoding='utf-8-sig'))
     runtime_advisory(root);run_adoption_advisory(manifest);emit(config)
-    print(f"PASS: {len(manifest['contracts'])} contract files match; {len(manifest['living'])} living files have valid basic structure; config/policy controls agree. Living content and evidence truth are not attested; application checks were not run.")
+    print(f"PASS: {len(manifest['contracts'])} contract files match; {len(manifest['living'])} living files are present with UTF-8 text and JSON/Learn-table checks passed; config/policy controls agree. Gate tables require separate gates.py or scoped_assessment.py assessment. Living content and evidence truth are not attested; application checks were not run.")
 
 
 def run_adoption_advisory(manifest):

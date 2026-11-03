@@ -103,3 +103,12 @@ Adopt or replace assumptions in an existing factory with `update_operations.py -
 ## Watcher design diagnostics
 
 `scaffold.py --check` and `status.py` print ADVISORY messages when continuous intent is recorded with disabled status, manual autonomy, missing submitter/rate/concurrency/time bounds, an unresolved mechanism or cadence, or a non-concrete repository scope. A well-formed disabled draft is valid (exit 0) and the warnings activate nothing. Even a fully specified design is `configured_unverified`: scheduler authority, authenticated scope, kill-switch wiring and liveness need their own observations. The dashboard's context object reports watcher state and these diagnostics without rendering any source text as authority. A successful hash check, a status event, a 24/7 proposal or an operator-written "running" label never implies live readiness. `run.py select` (see [running.md](running.md)) is a read-only advisory selection; it cannot enforce live bounds.
+
+Status remains free-form recorded design data for compatibility. Run/admission
+issue proposals and schedule design require the exact word `enabled` after
+trimming and case normalization; labels such as `active`, `running` or `planned`
+do not enable those helpers. A separate advisory names that limitation without
+changing the label or claiming the design is live. Existing copied readiness
+helpers keep their old diagnostics until an explicit `update_operations.py
+--context-runtime` preview/apply migrates recognized bytes; customized copies are
+preserved for manual review. No status value grants scheduling or dispatch authority.

@@ -33,7 +33,10 @@ def watcher(config):
     if design['mechanism']=='polling' and (unresolved(design['cadence']) or cadence.startswith(('unconfirmed','unknown','tbd'))):
         notices.append('Polling cadence is unresolved; fit it to actual platform limits and budget.')
     notices.append('Scheduler authority, kill-switch wiring, authentication and actual watcher liveness are unverified by metadata; check applicable authority and observed runtime before live use. Do not start/change a watcher from this report.')
-    return {'state':'disabled_design' if disabled else 'incomplete_design' if len(notices)>1 else 'configured_unverified',
+    state='disabled_design' if disabled else 'incomplete_design' if len(notices)>1 else 'configured_unverified'
+    if intake['status'].strip().casefold() not in ('disabled','enabled'):
+        notices.append('Run/admission issue proposals and schedule design require issue_intake.status to equal enabled after trimming and case normalization. This recorded label does not enable those helpers; no status was changed.')
+    return {'state':state,
             'liveness':'unverified','scheduler_authority':'unverified','diagnostics':notices}
 
 

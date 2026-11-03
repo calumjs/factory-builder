@@ -148,7 +148,7 @@ def check(path, *, quiet=False):
                 raise ValueError('Invalid living tool registry')
     assumptions(read_json(p/'config.json'))
     if not quiet:
-        print(f"PASS: {len(m['contracts'])} contract files match; {len(m['living'])} living files have valid basic structure. Living content and evidence truth are not attested; application checks were not run.")
+        print(f"PASS: {len(m['contracts'])} contract files match; {len(m['living'])} living files are present with UTF-8 text and JSON/Learn-table checks passed. Gate tables require separate gates.py or scoped_assessment.py assessment. Living content and evidence truth are not attested; application checks were not run.")
     return m
 
 if __name__ == '__main__':

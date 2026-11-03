@@ -384,6 +384,11 @@ PRE_ADMISSION_RUNTIME = {
 
 # Exact published 2ca1470 dashboard, before opt-in subject assessment.
 PRE_SUBJECT_DASHBOARD = {'dashboard.py':'4754a7d98a9da9a6732ee9a88b07f58b59313670badecaf5939cdfc53cb780ac'}
+# Exact published v1.36 helpers, before narrower check wording/intake diagnostics.
+# Preserve recognized copies unless the existing context migration is opted in.
+PRE_CONSISTENCY_CONTEXT = {
+    'readiness.py':'7ab8b3e10d193d949c701e648c6d3ceee31ae0708e02253b9cd128ae2b880095',
+    'integrity.py':'2a5e8d330070d25323ef6faf65d4510b88fd15d923e57df99185b6631b2e5707'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -407,7 +412,7 @@ def context_runtime_plan(root, original, replacement, opted_in):
         path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename),PRE_SUBJECT_DASHBOARD.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename),PRE_SUBJECT_DASHBOARD.get(filename),PRE_CONSISTENCY_CONTEXT.get(filename))
         if compatible and not opted_in:continue
         if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename) and not compatible:
             raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')
@@ -447,7 +452,8 @@ def require_admission_runtime(root, original, replacement):
         original[name]=current  # Also bind supported, unchanged helpers for apply.
         proposed=replacement.get(name,current)
         wanted=(ROOT/'scripts'/filename).read_bytes()
-        if proposed is None or digest(proposed)!=digest(wanted):
+        compatible=filename=='readiness.py' and proposed is not None and digest(proposed)==PRE_CONSISTENCY_CONTEXT['readiness.py']
+        if proposed is None or (digest(proposed)!=digest(wanted) and not compatible):
             raise ValueError('Admission needs supported copied operations and readiness helpers; preview with --context-runtime. Customized/unsupported helpers require manual review')
 
 
