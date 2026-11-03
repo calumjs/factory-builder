@@ -192,7 +192,7 @@ class ScaffoldTests(unittest.TestCase):
         for pattern in ('.next/','.vercel/','*.tsbuildinfo','playwright-report/','next-env.d.ts'):
             self.assertIn(pattern,fragment)
         self.assertIn('!.env.example',fragment)
-        for pattern in ('.factory-update-backups/', '.factory-recovery-backups/', 'factory-overview.html', 'factory-overview.json'):
+        for pattern in ('.factory-update-backups/', '.factory-recovery-backups/', '.factory-acceptance-backups/', 'factory-overview.html', 'factory-overview.json'):
             self.assertIn(pattern,fragment.splitlines())
         self.assertEqual((self.target/'.gitignore').read_text(),'user-policy\n')
 
@@ -200,6 +200,8 @@ class ScaffoldTests(unittest.TestCase):
         self.config.update(stack='Python CLI',deployment='Local package')
         self.assertEqual(self.run_cli('--apply').returncode,0)
         fragment=(self.target/'.software-factory/gitignore.fragment').read_text()
+        self.assertIn('.factory-acceptance-backups/',fragment.splitlines())
+        self.assertFalse((self.target/'.gitignore').exists())
         for pattern in ('.next/','.vercel/','*.tsbuildinfo','playwright-report/','next-env.d.ts'):
             self.assertNotIn(pattern,fragment)
 

@@ -51,6 +51,10 @@ accepted manifest pin, preserves existing observations and positional IDs, and
 starts the proposed check as required NOT RUN. It writes nothing: preview success
 is not registered scope, and existing recovery registration/adoption still needs
 its own review. Unsupported or ambiguous shapes are refused rather than rewritten.
+The separate [inactive candidate helper](acceptance-candidates.md) can materialize
+that reviewed scope into a new disjoint directory with a verified original backup.
+It preserves the original manifest until a second recovery review and never
+overwrites or activates the current factory.
 
 Keep a version-1 mapping outside the factory, for example in approved evidence:
 
