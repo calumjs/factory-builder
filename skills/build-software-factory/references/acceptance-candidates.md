@@ -19,6 +19,17 @@ source factory. Its sibling `.factory-acceptance-backups` area must also be disj
 from the source and candidate. Keep these artifacts outside active factory trees;
 the helper does not change repository ignore rules or delete old attempts.
 
+Backups contain original factory bytes and plan/diff metadata that may be private.
+New factories include `.factory-acceptance-backups/` in their **optional**
+`gitignore.fragment`. For an existing project, inspect the actual backup location
+and its ignore policy, then manually merge the reviewed scoped rule into the
+appropriate project ignore file. For example, a backup below `local-output/` can
+use `local-output/.factory-acceptance-backups/`. Do not edit or rehash an existing
+factory's hashed fragment merely to adopt this guidance, or replace the project's
+ignore policy wholesale. Ignore rules do not protect files already tracked; review
+those separately. Review the candidate's own storage/ignore location too. The
+acceptance helpers do not edit root `.gitignore`, untrack files or inspect Git status.
+
 ```text
 python -B <trusted-builder>/scripts/acceptance_candidate.py --factory <factory> --request <request.json> --baseline-manifest-sha256 <independently-accepted-raw-sha256> --baseline-reference <provenance-reference> --output <new-inactive-candidate>
 ```
