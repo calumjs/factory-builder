@@ -55,7 +55,14 @@ class CompactGenerationTests(unittest.TestCase):
         self.assertEqual(digest(files['.claude/skills/factory-run/SKILL.md']),baseline['run_skill'])
         self.assertEqual(set(phase_contracts(research)),{f'.claude/skills/factory-{phase}/SKILL.md' for phase in PHASES})
         for phase,name in PHASE_GUIDES.items():
-            self.assertEqual(digest(files[name]),baseline['templates'][phase])
+            prior=files[name]
+            if phase=='verify':
+                # The reviewed latency example is additive; retain the original
+                # baseline digest to prove all earlier guidance survives exactly.
+                start=prior.index('### Optional targeted mutation-delay probe\n')
+                end=prior.index('## Reconcile shared-contract impact\n',start)
+                prior=prior[:start]+prior[end:]
+            self.assertEqual(digest(prior),baseline['templates'][phase])
             self.assertEqual(digest(legacy[f'.claude/skills/factory-{phase}/SKILL.md']),baseline['minimal_skills'][phase])
             source=phase_skill(legacy_phase_template(phase)).split('---',2)[2].strip()+'\n\n'+RETURN
             self.assertEqual(digest(source),baseline['delivery_sources'][phase])
