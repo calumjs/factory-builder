@@ -198,6 +198,15 @@ Original changed files and manifest are backed up under the project's `.factory-
 
 Smoke/video preference changes or a delivery migration reset active gate observations to NOT RUN, preserving deliberate row-level requiredness choices unless the patch explicitly changes smoke defaults. Retired V1 observations remain historical when videos are disabled. Prior observations are retained as quoted historical rows, not reused as passing current evidence. Extra required checks are retained. Legacy eight-column rows migrate only when their shape is recognizable; malformed or ambiguous rows require manual review. Post-release-only checks remain staged after the action; a no-release exclusion is distinct from an unknown target.
 
+For a narrow smoke/video plan change, optionally preview with `--selective-gates`
+using the [selective update rules](selective-gate-updates.md). Unchanged recognized
+plans retain their exact recorded observations; changed plans and dependent rows
+reset with history. Review the per-row reasons and field paths before applying.
+Retained evidence keeps its original subject and status; it is not reassessed or
+transferred to a new revision. Broad reset remains the default and the fallback
+for recognized legacy schemas, explicit smoke-required defaults or mixed runtime
+changes. Malformed or duplicate rows are refused for manual review.
+
 The helper writes the manifest last and keeps verified backups. Filesystem updates are not a multi-file atomic transaction: interruption can leave a blocked integrity state. Stop, inspect backups and any lock/temp file, restore the affected originals and manifest together or finish a newly reviewed plan. Never delete a lock owned by an active writer or bypass the failed integrity check. Run the contract check and stage-specific gate assessment afterwards. Valid hashes do not mean application checks ran or passed.
 
 Known pristine copied gate and context helpers that predate bytecode suppression are preserved by default. To adopt the fix, explicitly preview `--gate-runtime --context-runtime`, review the exact files and backup, then apply the approved digest. Customized helpers are refused for manual review; never ignore unexpected `__pycache__` in the manifest.
