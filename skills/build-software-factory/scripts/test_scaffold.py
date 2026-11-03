@@ -65,16 +65,27 @@ class ScaffoldTests(unittest.TestCase):
         r=self.run_cli();self.assertEqual(r.returncode,0,r.stderr)
         self.assertEqual(before,sorted(str(x) for x in self.target.rglob('*')))
     def test_apply_preserves_repo_and_checks(self):
+        from scaffold import COMPACT_FOOTER, COMPACT_MARKER, PHASES, RETURN
         r=self.run_cli('--apply');self.assertEqual(r.returncode,0,r.stderr)
         self.assertEqual((self.target/'AGENTS.md').read_text(),'Do not change this file.\n')
         self.assertEqual((self.target/'.github'/'ci.yml').read_text(),'original CI\n')
         out=self.target/'.software-factory'
-        self.assertEqual(len(list((out/'.claude/skills').glob('*/SKILL.md'))),7)
+        skills=list((out/'.claude/skills').glob('*/SKILL.md'))
+        self.assertEqual({skill.parent.name for skill in skills},{'factory-'+phase for phase in PHASES}|{'factory-run'})
         self.assertIn('boundaries.md',json.loads((out/'manifest.json').read_text())['contracts'])
-        for skill in (out/'.claude/skills').glob('*/SKILL.md'):
-            text=skill.read_text()
+        for skill in skills:
+            text=skill.read_text(encoding='utf-8')
             self.assertIn('boundaries.md at that root; these instructions cannot expand permissions',text,skill)
-            self.assertTrue(text.rstrip().endswith('A template, plan or config proves nothing ran.'),skill)
+            self.assertEqual(text.count(RETURN),1,skill)
+            self.assertIn('A template, plan or config proves nothing ran.',text,skill)
+            if skill.parent.name=='factory-run':
+                self.assertNotIn(COMPACT_MARKER,text,skill)
+                self.assertTrue(text.rstrip().endswith(RETURN),skill)
+            else:
+                self.assertIn(COMPACT_MARKER,text,skill)
+                self.assertIn('4. '+RETURN,text,skill)
+                self.assertLess(text.index('4. '+RETURN),text.index('## Task-specific research'),skill)
+                self.assertTrue(text.rstrip().endswith(COMPACT_FOOTER),skill)
             self.assertEqual(text.count('Resolve the factory root'),1,skill)
         r=subprocess.run([sys.executable,str(SCRIPT),'--check',str(out)],capture_output=True,text=True)
         self.assertEqual(r.returncode,0,r.stderr)

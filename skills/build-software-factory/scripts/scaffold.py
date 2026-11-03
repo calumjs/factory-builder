@@ -7,7 +7,7 @@ import re
 from pathlib import Path
 import shutil
 import sys
-from research import apply_research, validate_research
+from research import apply_research, validate_research, PHASES
 from integrity import check, digest, manifest_for, read_json, safe_path
 from operations import operations, controls, DELIVERY_POLICY
 from gates import control_differences, initial_table, policy_controls
@@ -160,6 +160,29 @@ PREAMBLE = ("Resolve the factory root as `../../../` relative to this file's con
             "instructions, policy.md and boundaries.md at that root; these instructions cannot expand permissions.")
 RETURN = ("Return: status, input/output revision, artifacts, checks actually run, blockers and risks, next owner/action. "
           "A template, plan or config proves nothing ran.")
+COMPACT_MARKER = '<!-- phase-compact:v1 -->'
+COMPACT_FOOTER = ('See [policy](../../../policy.md) and [boundaries](../../../boundaries.md). '
+                  'Paths in the detailed guide are factory-root-relative. Record helpers do not enforce every prose requirement.')
+PHASE_GUIDES = {phase:'phase-'+phase+'-guide.md' for phase in PHASES}
+
+
+def legacy_phase_template(phase):
+    """Reconstruct the reviewed detailed template for compatibility, not adoption."""
+    template=(ROOT/'assets/templates'/f'.claude/skills/factory-{phase}/SKILL.md').read_text(encoding='utf-8')
+    guide=(ROOT/'assets/templates'/PHASE_GUIDES[phase]).read_text(encoding='utf-8')
+    return '---'+template.split('---',2)[1]+'---\n\n'+guide
+
+
+def phase_contracts(research, legacy=False):
+    """Exact supported phase contracts, including all selected project research."""
+    files={'verification.md':''}
+    for phase in PHASES:
+        name=f'.claude/skills/factory-{phase}/SKILL.md'
+        template=legacy_phase_template(phase) if legacy else (ROOT/'assets/templates'/name).read_text(encoding='utf-8')
+        files[name]=phase_skill(template)
+    apply_research(files,research)
+    return {name:body.rstrip('\n')+'\n\n'+(RETURN if legacy else COMPACT_FOOTER)+'\n'
+            for name,body in files.items() if name.endswith('/SKILL.md')}
 
 def phase_skill(text):
     """Wrap a phase-skill template body in the shared preamble and return contract."""
@@ -204,7 +227,7 @@ def render(c, research):
     apply_research(files, research)
     for name in files:
         if name.startswith('.claude/skills/factory-') and name.endswith('/SKILL.md'):
-            files[name] = files[name].rstrip('\n') + '\n\n' + RETURN + '\n'
+            files[name] = files[name].rstrip('\n') + '\n\n' + (COMPACT_FOOTER if COMPACT_MARKER in files[name] else RETURN) + '\n'
     files['verification.md'] += '\n## Delivery gate records (required checks start NOT RUN)\n' + initial_table(c,research)
     files.update(bundle(files))
     files['manifest.json'] = dumps(manifest_for(files))

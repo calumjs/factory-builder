@@ -2,6 +2,7 @@
 import json
 from pathlib import Path
 import unittest
+from phase_test_support import phase_text
 from scaffold import ROOT,render
 
 class ReleaseOwnershipGuidanceTests(unittest.TestCase):
@@ -9,7 +10,7 @@ class ReleaseOwnershipGuidanceTests(unittest.TestCase):
         config=json.loads((ROOT/'assets/example-config.json').read_text(encoding='utf-8'))
         research=json.loads((ROOT/'assets/example-research.json').read_text(encoding='utf-8'))
         files=render(config,research)
-        release=' '.join(files['.claude/skills/factory-release/SKILL.md'].split())
+        release=' '.join(phase_text(files,'release').split())
         for term in ('one release owner','atomic admission mechanism','non-owner waits',
                      'migration-before-promotion','expand/contract','later G3 observation',
                      'without scoped authority', 'non-interactive transactions', 'migration ledger',

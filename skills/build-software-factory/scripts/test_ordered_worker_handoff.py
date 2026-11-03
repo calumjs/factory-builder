@@ -6,6 +6,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+from phase_test_support import phase_text
 from unittest.mock import patch
 
 from integrity import check, digest
@@ -42,7 +43,7 @@ class OrderedWorkerHandoffTests(unittest.TestCase):
                      'shared cost, time, concurrency and retry budget','empty transcript alone does not establish failure',
                      'location outside the managed factory before filling it','reviewed selective contract/manifest update'):
             self.assertIn(text,flat)
-        plan=files['.claude/skills/factory-plan/SKILL.md']
+        plan=phase_text(files,'plan')
         self.assertIn('ordered worker table',plan);self.assertIn('approved task-specific location outside the factory',plan)
         manifest=json.loads(files['manifest.json'])
         self.assertEqual(manifest['contracts']['worker-handoff.md'],digest(handoff))
@@ -59,8 +60,8 @@ class OrderedWorkerHandoffTests(unittest.TestCase):
 
     def test_plan_and_build_both_direct_live_notes_to_external_copy(self):
         files=render(self.config,self.research)
-        plan=files['.claude/skills/factory-plan/SKILL.md']
-        build=files['.claude/skills/factory-build/SKILL.md']
+        plan=phase_text(files,'plan')
+        build=phase_text(files,'build')
         self.assertIn('approved task-specific location outside the factory',plan)
         self.assertIn('worker-handoff.md as a template',build)
         self.assertIn('Record worker/run provenance and remaining uncertainty in the approved external task-specific handoff copy',build)
