@@ -46,6 +46,44 @@ class DashboardTests(unittest.TestCase):
         files = {k: v for k, v in self.files.items() if not k.startswith('dashboard/') and k!='manifest.json'}
         (self.factory/'manifest.json').write_text(json.dumps(manifest_for(files)))
 
+    def test_manifest_mismatch_reports_safe_counts_and_bytecode_without_names(self):
+        folder=self.factory/'dashboard/__pycache__';folder.mkdir()
+        (folder/'PRIVATE-synthetic.pyc').write_bytes(b'private test content')
+        output=self.base/'overview.html'
+        result=subprocess.run([sys.executable,str(ROOT/'scripts/dashboard.py'),'--factory',str(self.factory),
+                               '--output',str(output)],capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0);self.assertFalse(output.exists())
+        self.assertIn('1 unexpected and 0 missing',result.stderr)
+        self.assertIn('dashboard/__pycache__/',result.stderr)
+        self.assertIn('scaffold.py --check',result.stderr)
+        self.assertNotIn('PRIVATE-synthetic',result.stderr)
+        self.assertNotIn('private test content',result.stderr)
+
+    def test_manifest_mismatch_does_not_echo_arbitrary_missing_or_extra_names(self):
+        (self.factory/'project-brief.md').unlink()
+        (self.factory/'PRIVATE-name.txt').write_text('private content',encoding='utf-8')
+        output=self.base/'overview.html'
+        result=subprocess.run([sys.executable,str(ROOT/'scripts/dashboard.py'),'--factory',str(self.factory),
+                               '--output',str(output)],capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0);self.assertFalse(output.exists())
+        self.assertIn('1 unexpected and 1 missing',result.stderr)
+        self.assertNotIn('PRIVATE-name',result.stderr);self.assertNotIn('project-brief',result.stderr)
+        self.assertNotIn('private content',result.stderr)
+
+    def test_gate_table_retains_full_revision_and_scrolls_without_word_breaks(self):
+        data=summarize(self.files,now=self.now)
+        data['gates'][0]['revision']='a'*40
+        data['gates'][0]['freshness']='unavailable'
+        html=page(data)
+        self.assertIn('<div class="scroll"><table class="gate-table">',html)
+        self.assertIn('.gate-table th,.gate-table td{white-space:nowrap;overflow-wrap:normal}',html)
+        self.assertIn('grid-template-columns:minmax(0,1fr)',html)
+        self.assertIn('.panel{min-width:0;',html)
+        self.assertIn('a'*40,html);self.assertIn('unavailable',html)
+        self.assertIn('<div class="grid" style="margin-bottom:16px">',html)
+        data['gates'][0]['revision']='<script>bad</script>'
+        self.assertNotIn('<script>bad</script>',page(data))
+
     def test_scaffold_has_openable_safe_dedicated_overview(self):
         html = (self.factory/'dashboard/index.html').read_text(encoding='utf-8')
         self.assertIn('Example project factory overview', html)

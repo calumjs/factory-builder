@@ -99,7 +99,7 @@ def dumps(c):
 
 
 def ignore_fragment(c):
-    text = '# Optional root ignore rules: inspect and merge manually; never overwrite the repository ignore policy.\n.env*\n!.env.example\n!.env.*.example\n__pycache__/\n*.py[cod]\n.venv/\nnode_modules/\ndist/\nbuild/\ntest-results/\n.claude/skill-backups/\n.factory-update-backups/\nfactory-overview.html\nfactory-overview.json\n'
+    text = '# Optional root ignore rules: inspect and merge manually; never overwrite the repository ignore policy.\n.env*\n!.env.example\n!.env.*.example\n__pycache__/\n*.py[cod]\n.venv/\nnode_modules/\ndist/\nbuild/\ntest-results/\n.claude/skill-backups/\n.factory-update-backups/\n.factory-recovery-backups/\nfactory-overview.html\nfactory-overview.json\n'
     stack = c['stack'].casefold()
     if re.search(r'\bnext(?:\.js|js)\b', stack):
         text += '\n# Next.js generated output; verify installed-version conventions.\n.next/\n'

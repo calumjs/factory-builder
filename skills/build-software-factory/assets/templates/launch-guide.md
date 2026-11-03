@@ -18,6 +18,23 @@ claims that a particular update was loaded. Do not assume updating refreshed a c
 `upstream-provenance.json` initially leaves `source_revision` null; updating the
 hashed provenance contract requires a reviewed, selective migration.
 
+For a separately pinned clean local source checkout, run the comparison helper
+from the independently trusted checkout, not from the installation being checked:
+`python <trusted-checkout>/skills/build-software-factory/scripts/verify_install.py
+--installed <loaded-plugin-dir> --source <trusted-checkout> --revision
+<independently-pinned-full-commit>`. Inspect the loaded path and command first.
+The read-only helper compares raw bytes against the pinned Git tree, flags extra,
+missing or changed installed files, and refuses redirected paths; it never fetches.
+Unexpected files are named but not read or hashed. A bounded local Git integrity check
+can reject unrelated object corruption or time out on a large source repository;
+treat that as UNVERIFIED, never as a match.
+It needs stable, trusted inputs, excludes only source Git metadata, and refuses
+extra files in the source checkout. It is not an adversarial filesystem sandbox and has no wall-clock file I/O
+timeout; coordinate writers and protect the paths during comparison. A MATCH is a byte
+comparison, not proof that a running session loaded the compared directory. If
+checkout filters or line endings make raw bytes differ from Git blobs, resolve the
+trusted packaging process; do not normalize a mismatch or rehash it away.
+
 ## 2. Load the skills
 
 Load the seven skills in `.software-factory/.claude/skills/` using your harness's mechanism for an additional skills directory, keeping the project's own settings and instructions in effect. Confirm all seven are discovered by invoking one scoped skill, not by reading its text. If discovery is blocked, report the version, path and policy and stop; do not copy the skills elsewhere, change settings or bypass a policy to make it work.

@@ -12,6 +12,15 @@ Pass the directory containing the factory's `manifest.json`: from a repository r
 
 Integrity checks include all files under the selected factory, regardless of Git tracking or ignore rules, and still reject redirected paths. Unregistered runtime files remain errors; keep generated output outside the factory. If local extras obstruct assessment, preserve the original and prepare a separate clean, reviewed export or worktree from the intended record-storage revision. Identify any evidence overlay and its provenance, confirm its observations describe the intended tested subject, then explicitly pass that copy's factory directory. The checker does not stash, delete, ignore, select or repair files for you. A clean copy satisfies only the integrity prerequisite; missing, failed or stale required evidence still blocks readiness.
 
+`scaffold.py --check` verifies contract integrity and basic living-record structure;
+its PASS is not a config/policy consistency or delivery-readiness verdict. Gate
+assessment names differing control fields without printing their values. Preserve
+both versions and establish the intended settings through [reviewed recovery](recovery.md).
+The operations updater refuses existing disagreement, so it is not a repair shortcut.
+After reconciliation, preview future changes with
+`update_operations.py --factory <factory> --operations <changes.json>` and apply
+only the reviewed plan with `--apply --approve-plan <digest>`.
+
 ## Structured smoke recipes (`smoke_gates.checks`)
 
 Optional per-gate records mapping G1/G2/G3 to an exact design. A synthetic example — not a claim these commands exist:
@@ -28,6 +37,13 @@ Optional per-gate records mapping G1/G2/G3 to an exact design. A synthetic examp
 - `target`: exactly `kind` (`web`/`artifact`), `value`, `base_url_env`. Web values are base HTTP(S) URLs without userinfo, query or fragment, with `base_url_env` null or a declared `env_names` member. Artifact targets use null `base_url_env` and a meaningful package or installed identity. A structured G3 target fills an unconfirmed legacy `target_kind`/`deployed_url`; an explicit conflicting legacy value is rejected, and a G3 command conflicts with an accepted no-release exclusion.
 
 The generated row shows the canonical argv, env names and environment label and starts NOT RUN with a blank actual target. A still-required PASSED row must match the configured design, environment and target as well as subject, time, exit status and evidence. Changing a recipe through the synchronized updater resets active observations and keeps failures, waivers and history. Free-text `pre_merge`/`targeted`/`post_merge` remain designs until commands are inspected.
+
+At pre-merge, each structured row uses its own configured target; G1 and G2 may
+therefore describe different artifacts. An optional global `--target` still applies
+to rows without their own recipe, including acceptance and research checks. At
+post-merge, every still-required row must match the actual `--target` as well as any
+configured recipe target. Omitting a pre-merge global target does not waive each
+row's concrete observed target or its other evidence requirements.
 
 ## Video triggers (`done_videos.triggers`)
 

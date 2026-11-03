@@ -75,3 +75,13 @@ No hooks, tool preapproval, MCP server or settings changes are bundled. `gitigno
 `python -m unittest discover -s scripts -p "test_*.py" -v` exercises helpers in temporary directories, including preservation, integrity, line endings, living records, evidence updates, default delivery gates (NOT RUN blocks) and synthetic research mapping. It does not validate an application or prove online research occurred.
 
 Official format/discovery references: https://code.claude.com/docs/en/skills and https://code.claude.com/docs/en/plugins/create (checked 2026-10-29).
+
+For an existing factory, use `scripts/verify_install.py` from a separately trusted pinned checkout, not the installation being checked,
+with `--installed`, `--source` and an independently pinned full `--revision` as
+described in the current launch template. It compares stable raw bytes to a clean
+local source tree without fetching or changing either path. It reports unexpected file
+names without reading or hashing their contents; bounded Git integrity verification
+can fail or time out on unrelated corruption or large repositories, leaving the result
+unverified. A match is not proof
+of active session loading, source authority, or an adversarially atomic snapshot;
+old generated launch guides are not rewritten by an installed-plugin update.

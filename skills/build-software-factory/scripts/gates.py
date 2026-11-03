@@ -118,7 +118,9 @@ def problems(text, stage, revision, required=None, target=None):
             out.append(gate+' lacks concrete check, environment or evidence')
         if unresolved(row['target']):
             out.append(gate+' lacks the actual target')
-        if target is not None and row['target'] != target:
+        # A configured pre-merge recipe identifies its own artifact. Other rows
+        # still match an explicit global target; post-merge never bypasses it.
+        if target is not None and not (stage=='pre-merge' and 'recipe' in spec) and row['target'] != target:
             out.append(gate+' evidence is for a different target')
         if stage=='post-merge' and not target:
             out.append(gate+' requires the actual --target for post-merge confirmation')
@@ -157,13 +159,35 @@ def policy_controls(policy):
 def waivers(text,stage):
     return [gate+' WAIVED (recorded '+row['result']+')' for gate,row in gate_rows(text).items() if row['stage']==stage and row['required']=='no']
 
+
+def control_differences(left, right, path='controls'):
+    """Return differing field paths without exposing configured or recorded values."""
+    if type(left) is not type(right):return [path]
+    if isinstance(left,dict):
+        result=[]
+        for key in sorted(left.keys() | right.keys()):
+            child=path+'.'+str(key)
+            if key not in left or key not in right:result.append(child)
+            else:result.extend(control_differences(left[key],right[key],child))
+        return result
+    if isinstance(left,list):
+        if len(left)!=len(right):return [path]
+        return [item for index,(a,b) in enumerate(zip(left,right)) for item in control_differences(a,b,path+'['+str(index)+']')]
+    return [] if left==right else [path]
+
+
 def assess(factory, stage, revision, target=None):
     root = safe_path(factory)
     check(root,quiet=True)
     config = json.loads((root/'config.json').read_text(encoding='utf-8-sig'))
     research = json.loads((root/'research.json').read_text(encoding='utf-8-sig'))
-    if policy_controls((root/'policy.md').read_text(encoding='utf-8-sig')) != controls(config):
-        raise ValueError('Configuration and policy controls disagree; use a reviewed synchronized operations update')
+    drift=control_differences(policy_controls((root/'policy.md').read_text(encoding='utf-8-sig')),controls(config))
+    if drift:
+        raise ValueError('Configuration and policy controls disagree at '+json.dumps(drift,ensure_ascii=True)+
+                         '; no values printed. Preserve both records and reconcile the intended controls through reviewed recovery '+
+                         '(references/recovery.md). update_operations.py refuses existing drift; once reconciled, preview future changes with '+
+                         'update_operations.py --factory <factory> --operations <changes.json>, then --apply --approve-plan <digest> only after reviewing that preview. '+
+                         'scaffold.py --check checks integrity and basic structure, not controls consistency or delivery readiness.')
     expected = requirements(config,research)
     s = operations(config)['smoke_gates']
     rows=gate_rows((root/'verification.md').read_text(encoding='utf-8-sig'))

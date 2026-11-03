@@ -130,6 +130,41 @@ class StructuredGateTests(unittest.TestCase):
         missing='\n'.join(line for line in waived.splitlines() if not line.startswith('| G1 |'))
         self.assertIn('Missing expected gate row: G1',problems(missing,'pre-merge','subject-S',expected))
 
+    def test_premerge_recipes_override_only_their_own_global_target_checks(self):
+        one=self.spec();two=self.spec();two['target']['value']='synthetic-checkout'
+        self.config['operations']={'smoke_gates':{'checks':{'G1':one,'G2':two}}};self.write()
+        text=self.observed(self.files['verification.md'],'G1',target=one['target']['value'])
+        text=self.observed(text,'G2',target=two['target']['value'])
+        text=self.edit(text,'A1',{2:'Manual observation',3:'local fixture'})
+        text=self.observed(text,'A1',target='global-target')
+        # An unstructured research row must still honor the explicit target.
+        row=next(line for line in text.splitlines() if line.startswith('| A1 |'))
+        text+='\n'+row.replace('| A1 |','| R1 |',1)
+        expected=requirements(self.config,self.research)
+        expected['R1']={'stage':'pre-merge','applicability':'applicable'}
+        self.assertEqual(problems(text,'pre-merge','subject-S',expected,'global-target'),[])
+        self.assertEqual(problems(text,'pre-merge','subject-S',expected),[])
+        for gate in ('G1','G2','A1','R1'):
+            with self.subTest(gate=gate):
+                issues=problems(self.edit(text,gate,{8:'wrong'}),'pre-merge','subject-S',expected,'global-target')
+                self.assertTrue(any(item.startswith(gate+' ') and 'target' in item for item in issues))
+        self.assertTrue(problems(text,'pre-merge','stale-subject',expected,'global-target'))
+
+    def test_one_recipe_does_not_suppress_unstructured_smoke_target(self):
+        spec=self.spec();self.config['operations']={'smoke_gates':{'checks':{'G1':spec}}};self.write()
+        expected=requirements(self.config,self.research)
+        text=self.observed(self.files['verification.md'],'G1',target=spec['target']['value'])
+        text=self.observed(text,'G2',target='wrong-unconfigured-target')
+        self.assertIn('G2 evidence is for a different target',problems(text,'pre-merge','subject-S',expected,'global-target'))
+
+    def test_postmerge_recipe_still_requires_actual_global_target(self):
+        spec=self.spec();self.config['operations']={'smoke_gates':{'checks':{'G3':spec}}};self.write()
+        expected=requirements(self.config,self.research)
+        text=self.observed(self.files['verification.md'],'G3',target=spec['target']['value'])
+        self.assertEqual(problems(text,'post-merge','subject-S',expected,spec['target']['value']),[])
+        self.assertIn('G3 evidence is for a different target',problems(text,'post-merge','subject-S',expected,'wrong-global-target'))
+        self.assertIn('G3 requires the actual --target for post-merge confirmation',problems(text,'post-merge','subject-S',expected))
+
     def test_structured_g3_target_works_for_nonweb_and_refuses_conflicting_globals(self):
         spec=self.spec();self.config['operations']={'smoke_gates':{'checks':{'G3':spec}}};self.write()
         text=self.observed(self.files['verification.md'],'G3')

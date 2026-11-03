@@ -1,0 +1,85 @@
+{
+  "autonomy": {
+    "mode": "manual",
+    "kill_switch": "UNCONFIGURED: human stop request only; live stop controls and authority unverified",
+    "max_items_per_hour": 0,
+    "allowed_submitters": [],
+    "rejected_items": "Record the reason and stop; no automatic pickup or retries authorized"
+  },
+  "issue_intake": {
+    "mode": "continuous",
+    "github_scope": "unconfirmed",
+    "status": "disabled",
+    "evidence": "SYNTHETIC UNEXECUTED design example; repository, scheduler and execution authority unverified",
+    "coverage": "around_the_clock",
+    "mechanism": "unconfirmed",
+    "cadence": "unconfirmed: choose for the actual provider limits and budget",
+    "timezone": "unconfirmed",
+    "window": "none",
+    "window_evidence": "none"
+  },
+  "smoke_gates": {
+    "pre_merge": "SYNTHETIC UNEXECUTED local smoke fixture; replace with inspected project checks",
+    "targeted": "SYNTHETIC UNEXECUTED changed-feature fixture; replace with inspected mapped tests",
+    "post_merge": "SYNTHETIC UNEXECUTED actual-target fixture; replace with authorized target-safe checks",
+    "target_kind": "unconfirmed",
+    "deployed_url": "unconfirmed",
+    "checks": {
+      "G1": {
+        "command": [
+          "python",
+          "-c",
+          "raise SystemExit('SYNTHETIC UNEXECUTED G1 fixture: no application check implemented')"
+        ],
+        "environment": "SYNTHETIC UNEXECUTED local fixture",
+        "env_names": [],
+        "target": {
+          "kind": "artifact",
+          "value": "synthetic-local-fixture",
+          "base_url_env": null
+        }
+      },
+      "G2": {
+        "command": [
+          "python",
+          "-c",
+          "raise SystemExit('SYNTHETIC UNEXECUTED G2 fixture: no mapped feature tests implemented')"
+        ],
+        "environment": "SYNTHETIC UNEXECUTED changed-feature fixture",
+        "env_names": [],
+        "target": {
+          "kind": "artifact",
+          "value": "synthetic-changed-feature-fixture",
+          "base_url_env": null
+        }
+      },
+      "G3": {
+        "command": [
+          "python",
+          "-c",
+          "raise SystemExit('SYNTHETIC UNEXECUTED G3 fixture: no released target checked')"
+        ],
+        "environment": "SYNTHETIC UNEXECUTED released-target fixture",
+        "env_names": ["BASE_URL"],
+        "target": {
+          "kind": "web",
+          "value": "https://factory-fixture.example.invalid",
+          "base_url_env": "BASE_URL"
+        }
+      }
+    }
+  },
+  "done_videos": {
+    "enabled": false,
+    "scope": "SYNTHETIC UNEXECUTED preview and release design; no video requested",
+    "evidence": "SYNTHETIC example only; capture, narration and delivery authority unverified",
+    "triggers": ["pre_merge_preview", "post_g3_release"],
+    "composition": "unconfirmed: select an existing project-fitting editor",
+    "voice_provider": "unconfirmed: no narration authorized",
+    "delivery_channel": "unconfirmed: no upload or message authorized",
+    "branding": "unconfirmed: choose project identity and actual subject",
+    "duration_seconds": 60,
+    "captions": true,
+    "media_format": "mp4"
+  }
+}

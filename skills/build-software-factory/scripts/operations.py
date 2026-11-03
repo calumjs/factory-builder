@@ -56,6 +56,14 @@ def unresolved(value):
     normalized=' '.join(value.casefold().strip().split()).rstrip(' .:')
     return normalized in ('','none','unconfirmed','unknown','tbd','to be determined','not configured','not set','pending','n/a','not applicable') or normalized.startswith(('unknown:','unconfirmed:','tbd:','not configured:'))
 
+def unknown_fields(keys):
+    """Bound and escape unknown field names; never include supplied values."""
+    names=sorted(str(key) for key in keys)
+    shown=[name if len(name)<=80 else name[:80]+'...' for name in names[:10]]
+    if len(names)>10:shown.append('... '+str(len(names)-10)+' more fields')
+    return json.dumps(shown,ensure_ascii=True)
+
+
 def operations(config):
     defaults = {
         'identities': [], 'tool_recipes': [],
@@ -75,14 +83,23 @@ def operations(config):
                         'post_merge_rationale':'No exclusion recorded', 'accepted_by':'unconfirmed', 'check_stages':{}}
     }
     supplied = config.get('operations',{})
-    if not isinstance(supplied,dict) or not set(supplied) <= set(defaults):
-        raise ValueError('Unknown operations field')
+    guide='; see references/existing-factory-update.md for the operations patch example'
+    allowed_sections=json.dumps(sorted(defaults))
+    if not isinstance(supplied,dict):
+        raise ValueError('Unknown operations field: operations must be an object; allowed sections: '+allowed_sections+guide)
+    if not set(supplied) <= set(defaults):
+        raise ValueError('Unknown operations field: unknown keys at operations: '+unknown_fields(set(supplied)-set(defaults))+
+                         '; allowed sections: '+allowed_sections+guide)
     result = copy.deepcopy(defaults)
     for key,value in supplied.items():
         if isinstance(defaults[key],dict):
             optional = INTAKE_FIELDS if key=='issue_intake' else VIDEO_FIELDS if key=='done_videos' else SMOKE_FIELDS if key=='smoke_gates' else frozenset()
-            if not isinstance(value,dict) or not set(value) <= set(defaults[key]) | optional:
-                raise ValueError('Invalid operations section: ' + key)
+            allowed=set(defaults[key]) | optional
+            if not isinstance(value,dict):
+                raise ValueError('Invalid operations section: '+key+'; operations.'+key+' must be an object; allowed keys: '+json.dumps(sorted(allowed))+guide)
+            if not set(value) <= allowed:
+                raise ValueError('Invalid operations section: '+key+'; unknown keys at operations.'+key+': '+unknown_fields(set(value)-allowed)+
+                                 '; allowed keys: '+json.dumps(sorted(allowed))+guide)
             result[key].update(value)
         else:
             result[key] = value

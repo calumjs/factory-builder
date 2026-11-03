@@ -8,6 +8,14 @@ from assumptions import assumptions
 
 LIVING = frozenset(('verification.md', 'task-plan.json', 'learning-log.md', 'release-handoff.md', 'tools.json'))
 
+class ManifestFileSetMismatch(ValueError):
+    """Private details remain available to trusted callers; safe summary is structured."""
+    def __init__(self, message, unexpected, missing):
+        super().__init__(message)
+        self.unexpected_count=len(unexpected)
+        self.missing_count=len(missing)
+        self.dashboard_bytecode=any(name.startswith('dashboard/__pycache__/') and name.endswith('.pyc') for name in unexpected)
+
 def redirected(path):
     junction_check = getattr(path, 'is_junction', None)
     if path.is_symlink() or (callable(junction_check) and junction_check()):
@@ -102,9 +110,9 @@ def check(path, *, quiet=False):
         missing = sorted(set(names) - actual)
         detail = '; '.join(label + ': ' + json.dumps(paths, ensure_ascii=True)
                            for label, paths in (('unexpected', extra), ('missing', missing)) if paths)
-        raise ValueError('Manifest file set mismatch (' + detail + '). Keep operator/runtime records '
+        raise ManifestFileSetMismatch('Manifest file set mismatch (' + detail + '). Keep operator/runtime records '
                          'outside the factory directory, e.g. docs/factory-operations.md. '
-                         'Do not reset hashes; use reviewed recovery for existing drift.')
+                         'Do not reset hashes; use reviewed recovery for existing drift.', extra, missing)
     for name, expected in m['contracts'].items():
         if digest((p/name).read_bytes()) != expected:
             raise ValueError('Contract integrity mismatch: ' + name)

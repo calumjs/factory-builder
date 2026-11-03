@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 import sys
 import tempfile
-from gates import policy_controls, initial_table, requirements, gate_rows, ROW
+from gates import policy_controls, initial_table, requirements, gate_rows, ROW, HEADER, control_differences
 from integrity import check, digest, safe_path
 from operations import controls, operations, DELIVERY_POLICY
 from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS
@@ -19,27 +19,28 @@ from assumptions import refresh as refresh_assumptions
 def dumps(value):
     return json.dumps(value,indent=2,ensure_ascii=False)+'\n'
 
-def control_differences(left, right, path='controls'):
-    if type(left) is not type(right):return [path]
-    if isinstance(left,dict):
-        result=[]
-        for key in sorted(left.keys() | right.keys()):
-            child=path+'.'+str(key)
-            if key not in left or key not in right:result.append(child)
-            else:result.extend(control_differences(left[key],right[key],child))
-        return result
-    if isinstance(left,list):
-        if len(left)!=len(right):return [path]
-        return [item for index,(a,b) in enumerate(zip(left,right)) for item in control_differences(a,b,path+'['+str(index)+']')]
-    return [] if left==right else [path]
-
 def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None):
     expected=requirements(config,research)
     previous=requirements(prior_config,research) if prior_config is not None else {}
-    preserved=[];history=[];extra=[];flags={}
+    baseline=gate_rows(initial_table(prior_config,research)) if prior_config is not None else {}
+    preserved=[];history=[];observations=[];extra=[];flags={}
+    in_history=False;table_header=False;skip_blank=False
     for line in text.splitlines():
+        if line in ('## Historical observations (not current evidence)', '## Current delivery gate records', '## Delivery gate records (required checks start NOT RUN)'):
+            while preserved and not preserved[-1].strip():preserved.pop()
+            in_history=line.startswith('## Historical');table_header=False;skip_blank=True;continue
+        if line.startswith('## '):in_history=False
+        if in_history and line.startswith('> | '):
+            history.append(line);skip_blank=True;continue
+        if line == HEADER.splitlines()[0]:
+            table_header=True;skip_blank=True;continue
+        if table_header and re.fullmatch(r'\|(?:\s*:?-+:?\s*\|)+',line):
+            table_header=False;skip_blank=True;continue
+        table_header=False
+        if skip_blank and not line.strip():continue
         if not ROW.match(line):
-            preserved.append(line);continue
+            preserved.append(line);skip_blank=False;continue
+        skip_blank=True
         cells=[v.strip() for v in line.strip().strip('|').split('|')]
         if len(cells) not in (8,11):
             raise ValueError('Cannot migrate malformed gate row; review it manually')
@@ -49,7 +50,12 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False, p
         if flag not in ('yes','y','true','no','n','false'):
             raise ValueError('Malformed source requiredness requires review')
         flags[cells[0]]='yes' if flag in ('yes','y','true') else 'no'
-        history.append('> '+line)
+        # Blank default plans have no observation. Preserve customized plans and
+        # optional choices, including retired video rows, without carrying a PASS.
+        prior=baseline.get(cells[0])
+        customized=prior is None or cells[1:4]!=[prior['stage'],prior['design'],prior['environment']] or flags[cells[0]]!=prior['required']
+        if cells[6]!='NOT RUN' or any(cells[i] for i in (5,7)) or (len(cells)==11 and any(cells[8:11])) or customized or cells[0] in ('V1','V2') and cells[0] not in expected:
+            observations.append('> '+line)
         if cells[0] not in expected and (cells[0]=='V1' or cells[0]=='V2' and cells[0] in previous):
             continue  # Reserved video gate is retired by the reviewed disabled preference.
         if cells[0] not in expected:
@@ -64,6 +70,20 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False, p
                 cells[4]=flags[cells[0]]
                 line='| '+' | '.join(cells)+' |'
         current.append(line)
+    # Retain existing history verbatim; refreshing the same active plan twice
+    # must not append the same observation again merely because table spacing,
+    # a requiredness alias or empty legacy columns were normalized.
+    def history_key(line):
+        cells=[cell.strip() for cell in line[2:].strip().strip('|').split('|')]
+        if len(cells)==8:cells+=['','','']
+        if len(cells)==11:
+            flag=cells[4].casefold()
+            cells[4]='yes' if flag in ('yes','y','true') else 'no' if flag in ('no','n','false') else flag
+        return tuple(cells)
+    seen={history_key(line) for line in history}
+    for observation in observations:
+        key=history_key(observation)
+        if key not in seen:history.append(observation);seen.add(key)
     result='\n'.join(preserved).rstrip()+'\n\n## Historical observations (not current evidence)\n'+'\n'.join(history)+'\n\n## Current delivery gate records\n'+'\n'.join(current)+'\n'+'\n'.join(extra)+'\n'
     gate_rows(result)  # Reject ambiguity or malformed legacy extra checks before writing.
     return result
@@ -86,6 +106,11 @@ COMPATIBLE_CONTEXT_V17 = {'integrity.py':'b03fb25cc9d78a55618e4a58504cda9d496b3c
 COMPATIBLE_CONTEXT_PRE65 = {'integrity.py':'e76455b29979257e7f94cc418a629c46248547481ff31986c996d80edcbb4de0',
                            'readiness.py':'9ddda7edccbc0e90cb589fb871afad0bafa16213ab0e81e4ad764b89238d207d'}
 COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS = {'integrity.py':'8585924619380d8434083dd6f5915b75c312fdbdca61c9e2f254a44f037ec738'}
+# Exact reviewed local helpers at 116eefe. Runtime-only updates preserve them by
+# default and replace only these known bytes under the explicit migration flags.
+COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION = {
+    'integrity.py':'0a830ff249d538daf1783e58a0318bafaf6c022ec768c648d06d72df7e33894d',
+    'dashboard.py':'cdc39b7c105c6270b0d491676dd05c4a081a149e5c17704fcfa256808e95ead7'}
 V19_DELIVERY_ADDENDUM = {
     'intake': ('f48fc8e0956c99003f8c46bfaae76c9847cd086332cc99bf25cb74b134742b5d','c179a72f3b39cb7d181a9e04fa0cb2143747f4b7b1039bf0347d042d17900bc3'),
     'verify': ('8d861d2de61e8a4c14d7fcc1109a91395943bea8c38b30407a9962352b2e3e76','bfcae3e6622ec55ff2f232bb630ac7c340978c7dff9462c1ead95e7ff36592d9','2599dd944575f04c6a8a25916c7f63037d3168bbb5140f3c885b6d1b13e33a4c','4662208da23353e382335504b5035771f23d05f108833e2a3e86be13d518fcd3','393cbed734fc4011bcf52eaa1d48111fa49dcaac79c5b2e8fb3320f50194eafd'),
@@ -101,6 +126,9 @@ COMPATIBLE_GATE_RUNTIME = {'gates.py':'4e998f0f9a1a013fc06fc9c391ea255d6d7ab57e4
 COMPATIBLE_GATE_PRE65 = {'gates.py':'4aba0903e6a87f9ad3e89b46d67284b2a9e9f397999bab073bbccbbbef50bf47'}
 COMPATIBLE_GATE_V19 = {'gates.py':'1114c6617a89295cc5a933852e8bd7eddb234182f2e682de2d8095b89ee93a76'}
 COMPATIBLE_GATE_PRE_DIAGNOSTICS = {'gates.py':'45ba27c4aeee79b8be18dd729526c2e795705bedf05b13b5351429795e1f9c33'}
+COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION = {
+    'gates.py':'d1411d3f0d75e112d6d463c22c307f3407b6c9de0bfc862505f2c487761882bf',
+    'operations.py':'c0a11db48df30f2b29f3770eb52a784d1b9b425a91420df8e5175470cb6eca2a'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -109,7 +137,7 @@ def gate_runtime_plan(root, original, replacement, opted_in):
         wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename))
         if compatible and not opted_in:continue
         known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
         if not known and not compatible and not (current is None and filename=='recipes.py'):
@@ -124,7 +152,7 @@ def context_runtime_plan(root, original, replacement, opted_in):
         path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename))
         if compatible and not opted_in:continue
         if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename) and not compatible:
             raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')
@@ -161,7 +189,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
     existing_controls=policy_controls(policy)
     drift=control_differences(existing_controls,controls(before_config))
     if drift:
-        raise ValueError('Policy/config controls disagree at '+', '.join(drift)+'; preserve and reconcile with a reviewed synchronized recovery before updating')
+        raise ValueError('Policy/config controls disagree at '+json.dumps(drift,ensure_ascii=True)+'; preserve and reconcile with a reviewed synchronized recovery before updating')
     header='## Proposed autonomy and review controls (not execution authority)'
     pattern=re.escape(header)+r'(\s*```json\n)(.*?)(\n```)'
     policy=re.sub(pattern,lambda m:header+m[1]+dumps(controls(config)).rstrip('\n')+m[3],policy,count=1,flags=re.S)
@@ -193,7 +221,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
         current=replacement.get(runtime,(root/runtime).read_bytes())
         wanted=(ROOT/'scripts/operations.py').read_bytes()
         if digest(current)!=digest(wanted):
-            if digest(current) not in (LEGACY_DASHBOARD_OPERATIONS,PRIOR_GATE_RUNTIME['operations.py']):
+            if digest(current) not in (LEGACY_DASHBOARD_OPERATIONS,PRIOR_GATE_RUNTIME['operations.py'],COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION['operations.py']):
                 raise ValueError('Customized/unsupported dashboard runtime preserved; review a narrow manual compatibility migration')
             if digest(current)==LEGACY_DASHBOARD_OPERATIONS and not recipe_runtime:
                 raise ValueError('New recipe metadata needs a reviewed v1.2 dashboard migration; preview with --recipe-runtime')

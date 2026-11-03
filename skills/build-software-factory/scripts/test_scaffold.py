@@ -192,6 +192,8 @@ class ScaffoldTests(unittest.TestCase):
         for pattern in ('.next/','.vercel/','*.tsbuildinfo','playwright-report/','next-env.d.ts'):
             self.assertIn(pattern,fragment)
         self.assertIn('!.env.example',fragment)
+        for pattern in ('.factory-update-backups/', '.factory-recovery-backups/', 'factory-overview.html', 'factory-overview.json'):
+            self.assertIn(pattern,fragment.splitlines())
         self.assertEqual((self.target/'.gitignore').read_text(),'user-policy\n')
 
     def test_unrelated_stack_does_not_get_framework_specific_ignores(self):
