@@ -7,6 +7,11 @@ and does not authorize deleting, uploading or retrying an already completed back
 
 Three situations, one stance: preserve what exists, review every delta, accept nothing wholesale, activate nothing automatically. The boundaries in the generated boundaries.md apply throughout.
 
+For a new acceptance criterion, use the [synchronized preview](acceptance-planning.md)
+and optional [inactive candidate checkpoint](acceptance-candidates.md) before this
+recovery flow. Their multi-file scope changes require separate coordinated adoption;
+manifest-only adoption into the original factory is insufficient.
+
 ## 1. Integrity recovery (manual procedure)
 
 Use when hand-edited contracts or unregistered files block checks, status, gates or operations preview. Those refusals are intentional; recovery means a reviewed, selective manifest change, never accepting all current hashes.

@@ -109,10 +109,11 @@ The envelope deliberately separates:
 
 The digest binds the explicit request, baseline pin/reference, factory identity,
 complete original inventory and all proposed bytes. It grants no write authority.
-The next implementation boundary is reviewed candidate materialization, followed
-by a separate [recovery](recovery.md) preview/review/apply/verify flow against an
-independently pinned baseline. That second review must bind the actual candidate
-and final output. Backup, interrupted-output quarantine and adoption checks still
-apply. Recovery's manifest-only adoption instructions cannot activate these scope
-changes: multiple non-manifest files would differ from the original factory.
-This first slice does not implement either materialization or adoption.
+For materialization, use the separate [inactive candidate helper](acceptance-candidates.md),
+which adds its own destination-bound preview and explicit reviewed apply. It is
+followed by a separate [recovery](recovery.md) preview/review/apply/verify flow
+against an independently pinned baseline. That second review must bind the actual
+candidate and final output. Backup, interrupted-output quarantine and adoption
+checks still apply. Recovery's manifest-only adoption instructions cannot activate
+these scope changes: multiple non-manifest files would differ from the original
+factory. The pure planner remains write-free; neither helper performs active adoption.
