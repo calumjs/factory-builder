@@ -7,18 +7,105 @@ import json
 import os
 from pathlib import Path
 import re
+import stat
 import sys
 import tempfile
 from gates import policy_controls, initial_table, requirements, gate_rows, ROW, HEADER, control_differences
-from integrity import check, digest, safe_path
+from integrity import check, digest, safe_path, strict_json
 from operations import controls, operations, DELIVERY_POLICY
 from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS
 from scaffold import validate, ROOT, phase_skill, RETURN
 from assumptions import refresh as refresh_assumptions
 from backup_advisory import inspect_backup_directory
 
+MIGRATION_RECEIPTS='migration-receipts.json'
+MAX_RECEIPT_BYTES=262144
+MAX_RECEIPTS=128
+RUNTIME_COMPONENTS=frozenset('dashboard/'+name for name in (
+    'dashboard.py','integrity.py','gates.py','operations.py','recipes.py',
+    'assumptions.py','readiness.py','learning_table.py'))
+
 def dumps(value):
     return json.dumps(value,indent=2,ensure_ascii=False)+'\n'
+
+def receipt_bytes(path, limit, label, optional=False):
+    """Bound receipt/label inputs before parsing; never include their values in errors."""
+    path=safe_path(path)
+    try:before=path.lstat()
+    except FileNotFoundError:
+        if optional:return None
+        raise ValueError(label+' is missing')
+    if not stat.S_ISREG(before.st_mode) or before.st_size>limit:
+        raise ValueError(label+' must be a bounded regular file')
+    with path.open('rb') as stream:raw=stream.read(limit+1)
+    after=path.lstat()
+    if len(raw)>limit or len(raw)!=before.st_size or (before.st_dev,before.st_ino,before.st_size,before.st_mtime_ns)!=(after.st_dev,after.st_ino,after.st_size,after.st_mtime_ns):
+        raise ValueError(label+' changed during read or exceeded its limit')
+    return raw
+
+
+def declared_label(value):
+    return value is None or isinstance(value,str) and 0<len(value)<=128 and value==value.strip() and value.isprintable()
+
+
+def migration_receipts(raw):
+    if raw is None:return {'schema_version':1,'receipts':[]}
+    try:value=strict_json(raw.decode('utf-8-sig'))
+    except (ValueError,RecursionError) as exc:raise ValueError('Malformed migration receipts; preserve and review manually') from exc
+    if (not isinstance(value,dict) or set(value)!={'schema_version','receipts'} or type(value['schema_version']) is not int
+            or value['schema_version']!=1 or not isinstance(value['receipts'],list) or len(value['receipts'])>MAX_RECEIPTS):
+        raise ValueError('Unsupported migration receipts schema or history limit; preserve and review manually')
+    def raw_hash(item):return isinstance(item,str) and re.fullmatch(r'[0-9a-f]{64}',item) is not None
+    for receipt in value['receipts']:
+        if not isinstance(receipt,dict) or set(receipt)!={'scope','installed_builder','components'} or receipt['scope']!='runtime-only':
+            raise ValueError('Unsupported runtime migration receipt')
+        builder=receipt['installed_builder']
+        if (not isinstance(builder,dict) or set(builder)!={'declared_name','declared_version','verified_source_revision'}
+                or not declared_label(builder['declared_name']) or not declared_label(builder['declared_version'])
+                or builder['verified_source_revision'] is not None):
+            raise ValueError('Unsupported installed-builder labels or source revision in receipt')
+        components=receipt['components'];seen=set()
+        if not isinstance(components,list) or not 1<=len(components)<=len(RUNTIME_COMPONENTS):
+            raise ValueError('Invalid runtime receipt component list')
+        for component in components:
+            if not isinstance(component,dict) or set(component)!={'path','before_raw_sha256','after_raw_sha256'}:
+                raise ValueError('Invalid runtime receipt component fields')
+            name=component['path'];old=component['before_raw_sha256'];new=component['after_raw_sha256']
+            if (not isinstance(name,str) or name not in RUNTIME_COMPONENTS or name in seen
+                    or old is not None and not raw_hash(old) or not raw_hash(new) or old==new):
+                raise ValueError('Unknown, duplicate or invalid runtime receipt component')
+            seen.add(name)
+    return value
+
+
+def installed_builder_labels():
+    raw=receipt_bytes(ROOT.parents[1]/'.claude-plugin/plugin.json',65536,'Installed builder metadata',optional=True)
+    if raw is None:metadata={}
+    else:
+        try:metadata=strict_json(raw.decode('utf-8-sig'))
+        except (ValueError,RecursionError) as exc:raise ValueError('Installed builder metadata is malformed; no verified provenance inferred') from exc
+    if not isinstance(metadata,dict) or any(not declared_label(metadata.get(key)) for key in ('name','version')):
+        raise ValueError('Installed builder name/version must be bounded declared labels')
+    # Labels are not proof of the copied bytes' release or source revision.
+    # No application origin, HEAD, dirty checkout, or supplied SHA is consulted.
+    return {'declared_name':metadata.get('name'),'declared_version':metadata.get('version'),'verified_source_revision':None}
+
+
+def append_runtime_receipt(original, replacement, ledger):
+    components=[]
+    for name in sorted(RUNTIME_COMPONENTS & replacement.keys()):
+        if name not in original:raise ValueError('Runtime receipt requires captured original component bytes')
+        before=original[name];after=replacement[name]
+        if before==after:continue
+        components.append({'path':name,'before_raw_sha256':None if before is None else hashlib.sha256(before).hexdigest(),
+                           'after_raw_sha256':hashlib.sha256(after).hexdigest()})
+    if not components:return
+    if len(ledger['receipts'])>=MAX_RECEIPTS:raise ValueError('Migration receipt history limit reached; history will not be trimmed')
+    proposed=copy.deepcopy(ledger)
+    proposed['receipts'].append({'scope':'runtime-only','installed_builder':installed_builder_labels(),'components':components})
+    data=dumps(proposed).encode('utf-8')
+    if len(data)>MAX_RECEIPT_BYTES:raise ValueError('Migration receipt size limit reached; history will not be trimmed')
+    replacement[MIGRATION_RECEIPTS]=data
 
 def verification_explanations(original, replacement):
     """Describe captured row transitions without disclosing free-form row values."""
@@ -242,12 +329,21 @@ def unchanged(root, name, expected):
     return not path.exists() if expected is None else path.is_file() and path.read_bytes()==expected
 
 
-def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False):
-    root=safe_path(factory);check(root,quiet=True)
+def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False, migration_receipt=False):
+    if migration_receipt and not any((recipe_runtime,context_runtime,gate_runtime)):
+        raise ValueError('--migration-receipt requires an explicit runtime migration flag')
+    root=safe_path(factory)
+    if migration_receipt:
+        receipt_before=receipt_bytes(root/MIGRATION_RECEIPTS,MAX_RECEIPT_BYTES,'Migration receipts',optional=True)
+        ledger=migration_receipts(receipt_before)
+    check(root,quiet=True)
     if not isinstance(changes,dict):
         raise ValueError('Operations changes must be an object')
     names=('config.json','policy.md','manifest.json','tools.json','verification.md','release-handoff.md','project-brief.md')
     original={name:(root/name).read_bytes() for name in names}
+    if migration_receipt:
+        original[MIGRATION_RECEIPTS]=receipt_before
+        if not unchanged(root,MIGRATION_RECEIPTS,receipt_before):raise ValueError('Migration receipts changed during preview')
     config=json.loads(original['config.json'].decode('utf-8-sig'))
     before_config=copy.deepcopy(config)
     before_ops=operations(config)
@@ -351,10 +447,11 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
         if source in changes and updated.get(source)!=before.get(source):
             tools[dest]=updated[source]
             replacement['tools.json']=dumps(tools).encode('utf-8')
+    if migration_receipt:append_runtime_receipt(original,replacement,ledger)
     manifest=json.loads(original['manifest.json'].decode('utf-8-sig'))
     prior_manifest=copy.deepcopy(manifest)
     for name,data in replacement.items():
-        if name in manifest['contracts'] or name.startswith('dashboard/') or name=='boundaries.md':
+        if name in manifest['contracts'] or name.startswith('dashboard/') or name in ('boundaries.md',MIGRATION_RECEIPTS):
             manifest['contracts'][name]=digest(data)
     replacement['manifest.json']=dumps(manifest).encode('utf-8') if manifest!=prior_manifest else original['manifest.json']
     replacement={k:v for k,v in replacement.items() if v!=original[k]}
@@ -385,7 +482,9 @@ def apply(root,original,replacement,plan,approved):
             if original[name] is None:continue
             (backup/name).parent.mkdir(parents=True,exist_ok=True)
             with (backup/name).open('xb') as stream:stream.write(original[name])
-        for name in sorted(replacement,key=lambda n:n=='manifest.json'):
+        # Receipts describe this reviewed runtime transition, not atomic success:
+        # write them after components, then the manifest last as before.
+        for name in sorted(replacement,key=lambda n:(n=='manifest.json',n==MIGRATION_RECEIPTS)):
             if not unchanged(root,name,original[name]):
                 raise ValueError('Concurrent edit preserved; inspect backup before recovery')
             if original[name] is None:
@@ -410,6 +509,7 @@ def main():
     parser.add_argument('--recipe-runtime',action='store_true',help='Opt in to a reviewed known-v1.2 dashboard validator/dependency migration for recipe metadata')
     parser.add_argument('--context-runtime',action='store_true',help='Opt in to a reviewed known dashboard context/diagnostic migration; includes recipe compatibility')
     parser.add_argument('--gate-runtime',action='store_true',help='Opt in to reviewed known dashboard operations/recipes/gates support for structured gate metadata')
+    parser.add_argument('--migration-receipt',action='store_true',help='With a runtime migration flag, append a reviewed runtime-only byte receipt; preserve original factory provenance')
     args=parser.parse_args()
     if args.approve_plan and not args.apply:parser.error('--approve-plan requires --apply')
     if not any((args.operations,args.assumptions,args.delivery_gates,args.recipe_runtime,args.context_runtime,args.gate_runtime)):
@@ -417,8 +517,10 @@ def main():
     changes=json.loads(Path(args.operations).read_text(encoding='utf-8-sig')) if args.operations else {}
     assumption_rows=json.loads(Path(args.assumptions).read_text(encoding='utf-8-sig')) if args.assumptions else None
     if args.assumptions and assumption_rows is None:raise ValueError('Assumptions input must be an array, not null')
-    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime)
+    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime,args.migration_receipt)
     print('REVIEW PLAN: '+plan)
+    if args.migration_receipt:
+        print('RUNTIME-ONLY RECEIPT: '+('proposed component byte transition; declared version is not verified provenance.' if MIGRATION_RECEIPTS in replacement else 'no changed runtime components; no receipt appended.'))
     for explanation in verification_explanations(original,replacement):print(explanation)
     for name,data in replacement.items():
         before=hashlib.sha256(original[name]).hexdigest() if original[name] is not None else 'missing'

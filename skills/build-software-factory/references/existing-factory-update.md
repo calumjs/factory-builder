@@ -35,6 +35,13 @@ the rest of the factory can still come from an older source and the builder may
 not know its immutable source revision. Record verified provenance only through a
 separately reviewed accurate change.
 
+For an optional record of changed runtime component bytes, add
+[`--migration-receipt`](migration-receipts.md) to an explicit runtime migration
+preview. It preserves original factory provenance and records only the selected
+runtime transitions, with declared builder labels and no inferred source revision.
+The receipt participates in the reviewed plan and backups; it is neither a complete
+history nor proof that the update completed or the installed source is authentic.
+
 Known pristine helpers predating the factory-path and revision-help diagnostics can
 be preserved, or migrated with the reviewed `--context-runtime --gate-runtime`
 preview. Customized helpers still require manual review. `--delivery-gates`
