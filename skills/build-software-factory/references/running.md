@@ -24,7 +24,9 @@ enforce rate, concurrency, budget or external authority. Establish a verified
 exclusive dispatcher or atomic admission mechanism before authorized dispatch.
 
 `plan` adds one rendered worker prompt per candidate, built from
-worker-handoff.md. After separate authority and verified exclusive admission,
+worker-handoff.md and [selected acceptance/test designs](worker-context.md).
+Missing or ambiguous context is reported; planned checks are not passing evidence.
+After separate authority and verified exclusive admission,
 the orchestrator can dispatch scoped work. Integrate and reverify the exact
 combined revision before any release handoff. Nothing here starts a worker.
 
@@ -117,7 +119,13 @@ dispatch or schedules; no automatic Run migration is currently provided.
 For a six-phase factory, first check whether
 `.claude/skills/factory-run/SKILL.md` and the named `scheduling/` files are present
 in both the tree and manifest. A passing `scaffold.py --check` attests the recorded
-file set; it does not assert that optional new Run files have been adopted. Use
+file set and controls consistency; it does not assert that optional new Run files
+have been adopted. After these checks succeed, it lists any Run skill or scheduling
+contracts shipped in the installed templates but absent from the recorded factory,
+with a nonblocking advisory pointing here. Existing custom contracts remain intact;
+the advisory neither adopts files nor enables dispatch or schedules. A file listed
+in the manifest but missing from disk still fails integrity, rather than becoming
+an adoption advisory. Use
 the trusted installed builder's `run.py --factory <existing-factory> --runs
 <outside-path> select` for a read-only advisory pass before adoption.
 

@@ -39,8 +39,20 @@ def check_factory(factory):
     manifest=check(root,quiet=True)
     config=read_json(root/'config.json');validate(config)
     require_control_consistency(config,(root/'policy.md').read_text(encoding='utf-8-sig'))
-    runtime_advisory(root);emit(config)
+    runtime_advisory(root);run_adoption_advisory(manifest);emit(config)
     print(f"PASS: {len(manifest['contracts'])} contract files match; {len(manifest['living'])} living files have valid basic structure; config/policy controls agree. Living content and evidence truth are not attested; application checks were not run.")
+
+
+def run_adoption_advisory(manifest):
+    """Compare a validated recorded file set with installed optional Run templates."""
+    templates=ROOT/'assets/templates'
+    expected={path.relative_to(templates).as_posix() for path in templates.rglob('*') if path.is_file()
+              and (path.relative_to(templates).as_posix()=='.claude/skills/factory-run/SKILL.md'
+                   or path.relative_to(templates).as_posix().startswith('scheduling/'))}
+    missing=sorted(expected-set(manifest['contracts']))
+    if missing:
+        print('ADVISORY: optional Run contracts are not recorded: '+json.dumps(missing,ensure_ascii=True)+
+              '. See references/running.md#existing-factories for reviewed manual adoption. Preserve existing customizations and living records; no files changed or dispatch/schedules enabled.')
 
 
 def runtime_advisory(factory):
