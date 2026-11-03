@@ -93,6 +93,22 @@ Failure leaves the original intact and partial output preserved; there is no for
 
 Use the task's tool recipe and worker-handoff.md; pin a provider only when the project requires it. Identify any permitted fallback, its data boundary, output format and execution authority during intake or Plan — the primary worker being unavailable does not authorize an alternative.
 
+Copy the generated hashed handoff to an approved task-specific location outside the
+factory before filling its ordered worker-plan table: priority, provider/existing
+recipe, authority and data/cost/path/action boundaries, availability evidence and
+stop/pause conditions. One worker is valid; unconfigured rows grant no permission.
+Evaluate candidates in the agreed order, skipping unavailable or out-of-scope
+candidates without treating the table as authority. Existing factories can consult
+the installed builder's template and use an external task copy; adopting changes to
+their reusable contract requires an explicit reviewed selective template/manifest
+update. Do not edit the hashed template as a living run record or auto-rebaseline it.
+Review the handoff, Plan and Build instructions together during selective adoption
+so all phases use the same external-copy rule; no automatic migration is performed.
+
 At each checkpoint confirm from the actual run ID, state, logs, expected artifact and branch whether a commit, PR or artifact already exists before retrying or switching; reconcile an existing artifact first to avoid duplicate commits. An auth, permission or data-boundary rejection stops that action — no identity or security change, no tool switch to get around it.
+
+An empty transcript alone proves neither failure nor absence of an artifact;
+reconcile uncertain outcomes before retrying or switching. If no permitted candidate
+is available, stop and use an already-authorized intake pause or request owner action.
 
 `budget.max_repair_attempts`, `max_minutes`, `max_workers` and the cost limit cover the task including every retry and fallback; a fallback does not reset them. Before retrying, name the new hypothesis, timeout, expected artifact and verification. Fallback is permitted only when its provider, data egress, cost, paths and actions fit existing explicit scope; use an isolated checkout and make sure the primary worker cannot write the same files concurrently. Never terminate a run outside authority. Record which worker/run produced the final artifact, its revision and checks. If automatic pickup exists, use its authorized pause or kill switch rather than reconfiguring a watcher. For a laptop fallback follow the generated launch-guide.md, keeping work blocked and pickup paused through authorized controls while any trust decision is pending.
