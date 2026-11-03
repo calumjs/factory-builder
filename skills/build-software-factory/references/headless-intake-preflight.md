@@ -137,6 +137,9 @@ optional choices remain waivers with their underlying observations.
 
 This uses the existing [scoped-assessment contract](incremental-workflow.md), not a
 new setup lifecycle. It neither classifies setup automatically nor carries old
-evidence forward. Daily/in-flight admission, role-based submitters, periodic spend
-limits and repository-file research sources require separate designs; this guide
-does not encode them in free text or imply they are enforced.
+evidence forward. Daily/in-flight admission, role-based submitters and periodic
+spend limits require separate designs; this guide does not encode them in free
+text or imply they are enforced. For inspected private project workflows, use the
+versioned [repository-file source](repository-research-sources.md) with actual
+commit and byte identities. Older source validators do not support this format;
+successful integrity or gate checks alone do not establish source-schema support.
