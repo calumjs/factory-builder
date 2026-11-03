@@ -8,6 +8,42 @@ Explicit triggers select pre_merge_preview (V2) and/or post_g3_release (V1).
 Omitted triggers preserve release-only V1; disabled creates neither. Use only the
 selected stages and their actual subjects. Preview-only does not invent a release.
 
+## Per-change decision for a lighter handoff
+
+Review the actual diff and its release/deployment effects; labels and file paths
+alone are hints, not proof. Classify the exact merged subject as feature,
+tests-only, docs-only, or mixed/uncertain. A test, documentation, generated file,
+configuration or pipeline change can alter deployed behavior; treat mixed or
+uncertain changes as the ordinary feature path until their effects are understood.
+Record the reviewed subject, comparison base, classification, deployment effects,
+rationale and the operator's V1 choice in release-handoff.md or approved durable
+per-change evidence outside the factory. This is a human decision, not an automatic
+classifier or authorization to act.
+
+For a genuinely tests-only or docs-only subject, the user may decide that V1 is
+optional for this change. If the generated V1 row exists, preserve its prior
+observation as history and set its editable Required cell to `no`; retain the
+underlying result and evidence, including failures, rather than inventing PASSED.
+The existing gates checker reports V1 as WAIVED with its recorded result. A waiver
+needs no extra approval for the requiredness choice and does not grant capture,
+narration, release or publication authority. If V1 is absent because video is
+disabled, report it as not requested, not as a passed video. Do not toggle
+project-wide done_videos settings to make a one-change exception.
+
+The living V1 row is shared: Required=no persists until deliberately changed, and
+the checker does not bind the choice to a subject or reset it. Before assessing the
+next change, inspect that decision and set V1 back to the operator's intended
+requiredness for that change, preserving prior history and the prior rationale. A
+later feature ordinarily follows the project's normal video preference; never infer
+that the prior waiver covers it. Do not run concurrent edits to shared evidence.
+Retain G3 for the actual post-action subject and target, and all other applicable
+required acceptance/smoke checks; a classification or waiver proves none ran. If no
+release occurred, use only the existing explicit no-release rules and record why.
+After recording real observations, run the regular post-merge gates check with the
+actual subject and target; report its actual result and any waiver. Scoped helper
+results are not whole-project confirmation. Narration still requires approval
+immediately before it unless explicitly requested in the current prompt.
+
 ## Plan one story before capture
 
 1. Confirm audience, the single change, subject revision, real target/environment,
