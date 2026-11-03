@@ -272,7 +272,7 @@ class AcceptancePlanTests(unittest.TestCase):
         variants = []
         for field, value in [('status', 'done'), ('status', 'todo'), ('id', 'Tliving'), ('depends_on', ['missing']), ('allowed_paths', ['../escape'])]:
             item = copy.deepcopy(self.request); item['task'][field] = value; variants.append(item)
-        for value in ('', 'new | ambiguous', 'new\ncriterion'):
+        for value in ('', 'new | ambiguous', 'new\ncriterion', 'new <!-- hidden', 'new --> ambiguous'):
             item = copy.deepcopy(self.request); item['criterion'] = value; variants.append(item)
         for field, value in [('adapter', 'guess'), ('design', {}), ('design', []), ('design', ''), ('design', False), ('register_reason', 'Unexpected re-registration')]:
             item = copy.deepcopy(self.request); item['test_map'][field] = value; variants.append(item)
@@ -305,6 +305,61 @@ class AcceptancePlanTests(unittest.TestCase):
         self.update_contract('acceptance.md', (self.root / 'acceptance.md').read_bytes() + ('\n- ' + self.ident + ': collision\n  Owner: unassigned; status: NOT VERIFIED; evidence: none.\n').encode())
         with self.assertRaisesRegex(ValueError, 'ordered criteria'):
             self.preview()
+
+    def test_malformed_criterion_bullets_and_late_heading_refuse(self):
+        path = self.root / 'acceptance.md'
+        original = path.read_bytes()
+        variants = [original + ('\n' + prefix + self.ident + ':\n').encode() for prefix in ('- ', '-', '* ', '  - ')]
+        variants.append(original.replace(b'# Acceptance criteria\n\n', b'') + b'\n# Acceptance criteria\n')
+        for raw in variants:
+            with self.subTest(raw=raw):
+                self.update_contract('acceptance.md', raw)
+                before = self.snapshot()
+                with self.assertRaises(ValueError):
+                    self.preview()
+                self.assertEqual(before, self.snapshot())
+
+    def test_fenced_or_commented_target_documents_refuse(self):
+        original = self.snapshot()
+        wrappers = ((b'```markdown\n', b'```\n'), (b'~~~~\n', b'~~~~\n'), (b'<!--\n', b'-->\n'))
+        for name in ('acceptance.md', 'project-brief.md', 'verification.md'):
+            for before_text, after_text in wrappers:
+                self.write(self.root, original)
+                raw = before_text + original[name] + after_text
+                if name == 'verification.md':
+                    (self.root / name).write_bytes(raw)
+                else:
+                    self.update_contract(name, raw)
+                before = self.snapshot()
+                with self.subTest(name=name, wrapper=before_text), self.assertRaises(ValueError):
+                    self.preview()
+                self.assertEqual(before, self.snapshot())
+
+    def test_hidden_target_sections_refuse_even_with_other_visible_custom_content(self):
+        for name in ('acceptance.md', 'project-brief.md'):
+            original = (self.root / name).read_bytes()
+            self.update_contract(name, b'## Visible custom introduction\nKeep it\n\n<!--\n' + original + b'-->\n## Visible custom ending\nKeep it\n')
+            with self.assertRaises(ValueError):
+                self.preview()
+            self.update_contract(name, original)
+
+    def test_legitimate_custom_fences_and_comments_outside_sections_survive(self):
+        additions = {
+            'acceptance.md': b'\n```markdown\n# Acceptance criteria\n- A999: example only\n```\n<!-- custom note -->\n',
+            'project-brief.md': b'\n~~~markdown\n## Acceptance\n- example only\n~~~\n<!-- custom note -->\n',
+            'verification.md': b'\n## Custom explanation\n```text\nExample text, no gate observation\n```\n<!-- custom note -->\n',
+        }
+        for name, addition in additions.items():
+            raw = (self.root / name).read_bytes() + addition
+            if name == 'verification.md':
+                (self.root / name).write_bytes(raw)
+            else:
+                self.update_contract(name, raw)
+        before = self.snapshot()
+        edits = self.edits(self.preview())
+        for name, addition in additions.items():
+            self.assertTrue(edits[name].endswith(addition), name)
+        self.assertEqual(before, self.snapshot())
 
     def test_contract_corruption_wrong_pin_and_schema1_refuse(self):
         before = self.snapshot()

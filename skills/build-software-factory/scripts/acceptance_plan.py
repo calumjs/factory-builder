@@ -124,17 +124,56 @@ def insert_lines(lines, at, addition, newline):
     return (''.join(lines[:at]) + addition + ''.join(lines[at:])).encode('utf-8')
 
 
+def visible_lines(lines):
+    """Conservatively exclude fenced examples and HTML comments, not a Markdown parser."""
+    visible = []
+    fence = None
+    comment = False
+    for line in lines:
+        content = line.lstrip('\ufeff').rstrip('\r\n')
+        marker = re.match(r'^ {0,3}(`{3,}|~{3,})(.*)$', content)
+        if fence is not None:
+            visible.append(False)
+            if marker and marker[1][0] == fence[0] and len(marker[1]) >= len(fence) and not marker[2].strip():
+                fence = None
+            continue
+        if not comment and marker:
+            fence = marker[1]
+            visible.append(False)
+            continue
+        visible.append(not comment and '<!--' not in content and '-->' not in content)
+        position = 0
+        while True:
+            token = '-->' if comment else '<!--'
+            index = content.find(token, position)
+            if index < 0:
+                break
+            comment = not comment
+            position = index + len(token)
+    return visible
+
+
 def append_acceptance(raw, old, ident, criterion):
     lines, newline = document(raw)
     plain = [line.rstrip('\r\n') for line in lines]
-    if sum(line.lstrip('\ufeff') == '# Acceptance criteria' for line in plain) != 1:
-        raise ValueError('Acceptance document requires one recognized heading')
-    found = [(i, re.fullmatch(r'- (A[1-9][0-9]*): (.*)', line)) for i, line in enumerate(plain)]
-    found = [(i, match) for i, match in found if match]
+    visible = visible_lines(lines)
+    headings = [i for i, line in enumerate(plain) if visible[i] and line.lstrip('\ufeff') == '# Acceptance criteria']
+    if len(headings) != 1:
+        raise ValueError('Acceptance document requires one visible recognized heading; review fenced/commented content manually')
+    found = []
+    for i, line in enumerate(plain):
+        if visible[i] and re.match(r'^\s*[-*+]\s*A[0-9]', line):
+            match = re.fullmatch(r'- (A[1-9][0-9]*): (.*)', line)
+            if match is None:
+                raise ValueError('Malformed criterion-like bullet requires manual review')
+            found.append((i, match))
     if [(match[1], match[2]) for _, match in found] != [(f'A{i+1}', value) for i, value in enumerate(old)]:
         raise ValueError('Acceptance document does not match the existing ordered criteria')
+    end = next((i for i in range(headings[0] + 1, len(lines)) if visible[i] and re.match(r'^#{1,6} ', plain[i])), len(lines))
     for index, _ in found:
-        if index + 1 >= len(lines) or re.fullmatch(r'  Owner: .+; status: .+; evidence: .+', plain[index + 1]) is None:
+        if index <= headings[0] or index + 1 >= end:
+            raise ValueError('Acceptance records must follow their heading in the recognized visible section')
+        if not visible[index + 1] or re.fullmatch(r'  Owner: .+; status: .+; evidence: .+', plain[index + 1]) is None:
             raise ValueError('Unsupported acceptance metadata; preserve it for manual review')
     at = found[-1][0] + 2
     addition = '- ' + ident + ': ' + criterion + newline + '  Owner: unassigned; status: NOT VERIFIED; evidence: none.' + newline
@@ -143,11 +182,14 @@ def append_acceptance(raw, old, ident, criterion):
 
 def append_brief(raw, old, criterion):
     lines, newline = document(raw)
-    headings = [i for i, line in enumerate(lines) if line.rstrip('\r\n') == '## Acceptance']
+    visible = visible_lines(lines)
+    headings = [i for i, line in enumerate(lines) if visible[i] and line.rstrip('\r\n') == '## Acceptance']
     if len(headings) != 1:
         raise ValueError('Brief requires one recognized Acceptance section')
     start = headings[0] + 1
-    end = next((i for i in range(start, len(lines)) if lines[i].startswith('## ')), len(lines))
+    end = next((i for i in range(start, len(lines)) if visible[i] and lines[i].startswith('## ')), len(lines))
+    if any(not visible[i] for i in range(start, end)):
+        raise ValueError('Brief acceptance section must be visible, outside fenced/commented content')
     body = [line.rstrip('\r\n') for line in lines[start:end] if line.strip()]
     if body != ['- ' + value for value in old]:
         raise ValueError('Custom/ambiguous brief acceptance section requires manual review')
@@ -159,6 +201,9 @@ def append_brief(raw, old, criterion):
 
 def append_verification(raw, config, research, ident):
     lines, newline = document(raw)
+    visible = visible_lines(lines)
+    if any(not visible[i] for i, line in enumerate(lines) if ROW.match(line)):
+        raise ValueError('Verification rows must be visible, outside fenced/commented content')
     at = max(i for i, line in enumerate(lines) if ROW.match(line)) + 1
     addition = next(line for line in initial_table(config, research).splitlines() if line.startswith('| ' + ident + ' |'))
     result = insert_lines(lines, at, addition + newline, newline)
@@ -173,6 +218,8 @@ def request_values(request, count):
         raise ValueError('Request exceeds 64 KiB')
     clean(request['issue'], 'Issue reference')
     clean(request['criterion'], 'Criterion')
+    if '<!--' in request['criterion'] or '-->' in request['criterion']:
+        raise ValueError('Criterion cannot contain HTML comment delimiters')
     task = request['task']
     if not isinstance(task, dict) or set(task) != {'id', 'goal', 'owner', 'depends_on', 'allowed_paths', 'status'}:
         raise ValueError('Task must contain the supported fields; acceptance ID is allocated by this planner')

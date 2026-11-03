@@ -61,6 +61,11 @@ save previews or runtime logs inside the factory as unregistered files.
 - Append the criterion to config, the recognized acceptance list and the brief's
   Acceptance section. These sections must already agree. Ambiguous/custom section
   formats require separate manual review; the helper does not regenerate them.
+  Records must follow their visible heading. Malformed criterion-like bullets and
+  target sections/rows hidden inside fenced examples or HTML comments are refused;
+  this is a conservative supported-shape check, not a general Markdown parser.
+  Custom fences/comments outside the supported sections remain unchanged. New
+  criterion text cannot contain HTML comment delimiters.
   Text outside the insertion remains byte-identical. JSON insertion preserves old
   bytes, including escaped keys, whitespace and a UTF-8 BOM; Markdown supports
   consistent LF or CRLF. Mixed Markdown endings are refused.
