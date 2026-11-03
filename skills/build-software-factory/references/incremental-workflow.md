@@ -44,6 +44,14 @@ behavior needs a reviewed synchronized contract update before claiming coverage.
 Do not invent rows during an evidence-only follow-up. A `Closes` phrase, issue
 title, file path or label cannot classify the change or prove this mapping.
 
+For one appended criterion and task in a supported factory, the installed
+[acceptance planner](acceptance-planning.md) previews synchronized config, brief,
+acceptance, test-map and living-record changes. It requires an independently
+accepted manifest pin, preserves existing observations and positional IDs, and
+starts the proposed check as required NOT RUN. It writes nothing: preview success
+is not registered scope, and existing recovery registration/adoption still needs
+its own review. Unsupported or ambiguous shapes are refused rather than rewritten.
+
 Keep a version-1 mapping outside the factory, for example in approved evidence:
 
 ```json
