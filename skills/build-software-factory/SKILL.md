@@ -15,7 +15,7 @@ Establish the desired outcome and the target repository or folder. Inspect an ex
 
 ## 2. Ask
 
-Read [intake.md](references/intake.md). Ask only missing, consequential questions in batches of 3–5, reusing known answers and labelling inferred facts. Cover acting identities and scopes, headless tool recipes, autonomy controls, issue pickup (one-shot vs continuous) and done-video preference where relevant; read [operations-config.md](references/operations-config.md) when those need structured fields. Resolve ambiguous "latest" inputs by showing candidates. Unknowns may stay explicitly blocked; never fabricate integrations, budgets, test commands or deployment access.
+Read [intake.md](references/intake.md). Ask only missing, consequential questions in batches of 3-5, reusing known answers and labelling inferred facts. Cover acting identities and scopes, headless tool recipes, autonomy controls, issue pickup (one-shot vs continuous) and done-video preference where relevant; read [operations-config.md](references/operations-config.md) when those need structured fields. For daily issue starts, in-flight items, label-actor identity or item/period budgets, use the optional [admission policy and supplied-snapshot review](references/admission-review.md); it does not enforce live limits or grant authority. Resolve ambiguous "latest" inputs by showing candidates. Unknowns may stay explicitly blocked; never fabricate integrations, budgets, test commands or deployment access.
 
 ## 3. Research
 

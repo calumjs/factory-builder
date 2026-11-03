@@ -190,7 +190,8 @@ and cost, and honor the real stop/worker/task budgets. Never pass the full item
 ceiling independently to every parallel attempt. This implementation provides no
 provider adapter, credential action, live rate/spend control or setting change.
 
-Existing factories need a separately reviewed compatible copied operations and
-readiness runtime when adopting the new policy. Preserve custom code and original
-records; use the reviewed migration path rather than copying helpers or
-rebaselining. The installed assessor is not part of the read-only dashboard bundle.
+Existing factories need [reviewed compatible copied operations and readiness
+runtimes](admission-runtime-migration.md) when adopting the new policy. Preserve
+custom code and original records; use the reviewed migration path rather than
+copying helpers or rebaselining. The installed assessor is not part of the read-only
+dashboard bundle.
