@@ -50,12 +50,31 @@ def validate_task_plan(plan):
         if event['task_id'] not in ids or event['result'] not in ('passed','failed','blocked','not-run'):
             raise ValueError('Invalid evidence task or result')
 
+def missing_manifest_diagnostic(root):
+    """Suggest only an observed, non-redirected child; read no candidate contents."""
+    message = ('Factory root ' + json.dumps(str(root)) + ' does not contain a regular manifest file; '
+               'expected ' + json.dumps(str(root/'manifest.json')) + '. '
+               'Pass the directory containing manifest.json as the factory path.')
+    try:
+        candidate = safe_path(root/'.software-factory'/'manifest.json')
+        if candidate.parent.is_dir() and candidate.is_file():
+            message += (' A child manifest exists at ' + json.dumps(str(candidate)) + '; '
+                        'use ' + json.dumps(str(candidate.parent)) + ' explicitly with --factory '
+                        '(or scaffold.py --check). The child has not been validated; no redirect occurred.')
+    except (OSError, ValueError):
+        pass  # An inaccessible or redirected candidate is not a usable hint.
+    return message
+
+
 def check(path, *, quiet=False):
     p = safe_path(path)
+    manifest = safe_path(p/'manifest.json')
+    if not p.is_dir() or not manifest.is_file():
+        raise ValueError(missing_manifest_diagnostic(p))
     for item in p.rglob('*'):
         if item.is_symlink() or (hasattr(item, 'is_junction') and item.is_junction()):
-            raise ValueError('Redirected path inside factory')
-    m = json.loads((p/'manifest.json').read_text(encoding='utf-8-sig'))
+            raise ValueError('Redirected path inside factory ' + json.dumps(str(p)) + ': ' + json.dumps(str(item)))
+    m = json.loads(manifest.read_text(encoding='utf-8-sig'))
     if m.get('schema') != 2 or m.get('hash_mode') != 'utf8-lf' or not isinstance(m.get('contracts'), dict) or not isinstance(m.get('living'), list):
         raise ValueError('Unsupported manifest; legacy schema 1 requires a reviewed migration, never automatic rebaselining')
     names = list(m['contracts']) + m['living']
