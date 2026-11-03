@@ -20,6 +20,14 @@ After the separately authorized action, a still-required G3 confirms the actual 
 
 ## Recording rules
 
+Keep exactly one row for each gate ID across the record, with its configured stage.
+Do not duplicate an acceptance ID to add production observations. Reference the
+specific acceptance checks and their evidence from G3, or define a distinct,
+reviewed post-action acceptance criterion with its own unique ID and stage rationale.
+A cross-reference alone never means the linked check ran or passed; preserve each
+observation's exact subject, actual target, result and evidence. The builder's optional
+external acceptance-links record can validate traceability without changing readiness.
+
 Optional structured smoke_gates.checks plans supply canonical JSON argv, an
 environment label, variable names (never values) and a web/artifact target. Required
 PASSED rows must match that command/environment/target; a match is still a supplied

@@ -108,6 +108,8 @@ def validate_snapshot(files):
             value=strict_json(files[name])
             if name=='task-plan.json':validate_task_plan(value)
             elif not isinstance(value,dict):raise TraceInputError('Invalid living tool registry')
+    from learning_table import validate_learning_log
+    validate_learning_log(files['learning-log.md'].decode('utf-8-sig'))
     assumptions(strict_json(files['config.json']))
 
 

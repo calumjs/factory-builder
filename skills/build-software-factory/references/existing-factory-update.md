@@ -189,3 +189,14 @@ check integrity again. A matching display and valid hashes do not attest test
 execution or freshness. Existing root ignore rules remain a separate manual
 review; generated runtime output and private backups belong outside the managed
 factory file set.
+
+For known v1.13 helpers, a reviewed `--context-runtime --gate-runtime` plan can add
+the Learn-table parser dependency and adopt named JSON and observed-target
+diagnostics. The dependency is listed in the plan, manifest and backup's
+`added-files.json`; restore or adopt that reviewed set together if interrupted.
+Unrelated updates preserve the older compatible bundle. Unknown/custom helper
+or parser bytes are refused, and existing Learn observations are not rewritten.
+Malformed learning rows must be repaired explicitly before integrity-dependent
+migration; structural validation never supplies missing evidence or passing results.
+The optional acceptance-links helper reads the same Learn structure from captured
+bytes and leaves factory contracts, records and gate readiness untouched.

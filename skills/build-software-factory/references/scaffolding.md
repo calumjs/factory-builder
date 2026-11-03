@@ -85,3 +85,11 @@ can fail or time out on unrelated corruption or large repositories, leaving the 
 unverified. A match is not proof
 of active session loading, source authority, or an adversarially atomic snapshot;
 old generated launch guides are not rewritten by an installed-plugin update.
+
+The integrity check validates the generated Learn table's delimiter and seven-cell
+row structure, with filename and line diagnostics. Escaped pipes, optional outer
+pipes, legitimate empty cells, prose and fenced examples are supported. It does
+not detect semantically incomplete prose, validate arbitrary custom table designs,
+or attest recorded observations. Repair malformed living rows while preserving
+their evidence; no manifest rehash is needed for an ordinary living-log edit.
+Copied integrity helpers include the small `learning_table.py` dependency.

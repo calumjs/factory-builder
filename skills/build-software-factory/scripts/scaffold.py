@@ -27,7 +27,8 @@ def runtime_advisory(factory):
     if not dashboard.is_dir():return
     hints={'gates.py':'--gate-runtime','operations.py':'--gate-runtime or --recipe-runtime',
            'recipes.py':'--gate-runtime or --recipe-runtime','integrity.py':'--context-runtime',
-           'dashboard.py':'--context-runtime','readiness.py':'--context-runtime','assumptions.py':'--context-runtime'}
+           'dashboard.py':'--context-runtime','readiness.py':'--context-runtime','assumptions.py':'--context-runtime',
+           'learning_table.py':'--context-runtime'}
     for name,flag in hints.items():
         source=ROOT/'scripts'/name;copied=dashboard/name
         if not source.is_file():continue

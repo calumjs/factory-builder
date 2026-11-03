@@ -5,6 +5,7 @@ import hashlib
 import json
 from pathlib import Path, PurePosixPath
 from assumptions import assumptions
+from learning_table import validate_learning_log
 
 LIVING = frozenset(('verification.md', 'task-plan.json', 'learning-log.md', 'release-handoff.md', 'tools.json'))
 
@@ -137,6 +138,8 @@ def check(path, *, quiet=False):
             read_json(p/name)
     for name in m['living']:
         body = (p/name).read_text(encoding='utf-8-sig')
+        if name == 'learning-log.md':
+            validate_learning_log(body)
         if name.endswith('.json'):
             value = read_json(p/name)
             if name == 'task-plan.json':
