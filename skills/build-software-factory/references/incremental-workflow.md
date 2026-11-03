@@ -78,7 +78,13 @@ Empty unknown fields are allowed for nonpassing records. A PASSED record must sa
 existing gate rules; prior rows are retained as quoted history. Use real observations
 only, keep private data out of logs and inputs, and never infer PASS from a helper.
 
-Both record operations print an exact diff and a digest without writing. After review,
+For a read-only starting template, use [observation-drafts.md](observation-drafts.md):
+planned recipes stay separate from blank actual evidence. For explicit observations
+already obtained for one subject, [batch-observations.md](batch-observations.md)
+documents `--kind gate-batch`; any invalid item rejects the entire batch. G3 and V1
+require separate reviewed steps, and excluded rows remain unchanged.
+
+All record operations print an exact diff and a digest without writing. After review,
 the same command plus `--apply --approve-plan <digest>` writes one living file using
 an atomic replacement and a cooperative status lock, after rechecking source bytes.
 The digest changes with the factory inputs, target file or proposed output. Stop and
