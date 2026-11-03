@@ -143,6 +143,7 @@ def dumps(c):
 
 def ignore_fragment(c):
     text = '# Optional root ignore rules: inspect and merge manually; never overwrite the repository ignore policy.\n.env*\n!.env.example\n!.env.*.example\n__pycache__/\n*.py[cod]\n.venv/\nnode_modules/\ndist/\nbuild/\ntest-results/\n.claude/skill-backups/\n.factory-update-backups/\n.factory-recovery-backups/\n.factory-acceptance-backups/\nfactory-overview.html\nfactory-overview.json\n'
+    text += '\n# Private default run-record JSON; review team retention before merging.\n/.factory-runs/*.json\n# STOP is a control signal: decide its ownership/distribution separately.\n# /.factory-runs/STOP\n# Explicit selected-assessment snapshot examples (not every HTML/JSON file).\n/selected-overview.html\n/selected-overview.json\n# Custom --runs and --output paths need their own reviewed exact rules.\n'
     stack = c['stack'].casefold()
     if re.search(r'\bnext(?:\.js|js)\b', stack):
         text += '\n# Next.js generated output; verify installed-version conventions.\n.next/\n'

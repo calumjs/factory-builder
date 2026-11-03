@@ -41,6 +41,29 @@ They are retrospective supplied claims for advisory rate calculations, not
 reservations, independently verified events or budget enforcement. The helper refuses a path inside the factory so
 integrity is never disturbed.
 
+Suggested retention policy: keep raw run JSON local and untracked by default,
+because `notes` is free text and may contain private context. Review any team
+requirement to retain sanitized records before adopting the proposed
+`/.factory-runs/*.json` root ignore rule in `gitignore.fragment`. This is advice,
+not an automatic ignore edit, access restriction or redaction. Already tracked
+files remain tracked; inspect the index and handle retention through the project's
+authorized workflow. Do not automatically delete or untrack records.
+
+The default `.factory-runs/STOP` file is a local control signal, not a run record.
+Decide who owns it and how authorized workers receive stop requests before choosing
+whether to ignore or intentionally distribute it. The fragment leaves its rule
+commented out; it does not hide the whole directory or scripts/configuration
+placed there. A local STOP file or Git ignore rule does not prove distributed
+exclusion or that another worker observed a stop request.
+
+For `--runs <outside-path>`, review that exact directory's privacy, retention and
+repository relationship: a project-root rule cannot cover a different repository
+or an external directory. Prefer explicit paths over blanket HTML/JSON ignores.
+Review custom dashboard `--output` paths too; selected snapshots include the chosen
+subject/target/explanation. Proposed exact root rules cover the documented
+`selected-overview.html` and corresponding JSON filename, but create no files and
+grant no permission to publish them.
+
 `record --started` accepts timezone-aware ISO timestamps with either `Z` or an
 explicit UTC offset. `select` and `plan` interpret either form consistently on
 the supported Python versions, including 3.9 and 3.10; the supplied record text
