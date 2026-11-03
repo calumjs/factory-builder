@@ -178,6 +178,9 @@ def legacy_phase_template(phase):
     elif phase=='plan':
         # Preserve the reviewed legacy identity when adding spec-challenge guidance.
         guide=(ROOT/'scripts/fixtures/pre_spec_challenge_plan_guide.txt').read_text(encoding='utf-8')
+    elif phase=='build':
+        # Preserve the reviewed legacy migration identity as current guidance evolves.
+        guide=(ROOT/'scripts/fixtures/pre_ui_build_guide.txt').read_text(encoding='utf-8')
     return '---'+template.split('---',2)[1]+'---\n\n'+guide
 
 
@@ -206,6 +209,7 @@ def render(c, research):
         if name.startswith('.claude/skills/factory-') and name.endswith('/SKILL.md'):
             files[name] = phase_skill(files[name])
     files['config.json'] = dumps(c)
+    files['ui-verification.md'] = (ROOT/'references/ui-verification.md').read_text(encoding='utf-8')
     lines = ['# '+c['project'], '', 'Status: proposed intake snapshot; confirm assumptions before execution.', '']
     for k in TEXT[1:] + LISTS:
         lines += ['## '+k.replace('_',' ').title(), '']

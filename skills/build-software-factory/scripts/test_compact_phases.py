@@ -68,6 +68,11 @@ class CompactGenerationTests(unittest.TestCase):
                 start=prior.index('## Challenge acceptance before decomposition\n')
                 end=prior.index('1. Read the accepted brief',start)
                 prior=prior[:start]+prior[end:]
+            elif phase=='build':
+                lines=prior.splitlines(keepends=True)
+                index=next(i for i,line in enumerate(lines) if line.startswith('For UI changes, follow [running-app UI verification]'))
+                self.assertEqual(lines[index+1],'\n')
+                prior=''.join(lines[:index]+lines[index+2:])
             self.assertEqual(digest(prior),baseline['templates'][phase])
             self.assertEqual(digest(legacy[f'.claude/skills/factory-{phase}/SKILL.md']),baseline['minimal_skills'][phase])
             source=phase_skill(legacy_phase_template(phase)).split('---',2)[2].strip()+'\n\n'+RETURN
