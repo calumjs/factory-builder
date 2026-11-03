@@ -244,11 +244,67 @@ def selective_explanations(original, replacement, changes, *, delivery=False, as
             for gate,row in decision['rows'].items()]
 
 
-def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None, retained_rows=None):
+def video_reactivation_choices(text, expected, previous, choices):
+    """History identifies prior occurrence only; it never supplies a preference."""
+    choices={} if choices is None else choices
+    if not isinstance(choices,dict) or any(g not in ('V1','V2') or type(v) is not bool for g,v in choices.items()):
+        raise ValueError('Video requiredness must map V1/V2 to explicit booleans')
+    active=set();retired=set();in_history=False;sections=0
+    for line in text.splitlines():
+        if line.strip()=='## Historical observations (not current evidence)':
+            if line!='## Historical observations (not current evidence)':
+                raise ValueError('Malformed historical observations heading; preserve and review manually')
+            sections+=1;in_history=True
+            if sections>1:raise ValueError('Ambiguous historical observations sections; preserve and review manually')
+            continue
+        if line.startswith('## '):in_history=False
+        historical=re.match(r'^\s*>\s*\|',line) is not None
+        body=line.lstrip()[1:].lstrip() if historical else line
+        match=ROW.match(body)
+        if historical and (not line.startswith('> | ') or not match) and re.match(r'^\|\s*[A-Z]\d+(?:\s|\||$)',body):
+            raise ValueError('Malformed historical gate row; preserve and review manually')
+        if not match:continue
+        if in_history and not historical:
+            raise ValueError('Unquoted gate row in historical observations; preserve and review manually')
+        cells=[v.strip() for v in body.strip().strip('|').split('|')]
+        if (len(cells) not in (8,11) or cells[1] not in ('pre-merge','post-merge')
+                or cells[4].casefold() not in ('yes','y','true','no','n','false')
+                or cells[6] not in ('PASSED','FAILED','BLOCKED','NOT RUN','NOT APPLICABLE')):
+            raise ValueError('Malformed gate history or current row; preserve and review manually')
+        gate=cells[0]
+        if historical:
+            if not in_history:raise ValueError('Gate history outside its explicit section; preserve and review manually')
+            if gate in ('V1','V2'):retired.add(gate)
+        else:
+            if gate in active:raise ValueError('Duplicate source gate row requires review: '+gate)
+            active.add(gate)
+    added={g for g in ('V1','V2') if g in expected and g not in previous and g not in active}
+    if set(choices)-added:
+        raise ValueError('Video requiredness choices apply only to newly activated V1/V2 rows; unused choices refused')
+    missing=sorted((added & retired)-set(choices))
+    if missing:
+        raise ValueError('Reactivated video gates need explicit current requiredness: '+', '.join(missing)+
+                         '; supply --video-requiredness V1=yes or V1=no (V2 likewise). Historical choices/results are not replayed')
+    return choices
+
+
+def parse_video_requiredness(values):
+    result={}
+    for value in values or []:
+        match=re.fullmatch(r'(V[12])=(yes|no)',value,re.I)
+        if not match:raise ValueError('Use --video-requiredness V1=yes|no or V2=yes|no')
+        gate=match[1].upper()
+        if gate in result:raise ValueError('Duplicate video requiredness choice: '+gate)
+        result[gate]=match[2].lower()=='yes'
+    return result
+
+
+def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None, retained_rows=None, video_requiredness=None):
     expected=requirements(config,research)
+    previous=requirements(prior_config,research) if prior_config is not None else {}
+    choices=video_reactivation_choices(text,expected,previous,video_requiredness)
     if retained_rows is not None and set(retained_rows)==set(expected)==set(gate_rows(text)):
         return text
-    previous=requirements(prior_config,research) if prior_config is not None else {}
     baseline=gate_rows(initial_table(prior_config,research)) if prior_config is not None else {}
     preserved=[];history=[];observations=[];extra=[];flags={}
     in_history=False;table_header=False;skip_blank=False
@@ -296,6 +352,9 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False, p
             cells=[v.strip() for v in line.strip().strip('|').split('|')]
             if cells[0] in flags and not (reset_smoke_defaults and cells[0] in ('G1','G2','G3')):
                 cells[4]=flags[cells[0]]
+                line='| '+' | '.join(cells)+' |'
+            if cells[0] in choices:
+                cells[4]='yes' if choices[cells[0]] else 'no'
                 line='| '+' | '.join(cells)+' |'
         current.append(line)
     # Retain existing history verbatim; refreshing the same active plan twice
@@ -488,8 +547,12 @@ def compact_phase_plan(root, original, replacement):
         replacement[name]=original[name] if original[name] is not None else wanted
 
 
-def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False, migration_receipt=False, selective_gates=False, compact_phases=False):
-    if compact_phases and (changes or delivery_update or recipe_runtime or assumptions_update is not None or context_runtime or gate_runtime or migration_receipt or selective_gates):
+def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False, migration_receipt=False, selective_gates=False, compact_phases=False, video_requiredness=None):
+    if video_requiredness is not None and (not isinstance(video_requiredness,dict) or any(g not in ('V1','V2') or type(v) is not bool for g,v in video_requiredness.items())):
+        raise ValueError('Video requiredness must map V1/V2 to explicit booleans')
+    if video_requiredness and (not isinstance(changes,dict) or 'done_videos' not in changes):
+        raise ValueError('Video requiredness choices require a done_videos activation update')
+    if compact_phases and (changes or delivery_update or recipe_runtime or assumptions_update is not None or context_runtime or gate_runtime or migration_receipt or selective_gates or video_requiredness):
         raise ValueError('--compact-phases requires a separate reviewed plan; do not combine operations or other migration options')
     if migration_receipt and not any((recipe_runtime,context_runtime,gate_runtime)):
         raise ValueError('--migration-receipt requires an explicit runtime migration flag')
@@ -589,7 +652,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             if decision['mode']=='selective':
                 retained={ROW.match(line)[1]:line for line in text.splitlines(keepends=True)
                     if ROW.match(line) and decision['rows'][ROW.match(line)[1]]['action']=='retain'}
-        refreshed=refreshed_verification(text,config,research,reset_defaults,before_config,retained)
+        refreshed=refreshed_verification(text,config,research,reset_defaults,before_config,retained,video_requiredness)
         replacement['verification.md']=original['verification.md'] if selective_gates and refreshed==text else refreshed.encode('utf-8')
     if delivery_update:
         boundary='boundaries.md'
@@ -690,6 +753,7 @@ def main():
     parser.add_argument('--migration-receipt',action='store_true',help='With a runtime migration flag, append a reviewed runtime-only byte receipt; preserve original factory provenance')
     parser.add_argument('--selective-gates',action='store_true',help='For operations gate updates, retain unchanged row bytes and reset changed plans/dependents; ambiguous migrations use the broad reset')
     parser.add_argument('--compact-phases',action='store_true',help='Separately review exact generated phase entrypoints and complete detailed guides; preserve custom skills by refusing unsupported inputs')
+    parser.add_argument('--video-requiredness',action='append',metavar='V1=yes|no',help='Explicit requiredness for a newly activated V1/V2 row; required on reactivation from recorded history; repeat for each gate')
     args=parser.parse_args()
     if args.approve_plan and not args.apply:parser.error('--approve-plan requires --apply')
     if not any((args.operations,args.assumptions,args.delivery_gates,args.recipe_runtime,args.context_runtime,args.gate_runtime,args.compact_phases)):
@@ -697,8 +761,11 @@ def main():
     changes=json.loads(Path(args.operations).read_text(encoding='utf-8-sig')) if args.operations else {}
     assumption_rows=json.loads(Path(args.assumptions).read_text(encoding='utf-8-sig')) if args.assumptions else None
     if args.assumptions and assumption_rows is None:raise ValueError('Assumptions input must be an array, not null')
-    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime,args.migration_receipt,args.selective_gates,args.compact_phases)
+    video_choices=parse_video_requiredness(args.video_requiredness)
+    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime,args.migration_receipt,args.selective_gates,args.compact_phases,video_choices)
     print('REVIEW PLAN: '+plan)
+    for gate,required in sorted(video_choices.items()):
+        print('VIDEO REQUIREDNESS: '+gate+'='+('required' if required else 'optional')+' for this activation; new NOT RUN observation, no historical evidence restored.')
     if args.migration_receipt:
         print('RUNTIME-ONLY RECEIPT: '+('proposed component byte transition; declared version is not verified provenance.' if MIGRATION_RECEIPTS in replacement else 'no changed runtime components; no receipt appended.'))
     if args.selective_gates:

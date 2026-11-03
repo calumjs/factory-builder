@@ -175,7 +175,7 @@ class SelectiveGateTests(unittest.TestCase):
         first=self.preview({'done_videos':{'enabled':False}});updater.apply(*first,first[3])
         self.path.write_bytes(self.path.read_bytes().rstrip(b'\r\n'));last=list(self.raw_rows(self.path.read_bytes()))[-1]
         previous=self.raw_rows(self.path.read_bytes())[last]
-        prepared=self.preview({'done_videos':{'enabled':True}});rows=self.raw_rows(prepared[2]['verification.md'])
+        prepared=self.preview({'done_videos':{'enabled':True}},video_requiredness={'V1':True,'V2':True});rows=self.raw_rows(prepared[2]['verification.md'])
         self.assertEqual(list(rows)[-1],last);self.assertEqual(rows[last],previous)
 
     def test_repeated_changed_failure_history_is_idempotent(self):

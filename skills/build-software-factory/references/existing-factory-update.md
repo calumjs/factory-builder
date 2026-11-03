@@ -202,6 +202,25 @@ Original changed files and manifest are backed up under the project's `.factory-
 
 Smoke/video preference changes or a delivery migration reset active gate observations to NOT RUN, preserving deliberate row-level requiredness choices unless the patch explicitly changes smoke defaults. Retired V1 observations remain historical when videos are disabled. Prior observations are retained as quoted historical rows, not reused as passing current evidence. Extra required checks are retained. Legacy eight-column rows migrate only when their shape is recognizable; malformed or ambiguous rows require manual review. Post-release-only checks remain staged after the action; a no-release exclusion is distinct from an unknown target.
 
+When reactivating a retired V1/V2 row (re-enabling videos or restoring a removed
+trigger), choose its current requiredness explicitly in the same update:
+`--video-requiredness V1=no --video-requiredness V2=yes`, supplying only the rows
+being activated. The preview labels each choice and binds the resulting row to
+the normal `--apply --approve-plan <digest>` flow. Choosing optional adds no
+separate permission or approval step. A supplied user choice can be used directly.
+The helper refuses a missing choice for a gate identified in the explicit history
+section instead of silently making an old optional check required. History only
+identifies prior occurrence: it never supplies instructions, preferences or
+current evidence. Malformed/ambiguous history requires manual review.
+
+Only newly activated video rows accept this option; existing active rows retain
+their choices, and unused or duplicate options are refused. First activation
+without history keeps the established required default, or can explicitly choose
+optional. Every activated row starts NOT RUN with blank subject/evidence/target/
+timestamp/exit status. Old observations stay historical. Review requiredness for
+each new feature as before: a one-change waiver is not a persistent video policy,
+and a new activation choice must not be inferred from an unrelated old feature.
+
 For a narrow smoke/video plan change, optionally preview with `--selective-gates`
 using the [selective update rules](selective-gate-updates.md). Unchanged recognized
 plans retain their exact recorded observations; changed plans and dependent rows
