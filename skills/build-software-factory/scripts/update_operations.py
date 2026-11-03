@@ -14,7 +14,7 @@ from gates import policy_controls, initial_table, requirements, gate_rows, ROW, 
 from integrity import check, digest, safe_path, strict_json
 from operations import controls, operations, DELIVERY_POLICY
 from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS, video_design, video_triggers
-from scaffold import validate, ROOT, phase_skill, RETURN, legacy_phase_template, phase_contracts, PHASE_GUIDES
+from scaffold import validate, ROOT, phase_skill, RETURN, legacy_phase_template, phase_contracts, PHASE_GUIDES, REVIEW_ROUTE
 from assumptions import refresh as refresh_assumptions
 from backup_advisory import inspect_backup_directory
 
@@ -23,7 +23,7 @@ MAX_RECEIPT_BYTES=262144
 MAX_RECEIPTS=128
 RUNTIME_COMPONENTS=frozenset('dashboard/'+name for name in (
     'dashboard.py','integrity.py','gates.py','operations.py','recipes.py',
-    'assumptions.py','readiness.py','learning_table.py'))
+    'assumptions.py','readiness.py','learning_table.py','review_records.py','research.py'))
 
 def dumps(value):
     return json.dumps(value,indent=2,ensure_ascii=False)+'\n'
@@ -471,6 +471,11 @@ PRE_CONSISTENCY_CONTEXT = {
 # Preserve without opt-in; the fixture pins its complete original source bytes.
 PRE_TRACE_DASHBOARD = {'dashboard.py':'0b685b5dc80ff3bb1fb5e4dcfb24a0cb4af5b7f1725a60ae91ad4d7ac2cabc9a'}
 
+# Exact published v1.36 consumers, before optional typed Q1 records.
+PRE_REVIEW_RUNTIME = {'operations.py':'290ed8ffe9b3c65be654c3790d46cfd3b6e9f7a265f10d70c45b59204f8bbb16',
+                      'gates.py':'fc9446952ec5d846e3171b947c0c443bb23dfb7b6ecd1c5bcae0c74fdd03290d',
+                      'dashboard.py':'0b685b5dc80ff3bb1fb5e4dcfb24a0cb4af5b7f1725a60ae91ad4d7ac2cabc9a'}
+
 
 def gate_runtime_plan(root, original, replacement, opted_in):
     for filename in ('operations.py','recipes.py','gates.py'):
@@ -478,7 +483,7 @@ def gate_runtime_plan(root, original, replacement, opted_in):
         wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename),COMPATIBLE_GATE_V115.get(filename),COMPATIBLE_GATE_V117.get(filename),COMPATIBLE_GATE_V133.get(filename),PRE_ADMISSION_RUNTIME.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename),COMPATIBLE_GATE_V115.get(filename),COMPATIBLE_GATE_V117.get(filename),COMPATIBLE_GATE_V133.get(filename),PRE_ADMISSION_RUNTIME.get(filename),PRE_REVIEW_RUNTIME.get(filename))
         if compatible and not opted_in:continue
         known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
         if not known and not compatible and not (current is None and filename=='recipes.py'):
@@ -493,7 +498,7 @@ def context_runtime_plan(root, original, replacement, opted_in):
         path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename),PRE_SUBJECT_DASHBOARD.get(filename),PRE_CONSISTENCY_CONTEXT.get(filename),PRE_TRACE_DASHBOARD.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename),PRE_SUBJECT_DASHBOARD.get(filename),PRE_CONSISTENCY_CONTEXT.get(filename),PRE_TRACE_DASHBOARD.get(filename),PRE_REVIEW_RUNTIME.get(filename))
         if compatible and not opted_in:continue
         if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename) and not compatible:
             raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')
@@ -545,11 +550,14 @@ def unchanged(root, name, expected):
 
 def compact_phase_plan(root, original, replacement):
     """Opt-in adoption of exact generated phase contracts; custom text is never extracted."""
+    review_enabled='record_schema' in operations(strict_json(original['config.json'].decode('utf-8-sig')))['review']
     for name in ('boundaries.md','launch-guide.md','worker-handoff.md','connection-string-review.md',
                  'done-video-recipe.md','ui-verification.md','ci/README.md','ci/job.example.py','dashboard/README.md','research.md'):
         if not (root/name).is_file():
             raise ValueError('Referenced phase support is missing; preserve and review adoption before compact migration: '+name)
         original[name]=(root/name).read_bytes()
+    if review_enabled:
+        original['review-guide.md']=(root/'review-guide.md').read_bytes()
     original['research.json']=(root/'research.json').read_bytes()
     research=strict_json(original['research.json'].decode('utf-8-sig'))
     legacy=phase_contracts(research,legacy=True)
@@ -564,19 +572,94 @@ def compact_phase_plan(root, original, replacement):
         path=root/name
         original[name]=path.read_bytes() if path.exists() else None
         wanted=(ROOT/'assets/templates'/name).read_bytes()
+        if review_enabled and name in (PHASE_GUIDES['verify'],PHASE_GUIDES['release']):wanted+=REVIEW_ROUTE.encode()
         if original[name] is not None and digest(original[name])!=digest(wanted):
             raise ValueError('Customized or unsupported phase guide preserved: '+name)
         replacement[name]=original[name] if original[name] is not None else wanted
 
 
-def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False, migration_receipt=False, selective_gates=False, compact_phases=False, video_requiredness=None):
+def review_runtime_plan(root, original, replacement, opted_in):
+    """Adopt a complete known consumer set; never infer compatibility from a flag."""
+    states=[]
+    for filename,prior in PRE_REVIEW_RUNTIME.items():
+        name='dashboard/'+filename;path=root/name
+        current=path.read_bytes() if path.is_file() else None;wanted=(ROOT/'scripts'/filename).read_bytes()
+        if name in original and original[name]!=current:raise ValueError('Review runtime changed during preview')
+        original[name]=current
+        states.append('current' if current is not None and digest(current)==digest(wanted) else 'prior' if current is not None and digest(current)==prior else 'unsupported')
+    if 'unsupported' in states or len(set(states))!=1:
+        raise ValueError('Review needs a complete matching current or known v1.36 consumer set; customized/mixed helpers are preserved for separate migration')
+    if states[0]=='prior' and not opted_in:raise ValueError('Review needs explicit --review-workflow consumer adoption')
+    for filename in PRE_REVIEW_RUNTIME:
+        name='dashboard/'+filename;wanted=(ROOT/'scripts'/filename).read_bytes()
+        if states[0]=='prior':replacement[name]=wanted
+    for filename in ('recipes.py','integrity.py','assumptions.py','readiness.py','learning_table.py','review_records.py','research.py'):
+        name='dashboard/'+filename;path=root/name;current=path.read_bytes() if path.is_file() else None
+        wanted=(ROOT/'scripts'/filename).read_bytes();original[name]=current
+        if filename in ('review_records.py','research.py') and current is None and opted_in:replacement[name]=wanted
+        elif current is None or digest(current)!=digest(wanted):
+            raise ValueError('Review runtime dependency is missing/customized/unsupported; preserve it and review a compatible bundle migration')
+
+
+def review_workflow_plan(root, original, replacement, before, config):
+    from review_records import initialize, parse
+    research_name='research.json';original[research_name]=(root/research_name).read_bytes()
+    research=strict_json(original[research_name].decode('utf-8-sig'))
+    skills=phase_contracts(research)
+    for phase in ('verify','release'):
+        skill=f'.claude/skills/factory-{phase}/SKILL.md';original[skill]=(root/skill).read_bytes()
+        if digest(original[skill])!=digest(skills[skill]):raise ValueError('Customized or legacy review phase entrypoint preserved; review compact-phase adoption first')
+        guide=PHASE_GUIDES[phase];path=root/guide;current=path.read_bytes() if path.is_file() else None
+        wanted=(ROOT/'assets/templates'/guide).read_text(encoding='utf-8')
+        if current is None or digest(current) not in (digest(wanted),digest(wanted+REVIEW_ROUTE)):
+            raise ValueError('Customized or missing review phase guide preserved; review its routing separately')
+        original[guide]=current
+        if digest(current)==digest(wanted):replacement[guide]=(wanted+REVIEW_ROUTE).encode()
+    name='review-guide.md';path=root/name;current=path.read_bytes() if path.is_file() else None
+    wanted=(ROOT/'assets/procedures/review-guide.md').read_bytes();original[name]=current
+    if current is not None and digest(current)!=digest(wanted):raise ValueError('Customized review guide preserved; reconcile it separately')
+    if current is None:replacement[name]=wanted
+    before_review=operations(before)['review'];after_review=operations(config)['review']
+    handoff=original['release-handoff.md'].decode('utf-8-sig')
+    if 'record_schema' not in before_review:
+        handoff=initialize(handoff);replacement['release-handoff.md']=handoff.encode()
+    parse(handoff)
+    text=original['verification.md'].decode('utf-8-sig');rows=gate_rows(text)
+    if 'record_schema' not in before_review and 'Q1' in rows:raise ValueError('Unconfigured Q1 is preserved for manual registration review')
+    if 'Q1' in rows and rows['Q1']['stage']!='pre-merge':raise ValueError('Existing Q1 stage is misaligned; preserve and reconcile it explicitly')
+    reset='Q1' not in rows or control_differences(before_review,after_review)
+    if reset:
+        canonical=next(line for line in initial_table(config,research).splitlines() if line.startswith('| Q1 |'))
+        lines=text.splitlines(keepends=True);old=None
+        for index,line in enumerate(lines):
+            match=ROW.match(line)
+            if match and match[1]=='Q1':
+                old=line.rstrip('\r\n');cells=canonical.split('|');cells[5]=old.split('|')[5];canonical='|'.join(cells)
+                ending='\r\n' if line.endswith('\r\n') else '\n' if line.endswith('\n') else ''
+                lines[index]=canonical+ending;break
+        if old is None:
+            # Add inside the actual current table, preserving every existing row.
+            indexes=[index for index,line in enumerate(lines) if ROW.match(line)]
+            if not indexes:raise ValueError('Review adoption needs an existing supported gate table')
+            lines.insert(indexes[0],canonical+'\n')
+        if old is not None:
+            header=next((index for index,line in enumerate(lines) if line.rstrip('\r\n')==HEADER.splitlines()[0]),None)
+            if header is None:raise ValueError('Review update needs the supported current gate header')
+            lines.insert(header,'## Prior gate observation (not current evidence)\n> '+old+'\n\n')
+        result=''.join(lines)
+        gate_rows(result);replacement['verification.md']=result.encode()
+
+
+def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False, migration_receipt=False, selective_gates=False, compact_phases=False, video_requiredness=None, review_workflow=False):
     if video_requiredness is not None and (not isinstance(video_requiredness,dict) or any(g not in ('V1','V2') or type(v) is not bool for g,v in video_requiredness.items())):
         raise ValueError('Video requiredness must map V1/V2 to explicit booleans')
     if video_requiredness and (not isinstance(changes,dict) or 'done_videos' not in changes):
         raise ValueError('Video requiredness choices require a done_videos activation update')
-    if compact_phases and (changes or delivery_update or recipe_runtime or assumptions_update is not None or context_runtime or gate_runtime or migration_receipt or selective_gates or video_requiredness):
+    if review_workflow and (set(changes)-{'review'} or delivery_update or recipe_runtime or assumptions_update is not None or context_runtime or gate_runtime or selective_gates or compact_phases or video_requiredness):
+        raise ValueError('--review-workflow requires a separate review-only operations migration')
+    if compact_phases and (changes or delivery_update or recipe_runtime or assumptions_update is not None or context_runtime or gate_runtime or migration_receipt or selective_gates or review_workflow or video_requiredness):
         raise ValueError('--compact-phases requires a separate reviewed plan; do not combine operations or other migration options')
-    if migration_receipt and not any((recipe_runtime,context_runtime,gate_runtime)):
+    if migration_receipt and not any((recipe_runtime,context_runtime,gate_runtime,review_workflow)):
         raise ValueError('--migration-receipt requires an explicit runtime migration flag')
     root=safe_path(factory)
     if migration_receipt:
@@ -626,6 +709,12 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
     if (assumptions_update is not None or context_runtime) and (root/'dashboard').is_dir():
         context_runtime_plan(root,original,replacement,context_runtime)
     configured=operations(config)
+    review_enabled='record_schema' in configured['review']
+    if review_workflow and not review_enabled:raise ValueError('--review-workflow needs an explicit record_schema=1 operations choice')
+    if review_enabled and ('review' in changes or 'record_schema' not in before_ops['review']) and not review_workflow:
+        raise ValueError('Typed review adoption/policy changes require explicit --review-workflow')
+    if review_enabled and (root/'dashboard').is_dir():review_runtime_plan(root,original,replacement,review_workflow)
+    if review_workflow:review_workflow_plan(root,original,replacement,before_config,config)
     gate_metadata='checks' in configured['smoke_gates'] or 'triggers' in configured['done_videos']
     if (gate_metadata or gate_runtime) and (root/'dashboard').is_dir():
         gate_runtime_plan(root,original,replacement,gate_runtime)
@@ -714,12 +803,14 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
     manifest=json.loads(original['manifest.json'].decode('utf-8-sig'))
     prior_manifest=copy.deepcopy(manifest)
     for name,data in replacement.items():
-        if name in manifest['contracts'] or name.startswith('dashboard/') or name in ('boundaries.md',MIGRATION_RECEIPTS) or compact_phases and name in PHASE_GUIDES.values():
+        if name in manifest['contracts'] or name.startswith('dashboard/') or name in ('boundaries.md',MIGRATION_RECEIPTS) or compact_phases and name in PHASE_GUIDES.values() or review_workflow and name=='review-guide.md':
             manifest['contracts'][name]=digest(data)
     replacement['manifest.json']=dumps(manifest).encode('utf-8') if manifest!=prior_manifest else original['manifest.json']
     replacement={k:v for k,v in replacement.items() if v!=original[k]}
     fingerprint={name:{'before':hashlib.sha256(original[name]).hexdigest() if original[name] is not None else None,'after':hashlib.sha256(data).hexdigest()} for name,data in sorted(replacement.items())}
-    plan=hashlib.sha256(dumps({'factory':str(root),'files':fingerprint}).encode('utf-8')).hexdigest()
+    binding={'factory':str(root),'files':fingerprint}
+    if review_enabled:binding['review_guards']={name:hashlib.sha256(data).hexdigest() if data is not None else None for name,data in sorted(original.items())}
+    plan=hashlib.sha256(dumps(binding).encode('utf-8')).hexdigest()
     return root,original,replacement,plan
 
 def apply(root,original,replacement,plan,approved):
@@ -776,15 +867,16 @@ def main():
     parser.add_argument('--selective-gates',action='store_true',help='For operations gate updates, retain unchanged row bytes and reset changed plans/dependents; ambiguous migrations use the broad reset')
     parser.add_argument('--compact-phases',action='store_true',help='Separately review exact generated phase entrypoints and complete detailed guides; preserve custom skills by refusing unsupported inputs')
     parser.add_argument('--video-requiredness',action='append',metavar='V1=yes|no',help='Explicit requiredness for a newly activated V1/V2 row; required on reactivation from recorded history; repeat for each gate')
+    parser.add_argument('--review-workflow',action='store_true',help='Separately adopt typed handoff/Q1 review records and known complete copied consumers; preserve unrelated observations')
     args=parser.parse_args()
     if args.approve_plan and not args.apply:parser.error('--approve-plan requires --apply')
-    if not any((args.operations,args.assumptions,args.delivery_gates,args.recipe_runtime,args.context_runtime,args.gate_runtime,args.compact_phases)):
+    if not any((args.operations,args.assumptions,args.delivery_gates,args.recipe_runtime,args.context_runtime,args.gate_runtime,args.compact_phases,args.review_workflow)):
         parser.error('Choose operations, assumptions, or a specific reviewed migration flag')
     changes=json.loads(Path(args.operations).read_text(encoding='utf-8-sig')) if args.operations else {}
     assumption_rows=json.loads(Path(args.assumptions).read_text(encoding='utf-8-sig')) if args.assumptions else None
     if args.assumptions and assumption_rows is None:raise ValueError('Assumptions input must be an array, not null')
     video_choices=parse_video_requiredness(args.video_requiredness)
-    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime,args.migration_receipt,args.selective_gates,args.compact_phases,video_choices)
+    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime,args.migration_receipt,args.selective_gates,args.compact_phases,video_choices,args.review_workflow)
     print('REVIEW PLAN: '+plan)
     for gate,required in sorted(video_choices.items()):
         print('VIDEO REQUIREDNESS: '+gate+'='+('required' if required else 'optional')+' for this activation; new NOT RUN observation, no historical evidence restored.')

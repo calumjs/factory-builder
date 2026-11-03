@@ -1,5 +1,6 @@
 """Render the self-contained read-only overview bundle for new or existing factories."""
 from pathlib import Path
+import json
 from dashboard import page, summarize
 
 
@@ -7,6 +8,8 @@ def bundle(files):
     scripts = Path(__file__).resolve().parent
     result = {'dashboard/'+name: (scripts/name).read_text(encoding='utf-8')
               for name in ('dashboard.py', 'integrity.py', 'gates.py', 'operations.py', 'recipes.py','assumptions.py','readiness.py','learning_table.py')}
+    if 'record_schema' in json.loads(files['config.json']).get('operations',{}).get('review',{}):
+        for name in ('review_records.py','research.py'):result['dashboard/'+name]=(scripts/name).read_text(encoding='utf-8')
     result['dashboard/index.html'] = page(summarize(files))
     result['dashboard/README.md'] = '''# Local factory overview
 

@@ -392,7 +392,8 @@ def read(factory, extra=None, now=None, assessment=None):
     now = now or datetime.now(timezone.utc)
     config = json.loads((root/'config.json').read_text(encoding='utf-8-sig'))
     minutes = profile(config)['stale_after_minutes']
-    for name in INPUTS + (('policy.md',) if selection is not None else ()):
+    review_input=('release-handoff.md',) if selection is not None and 'record_schema' in config.get('operations',{}).get('review',{}) else ()
+    for name in INPUTS + (('policy.md',) if selection is not None else ()) + review_input:
         path = root/name
         stat = path.stat()
         if stat.st_size > MAX_BYTES:
@@ -416,6 +417,10 @@ def read(factory, extra=None, now=None, assessment=None):
                                 'waived': [{'id': row['id'], 'recorded_result': row['recorded_result']}
                                            for row in result['gates'] if row['stage'] == selection['stage'] and not row['required']],
                                 'notice': 'Record rules only. Supplied context is not source validation or independently verified evidence; no application checks or actions ran.'}
+        if review_input and selection['stage']=='pre-merge':
+            from review_records import supplement_waivers
+            if supplement_waivers(files['release-handoff.md'],selection['stage']):
+                result['assessment']['waived'].append({'id':'Q1/inversion','recorded_result':'WAIVED'})
     # Detect ordinary concurrent changes instead of silently mixing generations.
     if any(hashlib.sha256((root/s['artifact']).read_bytes()).hexdigest()!=s['sha256'] for s in sources):
         raise ValueError('Factory changed while reading; retry the snapshot')

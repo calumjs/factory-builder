@@ -25,6 +25,7 @@ Record each answer as **confirmed / inferred / unknown** with its source, owner 
 - Record the Git author and the authenticated platform account, team and repository scope before the first authorized commit; report mismatches rather than changing config, history or credentials. A binary on PATH is not authentication; prefer an authorized read-only probe.
 - For autonomous use, record each installed-version headless command, structured-output flag, sandbox and tool restrictions, and authentication evidence. Missing controls block live scheduling.
 - Resolve an ambiguous "latest" input by showing candidates with version, revision and modified time. For conversions, identify the source export and visual tolerances. Add independent reviewers only when the task warrants their budget and data exposure.
+- Choose whether to adopt [supplied code-review records and Q1](code-review.md): required approval count, independence/provider constraints, applicable review lenses and optional inversion for the change's risk. This is an explicit project choice; legacy absence and explicit zero/optional preferences remain available. Do not infer provider execution or spending authority from the choice.
 - Record the builder's identity from installed plugin metadata for later upstream feedback; keep private source identities out of shared provenance.
 
 ## Branching

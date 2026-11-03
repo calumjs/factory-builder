@@ -42,6 +42,11 @@ def requirements(config, research):
         required['V1'] = {'stage':'post-merge','design':'After G3, record the authorized narrated done-video and artifact for the shipped revision; scope: '+ops['done_videos']['scope'],'applicability':'applicable'}
     if 'pre_merge_preview' in triggers:
         required['V2'] = {'stage':'pre-merge','design':'Record the authorized genuine preview demo for the reviewed local/preview subject; scope: '+ops['done_videos']['scope'],'applicability':'applicable'}
+    if 'record_schema' in ops['review']:
+        from review_records import policy_digest
+        required['Q1']={'stage':'pre-merge','design':'Assess the explicitly selected supplied review round for the exact subject and diff artifact',
+                        'applicability':'applicable','required':ops['review']['required_approvals']>0,
+                        'review_policy':ops['review'],'review_policy_sha256':policy_digest(controls(config),config['budget'],config['acceptance'],research)}
     return required
 
 def initial_table(config, research):
@@ -116,7 +121,7 @@ def failed_observation(row, revision):
     return row['gate']+' recorded FAILED at '+visible+'; '+relation+'; '+followup
 
 
-def problems(text, stage, revision, required=None, target=None):
+def problems(text, stage, revision, required=None, target=None, review_text=None):
     if stage not in STAGES or not isinstance(revision,str) or not revision.strip():
         raise ValueError('Known stage and exact revision are required')
     required = required if required is not None else {
@@ -133,6 +138,23 @@ def problems(text, stage, revision, required=None, target=None):
             out.append('Missing expected gate row: '+gate)
         elif row['stage'] != spec['stage']:
             out.append('Gate is in the wrong stage: '+gate)
+    if 'Q1' in required and required['Q1'].get('review_policy') is not None and stage=='pre-merge':
+        from review_records import assessment, parse, record_token
+        spec=required['Q1'];row=rows.get('Q1')
+        if review_text is None:out.append('Q1 typed review handoff is missing')
+        else:
+            try:
+                record=parse(review_text)
+                out.extend(assessment(review_text,spec['review_policy'],spec['review_policy_sha256'],revision,required=row is None or row['required']=='yes'))
+                if row and row['required']=='yes' and row['result']=='PASSED':
+                    if not record['rounds'] or row['evidence']!=record_token(record):out.append('Q1 does not bind the exact selected review ledger digest')
+                    if record['rounds']:
+                        selected=record['rounds'][-1]
+                        if row['target']!='sha256:'+selected['artifact']['sha256']:out.append('Q1 target does not bind the supplied reviewed diff artifact')
+                        if selected['reviews'] and observed_time(row['checked_at'])<max(observed_time(r['observed_at']) for r in selected['reviews']):out.append('Q1 observation predates its supplied reviewer verdicts')
+                        if observed_time(row['checked_at'])>datetime.now().astimezone():out.append('Q1 observation timestamp is in the future')
+            except (ValueError,TypeError,KeyError,RecursionError,UnicodeError):
+                out.append('Q1 typed review handoff is malformed or unsupported; preserve it for explicit correction')
     for gate,row in rows.items():
         if row['stage'] != stage or row['required']=='no':
             continue
@@ -158,7 +180,7 @@ def problems(text, stage, revision, required=None, target=None):
             out.append(gate+' lacks the actual target')
         # A configured pre-merge recipe identifies its own artifact. Other rows
         # still match an explicit global target; post-merge never bypasses it.
-        if target is not None and not (stage=='pre-merge' and 'recipe' in spec) and row['target'] != target:
+        if target is not None and not (stage=='pre-merge' and ('recipe' in spec or 'review_policy' in spec)) and row['target'] != target:
             out.append(gate+' evidence is for a different target')
         if stage=='post-merge' and not target:
             out.append(gate+' requires the actual --target for post-merge confirmation')
@@ -194,8 +216,20 @@ def policy_controls(policy):
         return result
     return json.loads(match.group(1),object_pairs_hook=unique_object)
 
-def waivers(text,stage):
-    return [gate+' WAIVED (recorded '+row['result']+')' for gate,row in gate_rows(text).items() if row['stage']==stage and row['required']=='no']
+def waivers(text,stage,review_text=None):
+    result=[gate+' WAIVED (recorded '+row['result']+')' for gate,row in gate_rows(text).items() if row['stage']==stage and row['required']=='no']
+    if review_text is not None:
+        from review_records import supplement_waivers
+        result.extend(supplement_waivers(review_text,stage))
+    return result
+
+
+def waivers_for_factory(factory,stage):
+    root=safe_path(factory);config=json.loads((root/'config.json').read_text(encoding='utf-8-sig'));review_text=None
+    if stage=='pre-merge' and 'record_schema' in operations(config)['review']:
+        from review_records import read_handoff
+        review_text=read_handoff(root/'release-handoff.md')
+    return waivers((root/'verification.md').read_text(encoding='utf-8-sig'),stage,review_text)
 
 
 def post_target_problems(kind, planned_target, target):
@@ -245,7 +279,11 @@ def assess(factory, stage, revision, target=None):
         planned_target=recipe['target']['value'] if recipe else s['deployed_url']
         issues=post_target_problems(kind,planned_target,target)
         if issues:return issues
-    return problems((root/'verification.md').read_text(encoding='utf-8-sig'),stage,revision,expected,target)
+    review_text=None
+    if 'Q1' in expected and stage=='pre-merge':
+        from review_records import read_handoff
+        review_text=read_handoff(root/'release-handoff.md')
+    return problems((root/'verification.md').read_text(encoding='utf-8-sig'),stage,revision,expected,target,review_text)
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
@@ -265,7 +303,7 @@ def main():
     if not args.stage or not args.revision:
         parser.error('--stage and --revision are required for evidence assessment')
     found = assess(args.factory,args.stage,args.revision,args.target)
-    skipped=waivers((safe_path(args.factory)/'verification.md').read_text(encoding='utf-8-sig'),args.stage)
+    skipped=waivers_for_factory(args.factory,args.stage)
     for item in skipped:print(item+'; not evidence that the check ran or passed')
     for row in gate_rows((safe_path(args.factory)/'verification.md').read_text(encoding='utf-8-sig')).values():
         if row['stage']==args.stage and row['required']=='no' and row['result']=='FAILED':

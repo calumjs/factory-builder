@@ -284,3 +284,10 @@ operations validation and readiness reporting; updating only one is insufficient
 The existing explicit `--context-runtime` path supports known prior bytes and
 preserves custom copies for manual review. Admission metadata alone does not reset
 gate observations or activate any live limit, dispatcher or reservation.
+
+For deliberately adopted supplied code review, [code-review.md](code-review.md)
+documents the separate `--review-workflow` update. It adds the versioned handoff
+section and Q1, guards the complete copied consumer/dependency set, and preserves
+unrelated rows and existing waivers. Legacy absence and explicit zero approvals
+remain available. Neither migration nor an approval claim runs a reviewer or
+grants merge, deployment, provider, spending or hook-installation authority.

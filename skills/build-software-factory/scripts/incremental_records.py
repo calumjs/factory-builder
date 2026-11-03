@@ -59,7 +59,7 @@ def task_change(plan, config, item):
     return (json.dumps(result,indent=2,ensure_ascii=False)+'\n').encode('utf-8')
 
 
-def gate_change(text, config, research, change):
+def gate_change(text, config, research, change, review_text=None):
     mandatory=GATE_OBSERVATION_FIELDS
     if not isinstance(change,dict) or set(change)!=mandatory:raise ValueError('Gate observation must match the documented schema')
     gate=_clean(change['gate'],'gate');rows=gate_rows(text);expected=requirements(config,research)
@@ -85,7 +85,7 @@ def gate_change(text, config, research, change):
         checked_cells=list(cells);checked_cells[4]='yes'
         checked_line='| '+' | '.join(checked_cells)+' |'
         subset='\n'.join(checked_line if ROW.match(line) and ROW.match(line).group(1)==gate else line for line in result.splitlines() if ROW.match(line) and ROW.match(line).group(1) in included)
-        issues=problems(subset,old['stage'],change['revision'],selected,change['target'] if old['stage']=='post-merge' else None)
+        issues=problems(subset,old['stage'],change['revision'],selected,change['target'] if old['stage']=='post-merge' else None,review_text)
         if old['stage']=='post-merge' and rows.get('G3',{}).get('required')=='yes':
             smoke=operations(config)['smoke_gates'];recipe=smoke_checks(smoke).get('G3')
             planned=recipe['target']['value'] if recipe else smoke['deployed_url']
@@ -96,7 +96,7 @@ def gate_change(text, config, research, change):
     return result.encode('utf-8')
 
 
-def gate_batch_change(text, config, research, changes):
+def gate_batch_change(text, config, research, changes, review_text=None):
     """Validate the whole explicit batch, then reuse the single-observation writer."""
     if not isinstance(changes,list) or not 1<=len(changes)<=MAX_BATCH_ITEMS:
         raise ValueError('Gate batch must be a nonempty array of at most 64 observations')
@@ -126,7 +126,7 @@ def gate_batch_change(text, config, research, changes):
     # timestamps and let gate_change validate each PASSED claim against the records.
     result=text
     for change in sorted(changes,key=lambda item:item['gate']):
-        result=gate_change(result,config,research,change).decode('utf-8')
+        result=gate_change(result,config,research,change,review_text).decode('utf-8')
     return result.encode('utf-8')
 
 
@@ -146,14 +146,24 @@ def read_gate_batch(path):
 
 
 def preview(factory, kind, data):
-    if kind not in ('task','gate','gate-batch'):raise ValueError('Unknown record kind')
+    if kind not in ('task','gate','gate-batch','review'):raise ValueError('Unknown record kind')
     root=safe_factory(factory)
     check(root,quiet=True)
     before=inventory(root)
     root,config,research,text,plan=load(root)
     if inventory(root)!=before:raise ValueError('Factory changed during preview')
-    name='task-plan.json' if kind=='task' else 'verification.md'
-    after=task_change(plan,config,data) if kind=='task' else gate_batch_change(text,config,research,data) if kind=='gate-batch' else gate_change(text,config,research,data)
+    review_text=None
+    if 'record_schema' in operations(config)['review']:
+        from review_records import MAX_HANDOFF
+        if len(before['release-handoff.md'])>MAX_HANDOFF:raise ValueError('Review handoff exceeds the byte limit')
+        review_text=before['release-handoff.md'].decode('utf-8-sig')
+    name='task-plan.json' if kind=='task' else 'release-handoff.md' if kind=='review' else 'verification.md'
+    if kind=='review':
+        if review_text is None:raise ValueError('Review recording requires explicit review-workflow adoption')
+        from review_records import append_round
+        after=append_round(review_text,data)
+    else:
+        after=task_change(plan,config,data) if kind=='task' else gate_batch_change(text,config,research,data,review_text) if kind=='gate-batch' else gate_change(text,config,research,data,review_text)
     h=hashlib.sha256();h.update(str(root).encode());h.update(b'\0'+name.encode())
     for key in sorted(before):h.update(b'\0'+key.encode()+b'\0'+hashlib.sha256(before[key]).digest())
     h.update(b'\0'+hashlib.sha256(after).digest())
@@ -193,8 +203,8 @@ def apply(root,name,before,after,token,approved):
 
 
 def main():
-    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--factory',required=True);p.add_argument('--kind',choices=('task','gate','gate-batch'),required=True,help='gate-batch records an explicit bounded array for one exact subject; G3/V1 need separate steps');p.add_argument('--input',required=True);p.add_argument('--apply',action='store_true');p.add_argument('--approve-plan');a=p.parse_args()
-    data=read_gate_batch(a.input) if a.kind=='gate-batch' else strict_json(Path(a.input).read_text(encoding='utf-8-sig'))
+    p=argparse.ArgumentParser(description=__doc__);p.add_argument('--factory',required=True);p.add_argument('--kind',choices=('task','gate','gate-batch','review'),required=True,help='gate-batch records a bounded array for one exact subject; G3/V1 need separate steps. review appends one immutable supplied round; Q1 needs a separate gate observation');p.add_argument('--input',required=True);p.add_argument('--apply',action='store_true');p.add_argument('--approve-plan');a=p.parse_args()
+    data=read_gate_batch(a.input) if a.kind in ('gate-batch','review') else strict_json(Path(a.input).read_text(encoding='utf-8-sig'))
     root,name,before,after,token=preview(a.factory,a.kind,data)
     if a.apply:
         apply(root,name,before,after,token,a.approve_plan);print('RECORDED operator-supplied data; no checks were executed or attested.')

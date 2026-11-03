@@ -15,7 +15,7 @@ import sys
 import threading
 import time
 sys.dont_write_bytecode=True
-from gates import assess, waivers
+from gates import assess, waivers_for_factory
 from integrity import safe_path, validate_task_plan, strict_json, ManifestFileSetMismatch
 
 MAX_FILE=4*1024*1024
@@ -188,6 +188,16 @@ def task_history(git,factory,subject,storage):
     if after.get('events',[])[:len(prior)]!=prior:raise ValueError('Evidence-only updates must preserve prior task evidence history')
 
 
+def review_history(git,factory,subject,storage):
+    from operations import operations
+    config=strict_json(git.read('show',subject+':'+factory+'/config.json',limit=MAX_FILE).decode('utf-8-sig'))
+    if 'record_schema' not in operations(config)['review']:return
+    from review_records import parse
+    before,after=[parse(git.read('show',revision+':'+factory+'/release-handoff.md',limit=MAX_FILE).decode('utf-8-sig')) for revision in (subject,storage)]
+    prior=before['rounds']
+    if after['rounds'][:len(prior)]!=prior:raise ValueError('Evidence-only updates must preserve prior review rounds and finding claims')
+
+
 def evidence_changes(git,factory,evidence_dir,subject,storage):
     if subject==storage:return []
     git.read('merge-base','--is-ancestor',subject,storage)
@@ -208,6 +218,7 @@ def evidence_changes(git,factory,evidence_dir,subject,storage):
                               evidence_envelope(factory,evidence_dir,subject))
         changed.append(path)
     task_history(git,factory,subject,storage)
+    review_history(git,factory,subject,storage)
     return changed
 
 
@@ -232,7 +243,7 @@ def assess_ci(repo,factory,subject,storage,stage,target=None,evidence_dir='docs/
     changed=evidence_changes(git,factory,evidence_dir,subject,storage)
     found=assess(root,stage,subject,target)
     text=(root/'verification.md').read_text(encoding='utf-8-sig')
-    skipped=waivers(text,stage)
+    skipped=waivers_for_factory(root,stage)
     plan=strict_json((root/'task-plan.json').read_text(encoding='utf-8-sig'))
     tasks={row['id']:row for row in plan['tasks']}
     if len(set(required_tasks))!=len(required_tasks):raise ValueError('Duplicate CI-required task ID')
