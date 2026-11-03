@@ -16,7 +16,7 @@ import struct
 from pathlib import Path
 import tempfile
 from gates import gate_rows, requirements
-from integrity import check, safe_path
+from integrity import check, safe_path, ManifestFileSetMismatch
 from readiness import report
 
 INPUTS = ('config.json', 'task-plan.json', 'verification.md', 'research.json')
@@ -408,9 +408,9 @@ header h1{margin:0;font-size:1.9rem;letter-spacing:-.01em}header .sub{color:var(
 .chip b{color:var(--ink);font-weight:600}
 .pill{display:inline-block;white-space:nowrap;padding:2px 9px;border-radius:999px;font-size:.75rem;font-weight:600;letter-spacing:.02em;color:#fff;background:var(--off)}
 .pill.ok{background:var(--ok)}.pill.bad{background:var(--bad)}.pill.warn{background:var(--warn)}.pill.waive{background:var(--waive)}.pill.run{background:var(--accent)}
-.grid{display:grid;gap:16px}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:3fr 2fr}
+.grid{display:grid;gap:16px;grid-template-columns:minmax(0,1fr)}.g4{grid-template-columns:repeat(4,1fr)}.g2{grid-template-columns:3fr 2fr}
 @media(max-width:900px){.g4{grid-template-columns:repeat(2,1fr)}.g2{grid-template-columns:1fr}}
-.panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
+.panel{min-width:0;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:18px 20px}
 .panel h2{margin:0 0 4px;font-size:1rem}.panel .note{margin:0 0 12px;color:var(--muted);font-size:.85rem}
 .stat{display:flex;flex-direction:column;gap:2px}.stat .n{font-size:2.2rem;font-weight:700;line-height:1.1}.stat .l{color:var(--muted);font-size:.85rem}
 .bar{display:flex;height:10px;border-radius:999px;overflow:hidden;background:var(--chip);margin:10px 0 6px}.bar i{display:block;height:100%}
@@ -425,7 +425,7 @@ header h1{margin:0;font-size:1.9rem;letter-spacing:-.01em}header .sub{color:var(
 .row{display:flex;gap:18px;align-items:center}
 table{border-collapse:collapse;width:100%;font-size:.88rem}th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);overflow-wrap:anywhere;vertical-align:top}
 th{color:var(--muted);font-weight:600;font-size:.78rem;text-transform:uppercase;letter-spacing:.04em;white-space:nowrap}tr:last-child td{border-bottom:0}
-.scroll{overflow:auto}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--off);margin-right:6px}.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
+.scroll{overflow:auto;min-width:0}.gate-table th,.gate-table td{white-space:nowrap;overflow-wrap:normal}.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--off);margin-right:6px}.dot.ok{background:var(--ok)}.dot.warn{background:var(--warn)}.dot.bad{background:var(--bad)}
 .tl{list-style:none;margin:0;padding:0 0 0 18px;border-left:2px solid var(--line)}.tl li{position:relative;padding:0 0 14px 14px}.tl li:last-child{padding-bottom:0}
 .tl li::before{content:"";position:absolute;left:-24px;top:6px;width:10px;height:10px;border-radius:50%;background:var(--off);border:2px solid var(--panel)}
 .tl li.ok::before{background:var(--ok)}.tl li.bad::before{background:var(--bad)}.tl li.warn::before{background:var(--warn)}.tl li.run::before{background:var(--accent)}
@@ -451,7 +451,7 @@ def page(data):
         return text(re.sub(r'\.\d+(?=[+-]\d\d:\d\d$|Z$)', '', str(value)).replace('T', ' '))
     def pill(label, cls):
         return '<span class="pill '+cls+'">'+text(label)+'</span>'
-    def table(columns, rows, render=None):
+    def table(columns, rows, render=None, css_class=""):
         head = ''.join('<th scope="col">'+text(label)+'</th>' for _, label in columns)
         body = ''
         for row in rows:
@@ -462,7 +462,7 @@ def page(data):
             body += '<tr>'+cells+'</tr>'
         if not body:
             return '<p class="empty">No recorded data</p>'
-        return '<div class="scroll"><table><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div>'
+        return '<div class="scroll"><table'+(' class="'+css_class+'"' if css_class else '')+'><thead><tr>'+head+'</tr></thead><tbody>'+body+'</tbody></table></div>'
     def panel(title, note, inner):
         return '<section class="panel"><h2>'+text(title)+'</h2><p class="note">'+text(note)+'</p>'+inner+'</section>'
 
@@ -507,14 +507,14 @@ def page(data):
     body += panel('Required gates passed', 'For the recorded revisions; readiness for one revision comes from the gate checker.', '<div class="row">'+ring+'<div>'+gate_pills+'</div></div>')
     body += '</div>'
 
-    # Tables
-    body += '<div class="grid g2" style="margin-bottom:16px">'
+    # Tables: the wider gate evidence needs a full row and an independently scrollable table.
+    body += '<div class="grid" style="margin-bottom:16px">'
     body += panel(profile_data['work_item_label'], 'From task-plan.json.', table([('id','ID'),('state','State'),('owner','Owner')], data['tasks'],
                    {'state': lambda v, r: pill(v.replace('_',' '), TASK_CLASS.get(v, ''))}))
     body += panel('Gates and waivers', 'WAIVED keeps its recorded result and never counts as passed.',
                   table([('id','Gate'),('stage','Stage'),('state','State'),('recorded_result','Recorded result'),('revision','Revision'),('observed_at','Observation time'),('freshness','Freshness')], gates,
                         {'stage': lambda v, r: '<span style="white-space:nowrap">'+text(v)+'</span>', 'state': lambda v, r: pill(v, GATE_CLASS.get(v, 'warn')),
-                         'freshness': lambda v, r: '<span class="dot '+{'recent':'ok','stale':'warn'}.get(v, 'bad' if v in ('invalid timestamp','future timestamp') else '')+'"></span>'+text(v)}))
+                         'freshness': lambda v, r: '<span class="dot '+{'recent':'ok','stale':'warn'}.get(v, 'bad' if v in ('invalid timestamp','future timestamp') else '')+'"></span>'+text(v)}, css_class='gate-table'))
     body += '</div>'
 
     # Runs and events
@@ -611,6 +611,10 @@ def main():
 if __name__ == '__main__':
     try:
         main()
+    except ManifestFileSetMismatch as exc:
+        detail = ' Unexpected dashboard/__pycache__/ bytecode is present.' if exc.dashboard_bytecode else ''
+        print('ERROR: Dashboard integrity mismatch: '+str(exc.unexpected_count)+' unexpected and '+str(exc.missing_count)+' missing file(s).'+detail+' Use the trusted scaffold.py --check in a private context for named paths; do not reset hashes. No output was changed.', file=sys.stderr)
+        sys.exit(1)
     except OutputExistsError:
         print('ERROR: Dashboard output already exists; review it and explicitly use --replace to replace it. No output was changed.', file=sys.stderr)
         sys.exit(1)
