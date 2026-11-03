@@ -246,6 +246,14 @@ class AcceptancePlanTests(unittest.TestCase):
                 self.preview()
         self.assertEqual(before, self.snapshot())
 
+    def test_preview_rejects_reasons_and_references_that_recovery_cannot_accept(self):
+        item = copy.deepcopy(self.request)
+        item['issue'] = 'x' * 2000
+        with self.assertRaisesRegex(ValueError, 'specific reason'):
+            self.preview(item)
+        with self.assertRaisesRegex(ValueError, 'baseline reference'):
+            planner.preview(self.root, self.request, self.pin(), 'x' * 2001)
+
     def test_preview_detects_changes_after_snapshot(self):
         real_stable = planner.stable
         calls = 0

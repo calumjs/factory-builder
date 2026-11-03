@@ -13,7 +13,7 @@ import stat
 from gates import gate_rows, initial_table, requirements, ROW
 from incremental_records import task_change
 from integrity import check, digest, safe_path
-from recover_factory import (MAX_FILE, MAX_TOTAL, existing, inventory, manifest,
+from recover_factory import (MAX_FILE, MAX_TOTAL, decisions_for, existing, inventory, manifest,
                              rawhash, semantics, stable, strict_json, dumps)
 from scaffold import validate
 
@@ -196,7 +196,7 @@ def file_change(before, after):
 
 
 def preview(factory, request, baseline_pin, baseline_reference):
-    clean(baseline_reference, 'Independent baseline reference')
+    clean(baseline_reference, 'Independent baseline reference', 2000)
     if not isinstance(baseline_pin, str) or re.fullmatch('[0-9a-f]{64}', baseline_pin) is None:
         raise ValueError('Independently supplied raw accepted-manifest SHA256 required')
     root = existing(factory)
@@ -258,6 +258,7 @@ def preview(factory, request, baseline_pin, baseline_reference):
         else:
             raise ValueError('Unexpected contract registration')
         proposed['contracts'][name] = digest(raw)
+    decisions_for(decisions, {key: {entry['path'] for entry in entries} for key, entries in decisions.items()})
     proposed_manifest = dumps(proposed).encode('utf-8')
     combined = {**files, **changes, 'manifest.json': proposed_manifest}
     if (len(combined) > 512 or any(len(raw) > MAX_FILE for raw in combined.values()) or
