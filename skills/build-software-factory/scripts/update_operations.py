@@ -894,7 +894,9 @@ def main():
     for name,data in replacement.items():
         before=hashlib.sha256(original[name]).hexdigest() if original[name] is not None else 'missing'
         print('FILE '+name+' raw SHA256: '+before+' -> '+hashlib.sha256(data).hexdigest())
-        print(''.join(difflib.unified_diff(original[name].decode('utf-8-sig').splitlines(True) if original[name] is not None else [],data.decode('utf-8').splitlines(True),fromfile=name+' (current)',tofile=name+' (proposed)')))
+        print(''.join(difflib.unified_diff(original[name].decode('utf-8-sig').splitlines(True) if original[name] is not None else [],data.decode('utf-8-sig').splitlines(True),fromfile=name+' (current)',tofile=name+' (proposed)')))
+        before_bom=original[name] is not None and original[name].startswith(b'\xef\xbb\xbf');after_bom=data.startswith(b'\xef\xbb\xbf')
+        if before_bom or after_bom:print('UTF-8 BOM: '+('retained' if before_bom and after_bom else 'added' if after_bom else 'removed')+' for '+name+'; exact bytes remain bound to the review plan.')
     if not replacement:print('NO CHANGES: no supported differences were proposed; this does not attest current runtime behavior.')
     if args.apply:
         backup=apply(root,original,replacement,plan,args.approve_plan)
