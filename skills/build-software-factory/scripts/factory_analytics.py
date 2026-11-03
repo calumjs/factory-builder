@@ -322,13 +322,14 @@ def analyze(traces, experiment, assignments, *, experiment_pin, as_of):
             allocated = [a for a in experiment['allocations'] if a['variant'] == variant['id']]
             counts = {key:0 for key in DISPOSITIONS}
             numbers, secondary, models = [], {}, set()
-            retries = later_attempts = 0
+            retries = later_attempts = unbound_first = 0
             window = (timestamp(variant['start']), timestamp(variant['end']))
             for allocation in allocated:
                 inventory = inventories.get(allocation['unit_id'])
                 if inventory:
-                    later = sum(a['attempt_id'] != allocation['first_attempt_id'] for a in inventory['attempts'])
+                    later = sum(a['ordinal'] > 1 for a in inventory['attempts'])
                     retries += bool(later); later_attempts += later
+                    unbound_first += sum(a['ordinal'] == 1 and a['attempt_id'] != allocation['first_attempt_id'] for a in inventory['attempts'])
                 disposition, trace = first_disposition(allocation, inventory, rows, window)
                 counts[disposition] += 1
                 if disposition == 'open_censored' and as_of >= window[1]: limitations.add('censored_open_attempts')
@@ -359,6 +360,7 @@ def analyze(traces, experiment, assignments, *, experiment_pin, as_of):
             if stats['n'] < experiment['min_units']: limitations.add('insufficient_evidence')
             results.append({'variant':variant['id'], 'allocated':len(allocated), 'included':stats['n'], 'excluded':len(allocated)-stats['n'],
                             'dispositions':counts, 'units_with_later_attempts':retries, 'later_attempts_excluded':later_attempts,
+                            'unbound_ordinal_one_attempts_excluded':unbound_first,
                             'statistics':stats, 'threshold_state':threshold_state,
                             'secondary_descriptive_cells':[{'status':key[0], 'source_label':key[1], 'currency':key[2],
                                                             'allocated':len(allocated), 'excluded':len(allocated)-len(values),
@@ -422,9 +424,9 @@ def panel(result, decision=None):
         body += '<p>Declared cell: '+text(json.dumps(definition['cell'],sort_keys=True))+'; selector '+text(definition['selector'])+'; phase '+text(definition['phase'])+'; unit '+text(definition['unit'])+'.</p>'
         if definition['threshold'] is not None: body += '<p>Declared guardrail: '+text(json.dumps(definition['threshold'],sort_keys=True))+'. An observed comparison does not clear sample insufficiency.</p>'
         if definition['selector']=='active_minutes': body += '<p>Sum of supplied phase/model active minutes, not elapsed time.</p>'
-        body += table(('Variant','Included / allocated','Excluded','Mean','Min','Max','Units with later attempts / allocated','Later attempts excluded','Guardrail observation'),
+        body += table(('Variant','Included / allocated','Excluded','Mean','Min','Max','Units with later attempts / allocated','Later attempts excluded','Unbound ordinal-one claims excluded','Guardrail observation'),
                       [(v['variant'],str(v['included'])+'/'+str(v['allocated']),v['excluded'], *('unavailable' if v['statistics'][key] is None else v['statistics'][key] for key in ('mean','min','max')),
-                        str(v['units_with_later_attempts'])+'/'+str(v['allocated']),v['later_attempts_excluded'],v['threshold_state'] or 'not applicable') for v in metric['variants']])
+                        str(v['units_with_later_attempts'])+'/'+str(v['allocated']),v['later_attempts_excluded'],v['unbound_ordinal_one_attempts_excluded'],v['threshold_state'] or 'not applicable') for v in metric['variants']])
         body += '<p>First-attempt dispositions partition allocated units through merged_complete; metric categories then partition that subset.</p>'
         body += table(('Disposition / metric eligibility', *(v['variant'] for v in metric['variants'])), [(key, *(v['dispositions'][key] for v in metric['variants'])) for key in DISPOSITIONS])
         for variant in metric['variants']:

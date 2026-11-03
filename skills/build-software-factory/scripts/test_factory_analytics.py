@@ -203,6 +203,18 @@ class ExperimentTests(unittest.TestCase):
                     attempts[0]['attempt_id']='another';attempts[1]['attempt_id']='attempt-0'
                 with self.assertRaises(ValueError):self.run_analysis()
 
+    def test_unbound_ordinal_one_is_ambiguous_exclusion_not_retry(self):
+        self.assignments['units'][0]['attempts'][0]['attempt_id']='unbound-ordinal-one'
+        result=self.run_analysis()
+        for metric in result['metrics']:
+            a=metric['variants'][0]
+            self.assertEqual(a['included'],1)
+            self.assertEqual(a['dispositions']['first_attempt_missing'],1)
+            self.assertEqual(a['units_with_later_attempts'],0)
+            self.assertEqual(a['later_attempts_excluded'],0)
+            self.assertEqual(a['unbound_ordinal_one_attempts_excluded'],1)
+        self.assertIn('Unbound ordinal-one claims excluded',analytics.panel(result))
+
     def test_shared_subject_independent_units_and_unassigned_trace_only_warn(self):
         for index in (1,2):
             self.traces['runs'][index]['subject']=self.traces['runs'][0]['subject']
