@@ -34,8 +34,9 @@ def commit_id(value):
 
 
 class LocalGit:
-    def __init__(self, repo):
+    def __init__(self, repo, executable='git'):
         self.repo = safe_path(repo)
+        self.executable = executable
         self.deadline = time.monotonic() + DEADLINE
 
     def read(self, *args, limit=MAX_TREE):
@@ -47,7 +48,7 @@ class LocalGit:
                    GIT_NO_REPLACE_OBJECTS='1', GIT_NO_LAZY_FETCH='1',
                    GIT_ALLOW_PROTOCOL='', GIT_PROTOCOL_FROM_USER='0',
                    GIT_OPTIONAL_LOCKS='0', GIT_TERMINAL_PROMPT='0')
-        argv = ['git', '--no-optional-locks', '--literal-pathspecs',
+        argv = [self.executable, '--no-optional-locks', '--literal-pathspecs',
                 '-c', 'core.fsmonitor=false', '-C', str(self.repo), *args]
         status, output = bounded_run(argv, env, limit, timeout=min(30, remaining))
         if status:

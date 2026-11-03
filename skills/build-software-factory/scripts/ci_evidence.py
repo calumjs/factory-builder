@@ -246,7 +246,7 @@ def assess_ci(repo,factory,subject,storage,stage,target=None,evidence_dir='docs/
     feature_check=None
     if feature_enabled:
         from feature_contract import FeatureCheck, guarded
-        feature_check=guarded(lambda:FeatureCheck(repo,factory,subject,feature_policy,feature_policy_sha256,feature_request,feature_base))
+        feature_check=guarded(lambda:FeatureCheck(repo,factory,subject,feature_policy,feature_policy_sha256,feature_request,feature_base,git_executable))
     git=Git(repo,git_executable)
     top=Path(git.read('rev-parse','--show-toplevel').decode().strip())
     if not repo.samefile(top):raise ValueError('--repo must be the exact checkout root')

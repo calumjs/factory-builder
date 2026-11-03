@@ -6,7 +6,6 @@ Only ci_evidence calls this installed module; no copied-runtime dependency.
 import hashlib
 import json
 import os
-from pathlib import Path
 import re
 import stat
 import subprocess
@@ -49,7 +48,12 @@ def read_input(path, repo, limit):
     source = reject_redirected_ancestors(os.path.abspath(path))
     if str(source).replace('/', '\\').startswith('\\\\'):
         fail('LOCAL_INPUT_REQUIRED')
-    if source == repo or repo in source.parents:
+    # Reject redirected parents before resolving alternate path spellings. A
+    # samefile ancestor check also covers aliases resolve() may not collapse.
+    source = reject_redirected_ancestors(source.resolve(strict=True))
+    if str(source).replace('/', '\\').startswith('\\\\'):
+        fail('LOCAL_INPUT_REQUIRED')
+    if source == repo or repo in source.parents or any(parent.samefile(repo) for parent in source.parents):
         fail('EXTERNAL_INPUT_REQUIRED')
     before = source.lstat()
     regular = lambda s: stat.S_ISREG(s.st_mode) and s.st_nlink == 1 and not getattr(s, 'st_file_attributes', 0) & 0x400
@@ -73,13 +77,17 @@ def read_input(path, repo, limit):
 
 class CommittedFiles:
     """Read only named blobs through verified commits/trees, never worktree paths."""
-    def __init__(self, repo, width):
-        self.git = LocalGit(repo)
+    def __init__(self, repo, width, executable='git'):
+        self.git = LocalGit(repo, executable)
         self.objects = Objects(self.git, width)
         self.count = 0
+        self.trees = {}
 
     def members(self, oid):
         raw = self.objects.read(oid, 'tree')
+        # Objects.read still checks deadline and cached type on every use.
+        if oid in self.trees:
+            return self.trees[oid]
         position = 0
         previous = None
         names = set()
@@ -107,6 +115,7 @@ class CommittedFiles:
             previous = order
             result[name] = (mode, raw[end+1:end+1+width].hex())
             position = end+1+width
+        self.trees[oid] = result
         return result
 
     def read(self, revision, path):
@@ -141,7 +150,10 @@ def snapshot(reader, revision, factory):
             or 'task-plan.json' not in manifest['living']):
         fail('COMMITTED_CONFIG_REGISTRATION_INVALID')
     validate(config)
-    validate_task_plan(plan)
+    try:
+        validate_task_plan(plan)
+    except ValueError:
+        fail('INVALID_COMMITTED_TASK_PLAN')
     acceptance = {f'A{i+1}': criterion for i, criterion in enumerate(config['acceptance'])}
     tasks = {}
     for task in plan['tasks']:
@@ -190,8 +202,9 @@ def validate_request(value, base, subject):
 
 class FeatureCheck:
     """Capture/recheck external inputs; caller retains existing CI checkout guards."""
-    def __init__(self, repo, factory, subject, policy_path, policy_pin, request_path, base):
+    def __init__(self, repo, factory, subject, policy_path, policy_pin, request_path, base, git_executable='git'):
         self.repo = reject_redirected_ancestors(repo).resolve(strict=True)
+        self.git_executable = git_executable
         self.factory = relative(factory)
         self.base, self.subject = full_sha(base), full_sha(subject)
         if len(self.base) != len(self.subject):
@@ -203,8 +216,8 @@ class FeatureCheck:
         if hashlib.sha256(self.policy_input[0]).hexdigest() != policy_pin:
             fail('POLICY_PIN_MISMATCH')
         self.request_input = read_input(request_path, self.repo, MAX_REQUEST)
-        self.policy = validate_policy(strict_json(self.policy_input[0].decode('utf-8')))
-        self.request = strict_json(self.request_input[0].decode('utf-8'))
+        self.policy = validate_policy(strict_json(self.policy_input[0].decode('utf-8-sig')))
+        self.request = strict_json(self.request_input[0].decode('utf-8-sig'))
         self.contract = validate_request(self.request, self.base, self.subject)
         self.policy_pin = policy_pin
 
@@ -214,7 +227,7 @@ class FeatureCheck:
             fail('INPUT_CHANGED_REVIEW_AGAIN')
 
     def assess(self, root):
-        reader = CommittedFiles(self.repo, len(self.subject))
+        reader = CommittedFiles(self.repo, len(self.subject), self.git_executable)
         before = snapshot(reader, self.base, self.factory)
         after = snapshot(reader, self.subject, self.factory)
         # Verify both objects before graph lookup; no automatic base selection.

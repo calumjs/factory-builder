@@ -4,6 +4,7 @@ import hashlib
 import importlib.util
 import json
 import os
+import shutil
 from pathlib import Path
 import subprocess
 import sys
@@ -47,13 +48,13 @@ class FeatureContractTests(unittest.TestCase):
         return assess_ci(self.repo, '.software-factory', self.subject, storage, 'pre-merge',
                          **(self.inputs() if inputs is None else inputs))
 
-    def cli(self, storage, inputs=None):
+    def cli(self, storage, inputs=None, env=None):
         options = self.inputs() if inputs is None else inputs
         argv = [sys.executable, '-B', str(ROOT/'scripts/ci_evidence.py'), '--repo', str(self.repo),
                 '--subject', self.subject, '--storage', storage, '--stage', 'pre-merge']
         for key, value in options.items():
             argv += ['--'+key.replace('_', '-'), str(value)]
-        return subprocess.run(argv, capture_output=True, text=True)
+        return subprocess.run(argv, capture_output=True, text=True, env=env)
 
     def record(self, failed=None, waived=None):
         lines = []
@@ -133,7 +134,7 @@ class FeatureContractTests(unittest.TestCase):
         self.assertEqual(report['assessment'], 'eligible_with_waivers')
         self.assertIn('G2 WAIVED (recorded FAILED)', report['waivers'])
 
-    def test_each_closing_issue_needs_its_own_delta(self):
+    def test_each_closing_issue_mapping_must_contain_a_qualifying_delta(self):
         self.grow()
         self.request['closing_issues'].append('private-owner/private-project#124')
         self.request['contract']['issues'].append({'reference': self.request['closing_issues'][1],
@@ -259,16 +260,21 @@ class FeatureContractTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location('feature_job_fixture', ROOT/'assets/templates/ci/job.example.py')
         job = importlib.util.module_from_spec(spec);spec.loader.exec_module(job)
         env = {'FACTORY_PYTHON': sys.executable, 'FACTORY_TRUSTED_HELPER': str(ROOT/'scripts/ci_evidence.py'),
+               'FACTORY_GIT': str(Path(shutil.which('git')).resolve(strict=True)),
                'FACTORY_REPO': str(self.repo), 'FACTORY_TESTED_SUBJECT_SHA': self.subject,
                'FACTORY_EVIDENCE_STORAGE_SHA': storage, 'FACTORY_FEATURE_POLICY': str(self.policy_path),
                'FACTORY_FEATURE_POLICY_SHA256': options['feature_policy_sha256'],
                'FACTORY_FEATURE_REQUEST': str(self.request_path), 'FACTORY_FEATURE_BASE_SHA': self.base}
-        result = subprocess.run(job.command(env), capture_output=True, text=True)
+        argv = job.command(env)
+        self.assertEqual(argv[argv.index('--git')+1], env['FACTORY_GIT'])
+        result = subprocess.run(argv, capture_output=True, text=True, env=dict(os.environ, PATH=''))
         self.assertEqual(result.returncode, 1, result.stderr)
         self.assertIn('ACCEPTANCE_ADDITION_REQUIRED', result.stdout)
         partial = dict(env);partial.pop('FACTORY_FEATURE_REQUEST')
         with self.assertRaises(ValueError):
             job.command(partial)
+        with self.assertRaises(ValueError):
+            job.command(dict(env, FACTORY_GIT='git'))
 
     def test_input_size_and_mock_link_count_refuse_without_link_creation(self):
         self.inputs()
@@ -292,17 +298,21 @@ class FeatureContractTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.assess(self.base)
 
-    def test_duplicate_task_or_unavailable_base_does_not_become_maintenance_exemption(self):
+    def test_duplicate_task_in_ancestor_base_does_not_become_maintenance_exemption(self):
+        original = (self.factory/'task-plan.json').read_bytes()
         plan = json.loads((self.factory/'task-plan.json').read_text())
         plan['tasks'].append(copy.deepcopy(plan['tasks'][0]))
         (self.factory/'task-plan.json').write_text(json.dumps(plan))
         invalid_base = self.commit()
-        self.git('reset', '--hard', self.base)
+        (self.factory/'task-plan.json').write_bytes(original)
+        self.subject = self.commit()
         self.request['contract'].update(classification='maintenance', issues=[])
         self.request['closing_issues'] = []
         self.request['base'] = invalid_base
         options = self.inputs();options['feature_base'] = invalid_base
-        self.assertEqual(self.cli(self.base, options).returncode, 2)
+        result = self.cli(self.subject, options)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('INVALID_COMMITTED_TASK_PLAN', result.stderr)
 
     def test_baseline_registration_and_nonancestor_are_checked_before_exemption(self):
         self.request['contract'].update(classification='maintenance', issues=[])
@@ -325,7 +335,17 @@ class FeatureContractTests(unittest.TestCase):
         self.git('reset', '--hard', original)
         self.request['base'] = unrelated
         options = self.inputs();options['feature_base'] = unrelated
-        self.assertEqual(self.cli(original, options).returncode, 2)
+        result = self.cli(original, options)
+        self.assertEqual(result.returncode, 2)
+        self.assertIn('INVALID_UNAVAILABLE_OR_UNSTABLE_INPUT', result.stderr)
+        # The valid but nonancestor input reaches the actual graph check.
+        import release_identity
+        with patch('release_identity.bounded_run', wraps=release_identity.bounded_run) as calls:
+            with self.assertRaisesRegex(ValueError, 'merge-base'):
+                feature.FeatureCheck(self.repo, '.software-factory', self.subject,
+                                     options['feature_policy'], options['feature_policy_sha256'],
+                                     options['feature_request'], unrelated).assess(self.factory)
+        self.assertTrue(any('merge-base' in call.args[0] for call in calls.call_args_list))
 
     def test_adopted_required_review_is_not_bypassed_by_feature_policy(self):
         self.regenerate(lambda c: c['operations'].update(review={'record_schema': 1, 'required_approvals': 1}))
@@ -334,6 +354,95 @@ class FeatureContractTests(unittest.TestCase):
         self.assertEqual(report['feature_check']['assessment'], 'structural_policy_satisfied')
         self.assertEqual(report['assessment'], 'blocked')
         self.assertTrue(any('Q1' in problem for problem in report['problems']))
+
+    def test_selected_absolute_git_is_used_for_feature_objects_and_ancestry_without_path_fallback(self):
+        selected = str(Path(shutil.which('git')).resolve(strict=True))
+        self.policy.update(acceptance_delta='reuse', task_delta='reuse')
+        storage = self.record()
+        options = self.inputs();options['git'] = selected
+        isolated = dict(os.environ, PATH='')
+        result = self.cli(storage, options, env=isolated)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)['feature_check']['assessment'], 'structural_policy_satisfied')
+        # Baseline and feature both need the selected path; no implicit executable substitute.
+        options['git'] = str(Path(self.tmp.name)/'missing-approved-git')
+        self.assertEqual(self.cli(storage, options, env=isolated).returncode, 2)
+        options.pop('git')
+        import release_identity
+        with patch('release_identity.bounded_run', wraps=release_identity.bounded_run) as calls:
+            assess_ci(self.repo, '.software-factory', self.subject, storage, 'pre-merge',
+                      git_executable=selected, **options)
+        self.assertTrue(any('cat-file' in call.args[0] for call in calls.call_args_list))
+        self.assertTrue(any('merge-base' in call.args[0] for call in calls.call_args_list))
+        for call in calls.call_args_list:
+            self.assertEqual(call.args[0][0], selected)
+            self.assertEqual(call.args[1]['GIT_ALLOW_PROTOCOL'], '')
+            self.assertEqual(call.args[1]['GIT_CONFIG_GLOBAL'], os.devnull)
+
+    def test_shared_addition_can_cover_multiple_supplied_issues_without_distinctness_rule(self):
+        self.grow()
+        shared = {**copy.deepcopy(self.mapping), 'reference': 'private-owner/private-project#124'}
+        self.request['closing_issues'].append(shared['reference'])
+        self.request['contract']['issues'].append(shared)
+        report = self.assess(self.record())['feature_check']
+        self.assertEqual(report['assessment'], 'structural_policy_satisfied')
+        self.assertEqual(len(report['issues']), 2)
+        self.assertEqual([row['acceptance_added'] for row in report['issues']], [1, 1])
+        self.assertEqual([row['tasks_added'] for row in report['issues']], [1, 1])
+
+    def test_stale_ancestor_recounts_prior_additions_but_selected_recent_base_blocks(self):
+        self.grow()
+        recent = self.subject
+        (self.repo/'app.txt').write_text('SYNTHETIC later change without new scope')
+        self.subject = self.commit()
+        storage = self.record()
+        prior = self.assess(storage)['feature_check']
+        self.assertEqual(prior['assessment'], 'structural_policy_satisfied')
+        self.assertEqual(prior['base'], self.base)
+        self.base = recent
+        self.request['base'] = recent
+        chosen = self.assess(storage)['feature_check']
+        self.assertEqual(chosen['assessment'], 'blocked')
+        self.assertIn('ACCEPTANCE_ADDITION_REQUIRED', chosen['issues'][0]['problems'])
+        # Both are valid ancestors: this is a trusted base-selection obligation,
+        # not a claim that the helper discovers actual PR metadata.
+
+    def test_maintenance_with_nonempty_closing_claims_is_labeled_exemption(self):
+        self.request['contract']['classification'] = 'maintenance'
+        report = self.assess(self.record())['feature_check']
+        self.assertEqual(report['assessment'], 'outside_trigger_claim')
+        self.assertEqual(report['outside_trigger_reason'], 'maintenance_claim')
+        self.assertEqual(report['closing_issue_count'], 1)
+
+    def test_bom_inputs_are_pinned_before_decode_and_stale_raw_pin_refuses(self):
+        self.policy.update(acceptance_delta='reuse', task_delta='reuse')
+        storage = self.record()
+        options = self.inputs()
+        self.policy_path.write_bytes(b'\xef\xbb\xbf'+self.policy_path.read_bytes())
+        self.request_path.write_bytes(b'\xef\xbb\xbf'+self.request_path.read_bytes())
+        self.assertIn('POLICY_PIN_MISMATCH', self.cli(storage, options).stderr)
+        options['feature_policy_sha256'] = hashlib.sha256(self.policy_path.read_bytes()).hexdigest()
+        result = self.cli(storage, options)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)['feature_check']['request_sha256'],
+                         hashlib.sha256(self.request_path.read_bytes()).hexdigest())
+
+    def test_samefile_alias_is_rejected_after_redirect_check_without_creating_aliases(self):
+        self.inputs()
+        original = Path.samefile
+        checks = []
+        real_redirect_check = feature.reject_redirected_ancestors
+        def checked(path):
+            checks.append(Path(path))
+            return real_redirect_check(path)
+        def aliased(parent, other):
+            if parent == self.request_path.parent and other == self.repo:
+                self.assertTrue(checks)
+                return True  # Synthetic alternate spelling of checkout ancestor.
+            return original(parent, other)
+        with patch('feature_contract.reject_redirected_ancestors', side_effect=checked), patch.object(Path, 'samefile', aliased):
+            with self.assertRaisesRegex(ValueError, 'EXTERNAL_INPUT_REQUIRED'):
+                feature.read_input(self.request_path, self.repo, feature.MAX_REQUEST)
 
 
 class FeatureContractBoundaryTests(unittest.TestCase):
@@ -367,6 +476,7 @@ class FeatureContractBoundaryTests(unittest.TestCase):
         for raw in fixtures:
             reader = object.__new__(feature.CommittedFiles)
             reader.count = 0
+            reader.trees = {}
             reader.objects = SimpleNamespace(read=lambda *args: raw, width=40, deadline=lambda: None)
             with self.subTest(raw=raw), self.assertRaises(ValueError):
                 reader.members('a'*40)
@@ -374,6 +484,24 @@ class FeatureContractBoundaryTests(unittest.TestCase):
         reader.count = feature.MAX_ENTRIES
         with self.assertRaisesRegex(ValueError, 'TREE_ENTRY_LIMIT'):
             reader.members('a'*40)
+
+    def test_verified_tree_cache_counts_unique_entries_and_still_checks_reader(self):
+        from types import SimpleNamespace
+        raw = b'100644 entry\0'+bytes.fromhex('a'*40)
+        reads = []
+        def verified(oid, kind):
+            reads.append((oid, kind))
+            return raw
+        reader = object.__new__(feature.CommittedFiles)
+        reader.count = 0;reader.trees = {}
+        reader.objects = SimpleNamespace(read=verified, width=40, deadline=lambda: None)
+        first = reader.members('b'*40)
+        self.assertEqual(reader.members('b'*40), first)
+        self.assertEqual(reader.count, 1)
+        self.assertEqual(reads, [('b'*40, 'tree'), ('b'*40, 'tree')])
+        reader.objects.read = lambda *args: (_ for _ in ()).throw(ValueError('Synthetic deadline/type refusal'))
+        with self.assertRaisesRegex(ValueError, 'deadline/type'):
+            reader.members('b'*40)
 
 
 if __name__ == '__main__':
