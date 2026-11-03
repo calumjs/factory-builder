@@ -16,6 +16,8 @@ Migration-before-traffic or compatible expand/contract evidence; automatic promo
 Owner start, latest observation and terminal timestamps (UTC); outcome SUCCESS / FAILED / CANCELLED / UNKNOWN:
 If a terminal marker is absent, record UNKNOWN, not success. Check the actual action and durable evidence before reporting an outcome. A stale or missing owner needs diagnosis and an authorized handoff under the agreed coordination procedure; a local claim alone proves neither exclusion nor permission to take over.
 Actual intended web/artifact target:
+Changed-feature confirmation: comparison base, reviewed subject, changed paths, acceptance IDs and test-map/equivalent references:
+Selected target-safe tests/assertions and G3 or named post-action row; approved actors, data/setup/cleanup prerequisites and unresolved authority:
 Named authorizer, allowed action and boundaries:
 Only mark READY FOR AUTHORIZED ACTION after all still-required pre-merge gates pass; use READY WITH WAIVERS when the user explicitly made checks optional and list them with recorded status. Pending post-action evidence is not a pre-merge dependency.
 
@@ -24,6 +26,8 @@ Status: PENDING / UNCONFIRMED (initial; no action performed)
 Actual authorized action, merged revision and target:
 Actual deployed/installed subject versus evidence-storage commit; any follow-up redeployment:
 G3 actual-target smoke result, evidence, time and exit/manual observation:
+Feature-specific subset actually collected/executed, acceptance/assertion outcomes, unique output/report location and gate-row evidence:
+Excluded required scope and BLOCKED/NOT RUN reason or explicit optional waiver; any data written, cleanup outcome and residue:
 Other required post-action acceptance/research checks:
 Failure/unavailable-check report to release owner/orchestrator and diagnosis/rollback decision:
 For no-release scope, explicit NOT APPLICABLE rationale and named acceptance:
