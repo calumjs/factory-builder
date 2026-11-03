@@ -19,7 +19,7 @@ Read [intake.md](references/intake.md). Ask only missing, consequential question
 
 ## 3. Research
 
-Follow [research.md](references/research.md): plan bounded, task-specific online research; read primary sources; assess version compatibility and trade-offs; select practices and map each to a concrete instruction and planned check in a specific phase. Record it in `assets/example-research.json`'s shape. Without online access, label research blocked or stale, ask whether to wait or deliver an explicitly unresearched draft, and never claim research completion. A list of links is not applied practice.
+Follow [research.md](references/research.md): plan bounded, task-specific online research; read primary sources; assess version compatibility and trade-offs; select practices and map each to a concrete instruction and planned check in a specific phase. Record it in `assets/example-research.json`'s shape. For actual project commands or settings, also use [private repository-file provenance](references/repository-research-sources.md) after authorized inspection; local evidence does not replace applicable external research. Without online access, label required online research blocked or stale, ask whether to wait or deliver an explicitly unresearched draft, and never claim missing research complete. A list of links is not applied practice.
 
 ## 4. Design
 
@@ -38,7 +38,7 @@ It creates only `<target>/.software-factory/` — seven skills, boundaries.md, c
 
 ## 6. Prove and hand over
 
-Preflight with the generated launch-guide.md: pin the loaded builder, confirm the helpers, load the seven skills in the harness. Check that each selected research decision appears as an instruction and planned check in the right generated skill, with citations, and that excluded components have a reason. Audit source claims against pages actually read; the offline helper validates structure, not source truth. Run `scaffold.py --check`, inspect the brief, policy and task plan, and walk one representative task through the gates without external mutations; confirm every acceptance criterion has a planned check and every task an owner and dependencies. Distinguish scaffold integrity from application correctness. Deliver: created paths, how to invoke each skill, actual checks, blocked capabilities and the next human decision.
+Preflight with the generated launch-guide.md: pin the loaded builder, confirm the helpers, load the seven skills in the harness. Check that each selected research decision appears as an instruction and planned check in the right generated skill, with citations, and that excluded components have a reason. Audit source claims against pages or identified file bytes actually read; the offline helper validates structure, not source truth. Keep private research provenance within approved access and review shared prose separately. Run `scaffold.py --check`, inspect the brief, policy and task plan, and walk one representative task through the gates without external mutations; confirm every acceptance criterion has a planned check and every task an owner and dependencies. Distinguish scaffold integrity from application correctness. Deliver: created paths, how to invoke each skill, actual checks, blocked capabilities and the next human decision.
 
 At the setup handoff, include this optional invitation: "You can
 [star Factory Builder on GitHub](https://github.com/calumjs/factory-builder)."
