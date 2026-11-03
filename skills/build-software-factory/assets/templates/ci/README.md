@@ -50,6 +50,7 @@ execution. It needs these non-secret variables from trusted CI configuration:
 |---|---|
 | FACTORY_PYTHON | Approved existing absolute Python 3.9+ executable. |
 | FACTORY_TRUSTED_HELPER | Verified pinned absolute path to builder scripts/ci_evidence.py, outside the PR checkout. |
+| FACTORY_GIT | Optional approved absolute Git executable; passed as `--git` to baseline and feature reads. Omission preserves the existing `git` default. |
 | FACTORY_REPO | Exact clean assessment-checkout root at E. |
 | FACTORY_TESTED_SUBJECT_SHA | Full actual tested/deployed S, selected by the trusted job, not PR text or evidence rows. |
 | FACTORY_EVIDENCE_STORAGE_SHA | Full E that stores the supplied records; must match HEAD. |
@@ -58,6 +59,22 @@ execution. It needs these non-secret variables from trusted CI configuration:
 | FACTORY_DIRECTORY | Managed directory relative to FACTORY_REPO's checkout root; default .software-factory. |
 | FACTORY_EVIDENCE_DIRECTORY | Reviewed data-only storage directory relative to FACTORY_REPO, outside factory/CI config; default docs/factory-evidence. |
 | FACTORY_REQUIRED_TASKS | Optional JSON array of project-selected task IDs required done for this job's subject; default []. |
+| FACTORY_FEATURE_POLICY | Optional external policy file; all four feature inputs must be supplied together. |
+| FACTORY_FEATURE_POLICY_SHA256 | Independently accepted raw policy digest, not a PR-selected weaker policy. |
+| FACTORY_FEATURE_REQUEST | External reviewed classification, closing claims and issue mappings. |
+| FACTORY_FEATURE_BASE_SHA | Full comparison base independently selected/revalidated by the trusted job against its actual target/subject; not copied from the request author. Only local ancestry is checked. |
+
+Optional feature-contract composition uses all four of `FACTORY_FEATURE_POLICY`,
+`FACTORY_FEATURE_POLICY_SHA256`, `FACTORY_FEATURE_REQUEST` and
+`FACTORY_FEATURE_BASE_SHA`, only at pre-merge. See the trusted installed builder's
+`references/feature-contract-ci.md` for the exact schemas, independent policy pin,
+append-only acceptance limits and adoption recipe. Policy/request files stay outside
+the checkout. Missing required deltas fail the composed command; supplied claims do
+not discover PR content, prove coverage or create G0/G2 evidence. Existing jobs without
+these inputs are unchanged; adopting the extension is a separate reviewed decision.
+An old ancestor can recount earlier additions; the helper does not verify the actual
+PR base. The installed guide explains this trust boundary and the optional explicit
+`--git` executable pin, including the feature reader's deliberately hardened environment.
 
 For the CLI, `--repo` names the exact checkout root; `--factory` and `--evidence-dir`
 are canonical forward-slash paths relative to that root, even when invoked from a

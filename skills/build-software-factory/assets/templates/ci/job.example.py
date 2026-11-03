@@ -24,9 +24,21 @@ def command(env):
           '--stage',env.get('FACTORY_STAGE','pre-merge'),
           '--evidence-dir',env.get('FACTORY_EVIDENCE_DIRECTORY','docs/factory-evidence')]
     if env.get('FACTORY_ACTUAL_TARGET'):argv+=['--target',env['FACTORY_ACTUAL_TARGET']]
+    if 'FACTORY_GIT' in env:
+        if not env['FACTORY_GIT'] or not Path(env['FACTORY_GIT']).is_absolute():
+            raise ValueError('Explicit Git selection needs an approved absolute executable path')
+        argv+=['--git',env['FACTORY_GIT']]
     tasks=json.loads(env.get('FACTORY_REQUIRED_TASKS','[]'))
     if not isinstance(tasks,list) or any(not isinstance(v,str) or not v.strip() for v in tasks):raise ValueError('CI-required task IDs must be an explicit JSON string array')
     for task in tasks:argv+=['--require-task',task]
+    feature=(('FACTORY_FEATURE_POLICY','--feature-policy'),
+             ('FACTORY_FEATURE_POLICY_SHA256','--feature-policy-sha256'),
+             ('FACTORY_FEATURE_REQUEST','--feature-request'),
+             ('FACTORY_FEATURE_BASE_SHA','--feature-base'))
+    if any(key in env for key,_ in feature):
+        if any(not env.get(key) for key,_ in feature) or env.get('FACTORY_STAGE','pre-merge')!='pre-merge':
+            raise ValueError('Feature policy needs all four explicit inputs and pre-merge stage')
+        for key,flag in feature:argv+=[flag,env[key]]
     return argv
 
 

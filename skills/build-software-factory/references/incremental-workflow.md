@@ -81,6 +81,10 @@ checks. This helper neither detects dishonest classification nor enables a hoste
 G0/G2 check. CI adoption/enforcement is separate authorized integration. Use the
 existing gate/scoped assessment after actual test execution, with exact subjects.
 
+For an explicitly selected project rule, [optional feature-contract CI composition](feature-contract-ci.md)
+adds a committed base/subject delta check to the existing pre-merge CI adapter. It
+preserves this mapper's reuse behavior; policy selection and job adoption remain explicit.
+
 `incremental_records.py --factory <factory> --kind task --input <task.json>`
 previews adding one task using the existing task schema; only `pending`/`blocked`
 new statuses, existing acceptance IDs, valid dependencies and safe project-relative
