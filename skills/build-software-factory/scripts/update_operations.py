@@ -13,7 +13,7 @@ import tempfile
 from gates import policy_controls, initial_table, requirements, gate_rows, ROW, HEADER, control_differences
 from integrity import check, digest, safe_path, strict_json
 from operations import controls, operations, DELIVERY_POLICY
-from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS
+from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS, video_design, video_triggers
 from scaffold import validate, ROOT, phase_skill, RETURN
 from assumptions import refresh as refresh_assumptions
 from backup_advisory import inspect_backup_directory
@@ -165,8 +165,88 @@ def verification_explanations(original, replacement):
         messages.append('ROW '+ident+': '+'; '.join(parts)+'.')
     return messages
 
-def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None):
+def classify_gate_update(text, before, after, research, changes, *, delivery=False, assumptions=False, runtime_changed=False):
+    """Compare plans, never assess or rebind observations. Reasons contain no input values."""
+    fallback=[]
+    if delivery:fallback.append('delivery_migration')
+    if 'required' in changes.get('smoke_gates',{}):fallback.append('explicit_required_defaults')
+    if assumptions:fallback.append('assumptions_changed')
+    if runtime_changed:fallback.append('runtime_changed')
+    old_ops,new_ops=operations(before),operations(after)
+    for section in old_ops.keys() | new_ops.keys():
+        if section not in ('smoke_gates','done_videos','issue_intake') and control_differences(old_ops.get(section),new_ops.get(section)):
+            fallback.append('other_controls_changed')
+    old_smoke,new_smoke=old_ops['smoke_gates'],new_ops['smoke_gates']
+    if control_differences(old_smoke['exception'],new_smoke['exception']):fallback.append('exception_changed')
+    source={}
+    for raw in text.splitlines(keepends=True):
+        match=ROW.match(raw)
+        if not match:continue
+        gate=match[1]
+        if gate in source:raise ValueError('Duplicate source gate row requires review: '+gate)
+        source[gate]=raw
+        width=len(raw.strip().strip('|').split('|'))
+        if width==8:fallback.append('legacy_schema')
+        elif width!=11:raise ValueError('Cannot migrate malformed gate row; review it manually')
+    if '\r' in text.replace('\r\n',''):fallback.append('unsupported_line_endings')
+    if fallback:return {'mode':'fallback','reasons':sorted(set(fallback)),'rows':{}}
+    rows=gate_rows(text)
+    previous,expected=requirements(before,research),requirements(after,research)
+    baseline=gate_rows(initial_table(before,research))
+    decisions={}
+    def reset(gate,reason,fields=()):
+        decision=decisions.setdefault(gate,{'action':'retain','reasons':[],'fields':[]})
+        decision['action']='reset'
+        if reason not in decision['reasons']:decision['reasons'].append(reason)
+        decision['fields']=sorted(set(decision['fields'])|set(fields))
+    target_fields=('deployed_url','target_kind','post_merge_applicability','post_merge_rationale','accepted_by')
+    def target_context(smoke,specs):
+        return {**{key:smoke[key] for key in target_fields},'g3_target':specs['G3'].get('recipe',{}).get('target')}
+    target_changes=control_differences(target_context(old_smoke,previous),target_context(new_smoke,expected),'post_context')
+    def video_context(ops):
+        video=ops['done_videos']
+        return {'preference':video,'design':video_design(video),'triggers':video_triggers(video)}
+    video_changes=control_differences(video_context(old_ops),video_context(new_ops),'video')
+    for gate in dict.fromkeys([*rows,*expected]):
+        decisions[gate]={'action':'retain','reasons':[],'fields':[]}
+        if gate not in rows:reset(gate,'missing_row')
+        if gate not in expected:reset(gate,'retired_or_unconfigured')
+        if gate not in previous:reset(gate,'new_plan')
+        if gate in rows and (gate not in baseline or any(rows[gate][key]!=baseline[gate][key] for key in ('stage','design'))):
+            reset(gate,'source_plan_misaligned')
+        plan_changes=control_differences(previous.get(gate),expected.get(gate),'plan')
+        if plan_changes:reset(gate,'plan_changed',plan_changes)
+        stage_changes=control_differences(old_smoke['check_stages'].get(gate),new_smoke['check_stages'].get(gate),'check_stages')
+        if stage_changes:reset(gate,'stage_override_changed',stage_changes)
+        if target_changes and any(spec.get(gate,{}).get('stage')=='post-merge' for spec in (previous,expected)):
+            reset(gate,'post_target_context_changed',target_changes)
+        if video_changes and gate in ('V1','V2'):reset(gate,'video_preference_changed',video_changes)
+    # Closure follows classification: a missing/misaligned prerequisite is just
+    # as invalidating as an edited recipe, even when its config was unchanged.
+    for dependent,prerequisites in (('V1',('G3',)),('V2',('G1','G2'))):
+        if dependent in decisions and any(decisions.get(gate,{}).get('action')!='retain' for gate in prerequisites):
+            reset(dependent,'prerequisite_reset')
+    return {'mode':'selective','reasons':[],'rows':decisions}
+
+
+def selective_explanations(original, replacement, changes, *, delivery=False, assumptions=False):
+    if 'research.json' not in original:return []
+    decision=classify_gate_update(original['verification.md'].decode('utf-8-sig'),
+        json.loads(original['config.json'].decode('utf-8-sig')),
+        json.loads(replacement.get('config.json',original['config.json']).decode('utf-8-sig')),
+        json.loads(original['research.json'].decode('utf-8-sig')),changes,
+        delivery=delivery,assumptions=assumptions,
+        runtime_changed=any(name in RUNTIME_COMPONENTS and data!=original[name] for name,data in replacement.items()))
+    if decision['mode']=='fallback':return ['GATE FALLBACK: '+', '.join(decision['reasons'])+'; broad reset.']
+    return ['GATE '+row['action'].upper()+' '+gate+': '+(', '.join(row['reasons']) or 'plan_dependencies_unchanged')
+            +('; fields: '+', '.join(row['fields']) if row['fields'] else '')+'.'
+            for gate,row in decision['rows'].items()]
+
+
+def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None, retained_rows=None):
     expected=requirements(config,research)
+    if retained_rows is not None and set(retained_rows)==set(expected)==set(gate_rows(text)):
+        return text
     previous=requirements(prior_config,research) if prior_config is not None else {}
     baseline=gate_rows(initial_table(prior_config,research)) if prior_config is not None else {}
     preserved=[];history=[];observations=[];extra=[];flags={}
@@ -196,6 +276,7 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False, p
         if flag not in ('yes','y','true','no','n','false'):
             raise ValueError('Malformed source requiredness requires review')
         flags[cells[0]]='yes' if flag in ('yes','y','true') else 'no'
+        if retained_rows is not None and cells[0] in retained_rows:continue
         # Blank default plans have no observation. Preserve customized plans and
         # optional choices, including retired video rows, without carrying a PASS.
         prior=baseline.get(cells[0])
@@ -230,7 +311,18 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False, p
     for observation in observations:
         key=history_key(observation)
         if key not in seen:history.append(observation);seen.add(key)
-    result='\n'.join(preserved).rstrip()+'\n\n## Historical observations (not current evidence)\n'+'\n'.join(history)+'\n\n## Current delivery gate records\n'+'\n'.join(current)+'\n'+'\n'.join(extra)+'\n'
+    prefix='\n'.join(preserved).rstrip()+'\n\n## Historical observations (not current evidence)\n'+'\n'.join(history)+'\n\n## Current delivery gate records\n'
+    if retained_rows is None:
+        result=prefix+'\n'.join(current)+'\n'+'\n'.join(extra)+'\n'
+    else:
+        generated={ROW.match(line)[1]:line+'\n' for line in current+extra if ROW.match(line)}
+        order=[gate for gate in flags if gate in generated]
+        additions=[gate for gate in generated if gate not in order]
+        # A retained final row without a newline must remain the final row.
+        if order and order[-1] in retained_rows and not retained_rows[order[-1]].endswith(('\r','\n')):
+            order[-1:-1]=additions
+        else:order+=additions
+        result=prefix+HEADER+'\n'+''.join(retained_rows.get(gate,generated[gate]) for gate in order)
     gate_rows(result)  # Reject ambiguity or malformed legacy extra checks before writing.
     return result
 
@@ -329,7 +421,7 @@ def unchanged(root, name, expected):
     return not path.exists() if expected is None else path.is_file() and path.read_bytes()==expected
 
 
-def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False, migration_receipt=False):
+def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False, migration_receipt=False, selective_gates=False):
     if migration_receipt and not any((recipe_runtime,context_runtime,gate_runtime)):
         raise ValueError('--migration-receipt requires an explicit runtime migration flag')
     root=safe_path(factory)
@@ -411,9 +503,21 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
         else:
             raise ValueError('Dashboard recipe dependency missing; preview a reviewed --recipe-runtime migration')
     if delivery_update or any(key in changes for key in ('smoke_gates','done_videos')):
-        research=json.loads((root/'research.json').read_text(encoding='utf-8-sig'))
+        research_bytes=(root/'research.json').read_bytes()
+        research=json.loads(research_bytes.decode('utf-8-sig'))
         reset_defaults=isinstance(changes.get('smoke_gates'),dict) and 'required' in changes['smoke_gates']
-        replacement['verification.md']=refreshed_verification(original['verification.md'].decode('utf-8-sig'),config,research,reset_defaults,before_config).encode('utf-8')
+        text=original['verification.md'].decode('utf-8-sig')
+        retained=None
+        if selective_gates:
+            original['research.json']=research_bytes
+            decision=classify_gate_update(text,before_config,config,research,changes,
+                delivery=delivery_update,assumptions=assumptions_update is not None,
+                runtime_changed=any(name in RUNTIME_COMPONENTS and data!=original[name] for name,data in replacement.items()))
+            if decision['mode']=='selective':
+                retained={ROW.match(line)[1]:line for line in text.splitlines(keepends=True)
+                    if ROW.match(line) and decision['rows'][ROW.match(line)[1]]['action']=='retain'}
+        refreshed=refreshed_verification(text,config,research,reset_defaults,before_config,retained)
+        replacement['verification.md']=original['verification.md'] if selective_gates and refreshed==text else refreshed.encode('utf-8')
     if delivery_update:
         boundary='boundaries.md'
         boundary_source=(ROOT/'assets/templates'/boundary).read_bytes()
@@ -510,6 +614,7 @@ def main():
     parser.add_argument('--context-runtime',action='store_true',help='Opt in to a reviewed known dashboard context/diagnostic migration; includes recipe compatibility')
     parser.add_argument('--gate-runtime',action='store_true',help='Opt in to reviewed known dashboard operations/recipes/gates support for structured gate metadata')
     parser.add_argument('--migration-receipt',action='store_true',help='With a runtime migration flag, append a reviewed runtime-only byte receipt; preserve original factory provenance')
+    parser.add_argument('--selective-gates',action='store_true',help='For operations gate updates, retain unchanged row bytes and reset changed plans/dependents; ambiguous migrations use the broad reset')
     args=parser.parse_args()
     if args.approve_plan and not args.apply:parser.error('--approve-plan requires --apply')
     if not any((args.operations,args.assumptions,args.delivery_gates,args.recipe_runtime,args.context_runtime,args.gate_runtime)):
@@ -517,10 +622,12 @@ def main():
     changes=json.loads(Path(args.operations).read_text(encoding='utf-8-sig')) if args.operations else {}
     assumption_rows=json.loads(Path(args.assumptions).read_text(encoding='utf-8-sig')) if args.assumptions else None
     if args.assumptions and assumption_rows is None:raise ValueError('Assumptions input must be an array, not null')
-    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime,args.migration_receipt)
+    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime,args.migration_receipt,args.selective_gates)
     print('REVIEW PLAN: '+plan)
     if args.migration_receipt:
         print('RUNTIME-ONLY RECEIPT: '+('proposed component byte transition; declared version is not verified provenance.' if MIGRATION_RECEIPTS in replacement else 'no changed runtime components; no receipt appended.'))
+    if args.selective_gates:
+        for explanation in selective_explanations(original,replacement,changes,delivery=args.delivery_gates,assumptions=assumption_rows is not None):print(explanation)
     for explanation in verification_explanations(original,replacement):print(explanation)
     for name,data in replacement.items():
         before=hashlib.sha256(original[name]).hexdigest() if original[name] is not None else 'missing'
