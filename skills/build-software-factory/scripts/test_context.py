@@ -131,7 +131,8 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(result['state'],'configured_unverified')
         self.assertEqual(result['liveness'],'unverified')
         self.assertEqual(result['scheduler_authority'],'unverified')
-        self.assertEqual(len(result['diagnostics']),1)
+        self.assertEqual(len(result['diagnostics']),2)
+        self.assertTrue(any('issue_intake.status to equal enabled' in row for row in result['diagnostics']))
         for cadence in (' TBD','pending','not configured','  Unconfirmed: interval ','unknown'):
             self.config['operations']['issue_intake']['cadence']=cadence
             result=watcher(self.config)

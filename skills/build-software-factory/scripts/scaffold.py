@@ -41,7 +41,7 @@ def check_factory(factory):
     config=read_json(root/'config.json');validate(config)
     require_control_consistency(config,(root/'policy.md').read_text(encoding='utf-8-sig'))
     runtime_advisory(root);run_adoption_advisory(manifest);emit(config)
-    print(f"PASS: {len(manifest['contracts'])} contract files match; {len(manifest['living'])} living files have valid basic structure; config/policy controls agree. Living content and evidence truth are not attested; application checks were not run.")
+    print(f"PASS: {len(manifest['contracts'])} contract files match; {len(manifest['living'])} living files are present with UTF-8 text and JSON/Learn-table checks passed; config/policy controls agree. Gate tables require separate gates.py or scoped_assessment.py assessment. Living content and evidence truth are not attested; application checks were not run.")
 
 
 def run_adoption_advisory(manifest):
@@ -143,6 +143,7 @@ def dumps(c):
 
 def ignore_fragment(c):
     text = '# Optional root ignore rules: inspect and merge manually; never overwrite the repository ignore policy.\n.env*\n!.env.example\n!.env.*.example\n__pycache__/\n*.py[cod]\n.venv/\nnode_modules/\ndist/\nbuild/\ntest-results/\n.claude/skill-backups/\n.factory-update-backups/\n.factory-recovery-backups/\n.factory-acceptance-backups/\nfactory-overview.html\nfactory-overview.json\n'
+    text += '\n# Private default run-record JSON; review team retention before merging.\n/.factory-runs/*.json\n# STOP is a control signal: decide its ownership/distribution separately.\n# /.factory-runs/STOP\n# Explicit selected-assessment snapshot examples (not every HTML/JSON file).\n/selected-overview.html\n/selected-overview.json\n# Custom --runs and --output paths need their own reviewed exact rules.\n'
     stack = c['stack'].casefold()
     if re.search(r'\bnext(?:\.js|js)\b', stack):
         text += '\n# Next.js generated output; verify installed-version conventions.\n.next/\n'

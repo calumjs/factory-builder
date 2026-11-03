@@ -35,6 +35,13 @@ Schema 2 `manifest.json` hashes contract artifacts: phase skills, policy, accept
 
 Five living artifacts are listed but not hashed: `verification.md`, `task-plan.json`, `learning-log.md`, `release-handoff.md` and `tools.json`. These are expected to evolve. The checker validates file presence and basic text/JSON structure, not evidence truth or authorization. Review meaningful changes to permissions, enablement, tools and release decisions. Unexpected files, missing files and malformed living JSON are still errors.
 
+More precisely, integrity checks UTF-8 text, JSON/basic record shapes and the Learn
+table. It does not parse the verification gate table: use `gates.py` or
+`scoped_assessment.py` for its structure and recorded delivery assessment. An
+integrity PASS can coexist with malformed gate rows; it is never delivery readiness.
+Older copied integrity helpers retain their earlier wording until a reviewed
+`--context-runtime` migration; no broader structural policy is introduced here.
+
 The dedicated `dashboard/` bundle and initial HTML are contracts. Open its initial snapshot directly; refresh using the bundled helper to an HTML/JSON file **outside** the factory. It creates no caches in the factory. See [dashboard.md](dashboard.md) for source/freshness semantics, project-specific profiles, safe existing-UI integration and narrow existing-factory adoption. Keep runtime snapshots and adapter inputs private and outside the manifest directory.
 
 ## Delivery gates

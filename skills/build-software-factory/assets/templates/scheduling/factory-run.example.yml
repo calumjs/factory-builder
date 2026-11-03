@@ -18,6 +18,8 @@ jobs:
     timeout-minutes: 60   # keep at or below budget.max_minutes
     env:
       FACTORY_STOP: ${{ vars.FACTORY_STOP }}   # repository variable acts as the kill switch
+      ISSUE_POLICY_PATH: .factory-issue-policy.json   # separately reviewed exact schema in scheduling/README.md
+      ADMISSION_SNAPSHOT_PATH: ""   # supply a reviewed observations path if operations.admission is configured
     steps:
       - uses: actions/checkout@v4
       - name: Checkout pinned builder
@@ -27,14 +29,43 @@ jobs:
           ref: "<verified-full-commit-sha>"
           path: .builder
       - name: Export issue snapshot (read-only)
+        shell: bash
         run: |
-          gh issue list --state open --json number,title,author,createdAt,labels \
-            --jq '[.[] | {id: (.number|tostring), title, submitter: .author.login, created_at: .createdAt, labels: [.labels[].name]}]' \
+          # Read-only local preflight: the reviewed policy determines the export
+          # repository and must agree with factory config before any remote read.
+          ISSUE_REPOSITORY="$(python -B - "$ISSUE_POLICY_PATH" <<'PY'
+          import re, sys
+          sys.path.insert(0, ".builder/skills/build-software-factory/scripts")
+          from integrity import read_json
+          from run import load, issue_candidates, operations
+          try:
+              _, config, _ = load(".software-factory")
+              policy = read_json(sys.argv[1])
+              autonomy, intake = operations(config)
+              issue_candidates([], autonomy, set(), policy)
+              repository = policy["repository"]
+              if re.fullmatch(r"[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+", repository) is None or repository != intake["github_scope"]:
+                  raise ValueError("scope mismatch")
+          except (ValueError, OSError, KeyError, TypeError):
+              raise SystemExit("Reviewed issue policy/schema and configured repository must agree; no export performed.")
+          print(repository)
+          PY
+          )"
+          # This capped read is not a complete dependency or processed-issue census.
+          # Empty depends_on below is unverified: reconcile it before using the snapshot.
+          gh issue list --repo "$ISSUE_REPOSITORY" --state open --limit 1000 --json number,title,author,createdAt,labels \
+            --jq '[.[] | {id: (.number|tostring), title, submitter: .author.login, created_at: .createdAt, labels: [.labels[].name], depends_on: []}]' \
             > "$RUNNER_TEMP/issues.json"
         env:
           GH_TOKEN: ${{ github.token }}
       - name: Select work
-        run: python .builder/skills/build-software-factory/scripts/run.py --factory .software-factory --runs .factory-runs select --issues "$RUNNER_TEMP/issues.json"
+        shell: bash
+        run: |
+          admission_args=()
+          if [[ -n "$ADMISSION_SNAPSHOT_PATH" ]]; then
+            admission_args=(--admission-snapshot "$ADMISSION_SNAPSHOT_PATH")
+          fi
+          python -B .builder/skills/build-software-factory/scripts/run.py --factory .software-factory --runs .factory-runs select --issues "$RUNNER_TEMP/issues.json" --issue-policy "$ISSUE_POLICY_PATH" "${admission_args[@]}"
       - name: Run one factory pass
         run: |
           # This placeholder is not populated by run.py; separately design and authorize dispatch.

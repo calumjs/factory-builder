@@ -244,20 +244,94 @@ def selective_explanations(original, replacement, changes, *, delivery=False, as
             for gate,row in decision['rows'].items()]
 
 
-def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None, retained_rows=None):
+VIDEO_HISTORY_HEADINGS=frozenset(('## Prior gate observation (not current evidence)',
+                                 '## Historical observations (not current evidence)'))
+
+
+def video_reactivation_choices(text, expected, choices):
+    """History identifies prior occurrence only; it never supplies a preference."""
+    choices={} if choices is None else choices
+    if not isinstance(choices,dict) or any(g not in ('V1','V2') or type(v) is not bool for g,v in choices.items()):
+        raise ValueError('Video requiredness must map V1/V2 to explicit booleans')
+    active=set();in_history=False
+    for line in text.splitlines():
+        if line.strip() in VIDEO_HISTORY_HEADINGS:in_history=True
+        elif line.startswith('## '):in_history=False
+        match=ROW.match(line)
+        if match and not in_history:active.add(match[1])
+    added={g for g in ('V1','V2') if g in expected and g not in active}
+    if set(choices)-added:
+        raise ValueError('Video requiredness choices apply only to newly activated V1/V2 rows; unused choices refused')
+    # Ordinary refreshes preserve history without interpreting it. Only missing
+    # video rows need a presence check; history never chooses their requiredness.
+    if not added:return choices
+    active=set();retired=set();in_history=False
+    for line in text.splitlines():
+        if line.strip() in VIDEO_HISTORY_HEADINGS:
+            if line not in VIDEO_HISTORY_HEADINGS:
+                raise ValueError('Malformed historical observations heading; preserve and review manually')
+            # The incremental writer emits a section per observation. Multiple
+            # recognized sections establish presence, never a latest preference.
+            in_history=True
+            continue
+        if line.startswith('## '):in_history=False
+        historical=re.match(r'^\s*>\s*\|',line) is not None
+        body=line.lstrip()[1:].lstrip() if historical else line
+        match=ROW.match(body)
+        if historical and (not line.startswith('> | ') or not match) and re.match(r'^\|\s*[A-Z]\d+(?:\s|\||$)',body):
+            raise ValueError('Malformed historical gate row; preserve and review manually')
+        if not match:continue
+        if in_history and not historical:
+            raise ValueError('Unquoted gate row in historical observations; preserve and review manually')
+        cells=[v.strip() for v in body.strip().strip('|').split('|')]
+        if (len(cells) not in (8,11) or cells[1] not in ('pre-merge','post-merge')
+                or cells[4].casefold() not in ('yes','y','true','no','n','false')
+                or cells[6] not in ('PASSED','FAILED','BLOCKED','NOT RUN','NOT APPLICABLE')):
+            raise ValueError('Malformed gate history or current row; preserve and review manually')
+        gate=cells[0]
+        if historical:
+            if not in_history:raise ValueError('Gate history outside its explicit section; preserve and review manually')
+            if gate in ('V1','V2'):retired.add(gate)
+        else:
+            if gate in active:raise ValueError('Duplicate source gate row requires review: '+gate)
+            active.add(gate)
+    missing=sorted((added & retired)-set(choices))
+    if missing:
+        raise ValueError('Reactivated video gates need explicit current requiredness: '+', '.join(missing)+
+                         '; use --operations <reviewed-patch.json> with the intended done_videos activation '
+                         '(or {"done_videos": {}} to restore rows already expected by config), plus '
+                         '--video-requiredness V1=yes or V1=no (V2 likewise). Historical choices/results are not replayed')
+    return choices
+
+
+def parse_video_requiredness(values):
+    result={}
+    for value in values or []:
+        match=re.fullmatch(r'(V[12])=(yes|no)',value,re.I)
+        if not match:raise ValueError('Use --video-requiredness V1=yes|no or V2=yes|no')
+        gate=match[1].upper()
+        if gate in result:raise ValueError('Duplicate video requiredness choice: '+gate)
+        result[gate]=match[2].lower()=='yes'
+    return result
+
+
+def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None, retained_rows=None, video_requiredness=None):
     expected=requirements(config,research)
+    previous=requirements(prior_config,research) if prior_config is not None else {}
+    choices=video_reactivation_choices(text,expected,video_requiredness)
     if retained_rows is not None and set(retained_rows)==set(expected)==set(gate_rows(text)):
         return text
-    previous=requirements(prior_config,research) if prior_config is not None else {}
     baseline=gate_rows(initial_table(prior_config,research)) if prior_config is not None else {}
     preserved=[];history=[];observations=[];extra=[];flags={}
     in_history=False;table_header=False;skip_blank=False
     for line in text.splitlines():
-        if line in ('## Historical observations (not current evidence)', '## Current delivery gate records', '## Delivery gate records (required checks start NOT RUN)'):
+        if line in VIDEO_HISTORY_HEADINGS or line in ('## Current delivery gate records', '## Delivery gate records (required checks start NOT RUN)'):
             while preserved and not preserved[-1].strip():preserved.pop()
-            in_history=line.startswith('## Historical');table_header=False;skip_blank=True;continue
+            in_history=line in VIDEO_HISTORY_HEADINGS;table_header=False;skip_blank=True;continue
         if line.startswith('## '):in_history=False
-        if in_history and line.startswith('> | '):
+        if in_history and not ROW.match(line):
+            # Qualifying prose belongs with its historical rows, not in the
+            # current-record preamble. Keep order across repeated sections.
             history.append(line);skip_blank=True;continue
         if line == HEADER.splitlines()[0]:
             table_header=True;skip_blank=True;continue
@@ -297,6 +371,9 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False, p
             if cells[0] in flags and not (reset_smoke_defaults and cells[0] in ('G1','G2','G3')):
                 cells[4]=flags[cells[0]]
                 line='| '+' | '.join(cells)+' |'
+            if cells[0] in choices:
+                cells[4]='yes' if choices[cells[0]] else 'no'
+                line='| '+' | '.join(cells)+' |'
         current.append(line)
     # Retain existing history verbatim; refreshing the same active plan twice
     # must not append the same observation again merely because table spacing,
@@ -308,7 +385,8 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False, p
             flag=cells[4].casefold()
             cells[4]='yes' if flag in ('yes','y','true') else 'no' if flag in ('no','n','false') else flag
         return tuple(cells)
-    seen={history_key(line) for line in history}
+    while history and not history[-1].strip():history.pop()
+    seen={history_key(line) for line in history if line.startswith('> | ') and ROW.match(line[2:])}
     for observation in observations:
         key=history_key(observation)
         if key not in seen:history.append(observation);seen.add(key)
@@ -384,6 +462,11 @@ PRE_ADMISSION_RUNTIME = {
 
 # Exact published 2ca1470 dashboard, before opt-in subject assessment.
 PRE_SUBJECT_DASHBOARD = {'dashboard.py':'4754a7d98a9da9a6732ee9a88b07f58b59313670badecaf5939cdfc53cb780ac'}
+# Exact published v1.36 helpers, before narrower check wording/intake diagnostics.
+# Preserve recognized copies unless the existing context migration is opted in.
+PRE_CONSISTENCY_CONTEXT = {
+    'readiness.py':'7ab8b3e10d193d949c701e648c6d3ceee31ae0708e02253b9cd128ae2b880095',
+    'integrity.py':'2a5e8d330070d25323ef6faf65d4510b88fd15d923e57df99185b6631b2e5707'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -407,7 +490,7 @@ def context_runtime_plan(root, original, replacement, opted_in):
         path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename),PRE_SUBJECT_DASHBOARD.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename),COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_CONTEXT_V113.get(filename),PRE_ADMISSION_RUNTIME.get(filename),PRE_SUBJECT_DASHBOARD.get(filename),PRE_CONSISTENCY_CONTEXT.get(filename))
         if compatible and not opted_in:continue
         if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename) and not compatible:
             raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')
@@ -447,7 +530,8 @@ def require_admission_runtime(root, original, replacement):
         original[name]=current  # Also bind supported, unchanged helpers for apply.
         proposed=replacement.get(name,current)
         wanted=(ROOT/'scripts'/filename).read_bytes()
-        if proposed is None or digest(proposed)!=digest(wanted):
+        compatible=filename=='readiness.py' and proposed is not None and digest(proposed)==PRE_CONSISTENCY_CONTEXT['readiness.py']
+        if proposed is None or (digest(proposed)!=digest(wanted) and not compatible):
             raise ValueError('Admission needs supported copied operations and readiness helpers; preview with --context-runtime. Customized/unsupported helpers require manual review')
 
 
@@ -482,8 +566,12 @@ def compact_phase_plan(root, original, replacement):
         replacement[name]=original[name] if original[name] is not None else wanted
 
 
-def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False, migration_receipt=False, selective_gates=False, compact_phases=False):
-    if compact_phases and (changes or delivery_update or recipe_runtime or assumptions_update is not None or context_runtime or gate_runtime or migration_receipt or selective_gates):
+def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assumptions_update=None, context_runtime=False, gate_runtime=False, migration_receipt=False, selective_gates=False, compact_phases=False, video_requiredness=None):
+    if video_requiredness is not None and (not isinstance(video_requiredness,dict) or any(g not in ('V1','V2') or type(v) is not bool for g,v in video_requiredness.items())):
+        raise ValueError('Video requiredness must map V1/V2 to explicit booleans')
+    if video_requiredness and (not isinstance(changes,dict) or 'done_videos' not in changes):
+        raise ValueError('Video requiredness choices require a done_videos activation update')
+    if compact_phases and (changes or delivery_update or recipe_runtime or assumptions_update is not None or context_runtime or gate_runtime or migration_receipt or selective_gates or video_requiredness):
         raise ValueError('--compact-phases requires a separate reviewed plan; do not combine operations or other migration options')
     if migration_receipt and not any((recipe_runtime,context_runtime,gate_runtime)):
         raise ValueError('--migration-receipt requires an explicit runtime migration flag')
@@ -583,7 +671,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             if decision['mode']=='selective':
                 retained={ROW.match(line)[1]:line for line in text.splitlines(keepends=True)
                     if ROW.match(line) and decision['rows'][ROW.match(line)[1]]['action']=='retain'}
-        refreshed=refreshed_verification(text,config,research,reset_defaults,before_config,retained)
+        refreshed=refreshed_verification(text,config,research,reset_defaults,before_config,retained,video_requiredness)
         replacement['verification.md']=original['verification.md'] if selective_gates and refreshed==text else refreshed.encode('utf-8')
     if delivery_update:
         boundary='boundaries.md'
@@ -684,6 +772,7 @@ def main():
     parser.add_argument('--migration-receipt',action='store_true',help='With a runtime migration flag, append a reviewed runtime-only byte receipt; preserve original factory provenance')
     parser.add_argument('--selective-gates',action='store_true',help='For operations gate updates, retain unchanged row bytes and reset changed plans/dependents; ambiguous migrations use the broad reset')
     parser.add_argument('--compact-phases',action='store_true',help='Separately review exact generated phase entrypoints and complete detailed guides; preserve custom skills by refusing unsupported inputs')
+    parser.add_argument('--video-requiredness',action='append',metavar='V1=yes|no',help='Explicit requiredness for a newly activated V1/V2 row; required on reactivation from recorded history; repeat for each gate')
     args=parser.parse_args()
     if args.approve_plan and not args.apply:parser.error('--approve-plan requires --apply')
     if not any((args.operations,args.assumptions,args.delivery_gates,args.recipe_runtime,args.context_runtime,args.gate_runtime,args.compact_phases)):
@@ -691,8 +780,11 @@ def main():
     changes=json.loads(Path(args.operations).read_text(encoding='utf-8-sig')) if args.operations else {}
     assumption_rows=json.loads(Path(args.assumptions).read_text(encoding='utf-8-sig')) if args.assumptions else None
     if args.assumptions and assumption_rows is None:raise ValueError('Assumptions input must be an array, not null')
-    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime,args.migration_receipt,args.selective_gates,args.compact_phases)
+    video_choices=parse_video_requiredness(args.video_requiredness)
+    root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime,args.migration_receipt,args.selective_gates,args.compact_phases,video_choices)
     print('REVIEW PLAN: '+plan)
+    for gate,required in sorted(video_choices.items()):
+        print('VIDEO REQUIREDNESS: '+gate+'='+('required' if required else 'optional')+' for this activation; new NOT RUN observation, no historical evidence restored.')
     if args.migration_receipt:
         print('RUNTIME-ONLY RECEIPT: '+('proposed component byte transition; declared version is not verified provenance.' if MIGRATION_RECEIPTS in replacement else 'no changed runtime components; no receipt appended.'))
     if args.selective_gates:

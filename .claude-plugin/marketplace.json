@@ -1,6 +1,6 @@
 {
   "name": "software-factory-plugins",
-  "description": "A private distribution catalog for the Software Factory plugin.",
+  "description": "A distribution catalog for the Software Factory plugin.",
   "owner": {"name": "calumjs"},
   "plugins": [
     {

@@ -103,6 +103,14 @@ A unique array of `pre_merge_preview`, `post_g3_release` or both; enabled videos
 
 V2 never certifies V1. Missing, moved or duplicate expected rows are errors; each present row's optional choice is respected. Do not read triggers from natural-language scope. Manually added V2 rows stay extra checks unless the operator selects the structured trigger; removing a structured preview trigger retires its active row to quoted history and preserves manual extras. Preference changes reset observations, keep waivers, and create no footage or PASS.
 
+"Keep waivers" applies to rows that remain active. A retired row's old choice
+remains in history but is not automatically reused for another activation or
+feature. Re-enabling a historically recorded V1/V2 requires an explicit current
+`update_operations.py --video-requiredness V1=yes|no` choice (V2 likewise), shown
+in the usual preview; this is not an extra approval for choosing optional.
+See [reactivation and update guidance](existing-factory-update.md). Reactivated
+rows start NOT RUN; neither historical PASS nor failure becomes current evidence.
+
 ## Existing factories
 
 Each acceptance ID has one stage and one canonical row. Do not duplicate an A row

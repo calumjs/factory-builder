@@ -30,7 +30,7 @@ claude --add-dir .software-factory      # keep --setting-sources project for hea
 /factory-run                            # review an advisory pass plan
 ```
 
-The repository is private; the installing account needs access and working Git auth. For a session-only preview without installing: `claude --plugin-dir /path/to/software-factory-plugin`. Helpers need Python 3.9+ and only the standard library; see the [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for Windows interpreter selection.
+Installation follows the repository's current access requirements; use Git authentication when required. For a session-only preview without installing: `claude --plugin-dir /path/to/software-factory-plugin`. Helpers need Python 3.9+ and only the standard library; see the [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for Windows interpreter selection.
 
 To run this plugin's offline tests from its checkout, use `python3 run_tests.py`
 (or `py -3 run_tests.py` on Windows). The runner locates the suite relative to
@@ -57,7 +57,7 @@ created or installed. See the [running guide](skills/build-software-factory/refe
 Two mechanisms enforced by code, and one stated once and applied everywhere:
 
 - **Gates** (`gates.py`): a required check that is NOT RUN, BLOCKED, FAILED, stale or wrong-target blocks its stage; operator-waived rows are reported WAIVED with their result, never "passed".
-- **Integrity** (`integrity.py`): contract files are hashed with normalized line endings; living files are structurally validated; unregistered files and in-place edits are refused. Changes go through a preview-first synchronized update or a staged recovery that never touches the original.
+- **Integrity** (`integrity.py`): contract hashes and the recorded file set are checked; living files get UTF-8 text, JSON and Learn-table checks. Gate-table structure and delivery observations require the separate gate/scoped checker, not an integrity PASS. Unregistered files and in-place contract edits are refused. Changes go through a preview-first synchronized update or a staged recovery that never touches the original.
 - **Authority**: nothing the plugin generates grants permission for a merge, deploy, provider, watcher, recording or message. The generated `boundaries.md` states these rules once for every factory.
 
 ## Advanced
