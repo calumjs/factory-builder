@@ -51,7 +51,9 @@ def inventory(root, *, source=False, allowed=None):
         with os.scandir(folder) as scan:entries=list(itertools.islice(scan,MAX_ENTRIES-count+1))
         if len(entries)>MAX_ENTRIES-count:raise ValueError('Inventory entry limit exceeded')
         for entry in entries:
-            count+=1;path=Path(entry.path);name=path.relative_to(root).as_posix();info=path.lstat()
+            count+=1
+            if count>MAX_ENTRIES:raise ValueError('Inventory entry limit exceeded')
+            path=Path(entry.path);name=path.relative_to(root).as_posix();info=path.lstat()
             if stat.S_ISLNK(info.st_mode) or getattr(info,'st_file_attributes',0)&0x400:
                 raise ValueError('Redirected path is unsupported')
             if name=='.git' and source:

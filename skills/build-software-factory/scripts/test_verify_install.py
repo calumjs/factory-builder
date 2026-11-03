@@ -117,6 +117,22 @@ class InstallTests(unittest.TestCase):
         (self.src/'unexpected').write_bytes(b'x')
         with self.assertRaisesRegex(ValueError,'extra or missing'):compare(self.dst,self.src,self.sha)
         with self.assertRaisesRegex(ValueError,'separate'):compare(self.src,self.src,self.sha)
+
+    def test_nested_inventory_counts_prefetched_siblings_before_inspection(self):
+        from contextlib import nullcontext
+        root=self.base/'bounded';root.mkdir()
+        (root/'a-directory').mkdir();(root/'a-directory/child').write_bytes(b'child')
+        (root/'b-file').write_bytes(b'b');last=root/'c-file';last.write_bytes(b'c')
+        original_scan=os.scandir;original_stat=Path.lstat
+        def ordered(folder):
+            with original_scan(folder) as scan:entries=sorted(scan,key=lambda entry:entry.name)
+            return nullcontext(iter(entries))
+        def guarded(path,*args,**kwargs):
+            if path==last:raise AssertionError('over-budget entry was inspected')
+            return original_stat(path,*args,**kwargs)
+        with patch('verify_install.MAX_ENTRIES',3), patch('verify_install.os.scandir',side_effect=ordered), patch.object(Path,'lstat',guarded):
+            with self.assertRaisesRegex(ValueError,'Inventory entry limit exceeded'):
+                inventory(root)
     @unittest.skipIf(os.name=='nt', 'Windows hardlink creation is not exercised; hardlink metadata refusal is covered synthetically')
     def test_hardlink_is_refused_without_output(self):
         target=self.base/'private';target.write_bytes(b'not exposed')
