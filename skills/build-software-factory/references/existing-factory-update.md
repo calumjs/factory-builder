@@ -4,6 +4,20 @@ Do not rerun the scaffolder over an existing factory. Do not directly edit hashe
 
 ## Preview and review
 
+`scaffold.py --check <factory>` checks the factory against its own manifest; its
+runtime advisory separately compares copied helpers with this installed builder's
+normalized digests. A difference can be a customization or older code, not proof
+of an available safe upgrade. Preview a specific `--gate-runtime`, `--recipe-runtime`,
+`--context-runtime` or `--delivery-gates` without supplying a dummy operations file.
+Review the named file diffs and before/after raw SHA256 values. The exact plan digest
+is required for apply; unknown custom helpers are refused, not overwritten.
+Delivery-gates is a contract migration and can also update policy, templates and
+verification history. A runtime-only migration preserves config and policy bytes.
+Do not change `upstream-provenance.json` merely because some helpers were updated:
+the rest of the factory can still come from an older source and the builder may
+not know its immutable source revision. Record verified provenance only through a
+separately reviewed accurate change.
+
 Ambiguous duplicate policy keys and policy/config disagreement block the update;
 preserve and reconcile both records through a reviewed synchronized recovery.
 Known pristine v1.7 copied gate helpers remain unchanged by default; the installed
@@ -90,3 +104,5 @@ Original changed files and manifest are backed up under the project's `.factory-
 Smoke/video preference changes or a delivery migration reset active gate observations to NOT RUN, preserving deliberate row-level requiredness choices unless the patch explicitly changes smoke defaults. Retired V1 observations remain historical when videos are disabled. Prior observations are retained as quoted historical rows, not reused as passing current evidence. Extra required checks are retained. Legacy eight-column rows migrate only when their shape is recognizable; malformed or ambiguous rows require manual review. Post-release-only checks remain staged after the action; a no-release exclusion is distinct from an unknown target.
 
 The helper writes the manifest last and keeps verified backups. Filesystem updates are not a multi-file atomic transaction: interruption can leave a blocked integrity state. Stop, inspect backups and any lock/temp file, restore the affected originals and manifest together or finish a newly reviewed plan. Never delete a lock owned by an active writer or bypass the failed integrity check. Run the contract check and stage-specific gate assessment afterwards. Valid hashes do not mean application checks ran or passed.
+
+Known pristine copied gate and context helpers that predate bytecode suppression are preserved by default. To adopt the fix, explicitly preview `--gate-runtime --context-runtime`, review the exact files and backup, then apply the approved digest. Customized helpers are refused for manual review; never ignore unexpected `__pycache__` in the manifest.

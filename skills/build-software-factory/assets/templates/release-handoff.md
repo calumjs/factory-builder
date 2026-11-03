@@ -11,6 +11,10 @@ G1 production-equivalent local smoke, G2 change-targeted checks and required A/R
 Outstanding failed / BLOCKED / NOT RUN checks:
 Review verdict and exact revision:
 Accepted scope, migrations and rollback plan:
+Release owner, subject/target, coordination boundary and handoff evidence:
+Migration-before-traffic or compatible expand/contract evidence; automatic promotion risk:
+Owner start, latest observation and terminal timestamps (UTC); outcome SUCCESS / FAILED / CANCELLED / UNKNOWN:
+If a terminal marker is absent, record UNKNOWN, not success. Check the actual action and durable evidence before reporting an outcome. A stale or missing owner needs diagnosis and an authorized handoff under the agreed coordination procedure; a local claim alone proves neither exclusion nor permission to take over.
 Actual intended web/artifact target:
 Named authorizer, allowed action and boundaries:
 Only mark READY FOR AUTHORIZED ACTION after all still-required pre-merge gates pass; use READY WITH WAIVERS when the user explicitly made checks optional and list them with recorded status. Pending post-action evidence is not a pre-merge dependency.
@@ -23,6 +27,42 @@ G3 actual-target smoke result, evidence, time and exit/manual observation:
 Other required post-action acceptance/research checks:
 Failure/unavailable-check report to release owner/orchestrator and diagnosis/rollback decision:
 For no-release scope, explicit NOT APPLICABLE rationale and named acceptance:
+
+## Attempt supervision (plan; no supervisor is installed)
+For every authorized G3 or video attempt, record a unique attempt ID, phase,
+subject revision, actual target, owner and coordination boundary; link each retry
+or superseding attempt without overwriting the earlier record. Record start,
+latest observed heartbeat and terminal time with time zone, plus status, evidence
+and observer. A heartbeat is a timestamped observation, not proof the worker is
+still alive, authorized or exclusively owns the target. Keep runtime records in
+approved external evidence storage, not as new files inside the managed factory.
+
+Use a separately authorized supervisor when one exists: observe exit status and
+timeouts, write or reconcile terminal records independently of the worker, and
+retain the actual logs or evidence. A process killed with no final marker cannot
+write its own outcome. Classify absent or stale heartbeat/terminal evidence as
+UNKNOWN/STALE and escalate; do not infer PASS, FAILED, ABORTED, or continuous
+liveness from a missing marker or elapsed time alone. Mark ABORTED only with
+credible evidence of termination or an authoritative supervisor observation;
+keep its reason and source. On normal exit, record PASS only when the actual
+required checks passed for this attempt; a normal nonzero exit or a failed check is FAILED,
+and a successful exit without check evidence is UNKNOWN. A timeout is a supervisor
+observation; unless termination is confirmed, the worker may still be running.
+A replacement attempt never rewrites the prior outcome: mark the relationship as
+superseded and retain the prior attempt's known result, or UNKNOWN if unresolved.
+
+Synthetic interpretation examples (not observations):
+
+| Situation | Interpretation |
+| --- | --- |
+| Normal zero exit plus matching passing check evidence | PASS for that attempt |
+| Timeout; worker termination not confirmed | UNKNOWN/STALE, investigate |
+| Supervisor confirms forced termination | ABORTED with termination evidence |
+| A successor starts while old outcome is unresolved | Old attempt UNKNOWN; link successor |
+
+The supervisor is a proposed project-specific integration, not a capability of the
+record-only gate checker. Keep an optional gate WAIVED with its observed outcome;
+no marker or supervision authorizes a merge, deployment, spend or narration.
 
 ## Enabled done-video handoff
 Preference read from policy/config; disabled by default:

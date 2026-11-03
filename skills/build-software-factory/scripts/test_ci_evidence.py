@@ -103,6 +103,30 @@ class CIEvidenceTests(unittest.TestCase):
         self.assertTrue(any('NOT RUN' in row for row in result['problems']))
         self.assertEqual(self.git('status','--porcelain'),before)
 
+    def test_changed_and_missing_contracts_fail_local_ci_cli(self):
+        from integrity import digest
+        baseline=self.subject
+        for name in ('config.json','test-map.json'):
+            for mode in ('changed','wrong-digest','missing-entry'):
+                with self.subTest(name=name,mode=mode):
+                    self.git('reset','--hard',baseline)
+                    manifest_path=self.factory/'manifest.json';manifest=json.loads(manifest_path.read_text())
+                    path=self.factory/name
+                    if name=='test-map.json':
+                        path.write_bytes(b'{"synthetic":true}\n')
+                        manifest['contracts'][name]=digest(path.read_bytes())
+                    if mode=='changed':
+                        path.write_bytes(path.read_bytes()+b' \n')
+                    elif mode=='wrong-digest':
+                        manifest['contracts'][name]='0'*64
+                    else:
+                        del manifest['contracts'][name]
+                    manifest_path.write_text(json.dumps(manifest),encoding='utf-8')
+                    subject=self.commit()
+                    result=subprocess.run([sys.executable,str(ROOT/'scripts/ci_evidence.py'),'--repo',str(self.repo),'--factory','.software-factory','--subject',subject,'--storage',subject,'--stage','pre-merge'],capture_output=True,text=True)
+                    self.assertEqual(result.returncode,2,result.stderr)
+                    self.assertIn('Manifest file set mismatch' if mode=='missing-entry' else 'Contract integrity mismatch',result.stderr)
+
     def test_evidence_only_storage_keeps_original_tested_subject_and_future_post_stage(self):
         self.record();storage=self.commit()
         result=self.assess(storage)
@@ -190,6 +214,20 @@ class CIEvidenceTests(unittest.TestCase):
         path.write_text(json.dumps(plan));self.subject=self.commit()
         self.record();plan['events']=[];path.write_text(json.dumps(plan));storage=self.commit()
         with self.assertRaisesRegex(ValueError,'preserve prior task evidence'):self.assess(storage)
+
+    def test_ambiguous_subject_history_is_not_evidence_only(self):
+        path=self.factory/'task-plan.json';plan=json.loads(path.read_text())
+        plan['events'].append({'id':'prior-failure','task_id':'T1','timestamp':'2026-10-30T06:00:00Z',
+            'revision':'S0','environment':'isolated fixture','check':'synthetic failure',
+            'result':'failed','evidence':'retained synthetic failure','old_status':'blocked','status':'blocked'})
+        raw=json.dumps(plan);path.write_bytes((raw[:-1]+', "events": []}').encode('utf-8'))
+        self.subject=self.commit()
+        plan['events']=[];path.write_bytes(json.dumps(plan).encode('utf-8'))
+        self.record();storage=self.commit();before=self.git('status','--porcelain')
+        with self.assertRaisesRegex(ValueError,'Duplicate JSON object key'):self.assess(storage)
+        self.assertEqual(before,self.git('status','--porcelain'))
+        old=self.git('show',self.subject+':.software-factory/task-plan.json')
+        self.assertIn('retained synthetic failure',old)
 
     def test_executable_log_and_unrelated_subject_are_rejected(self):
         self.record();path=self.repo/'docs/factory-evidence'/self.subject/'smoke.txt'

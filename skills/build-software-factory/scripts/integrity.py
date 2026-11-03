@@ -1,4 +1,6 @@
 """Contract integrity and basic living-record validation; no external execution."""
+import sys
+if __name__ == '__main__':sys.dont_write_bytecode = True
 import hashlib
 import json
 from pathlib import Path, PurePosixPath
@@ -22,6 +24,16 @@ def manifest_for(files):
     return {'schema': 2, 'hash_mode': 'utf8-lf',
             'contracts': {name: digest(body) for name, body in sorted(files.items()) if name not in LIVING},
             'living': sorted(name for name in files if name in LIVING)}
+
+def strict_json(text):
+    """Reject duplicate object keys at every depth before interpreting records."""
+    def unique(pairs):
+        result = {}
+        for key, value in pairs:
+            if key in result: raise ValueError('Duplicate JSON object key')
+            result[key] = value
+        return result
+    return json.loads(text, object_pairs_hook=unique)
 
 def validate_task_plan(plan):
     if not isinstance(plan, dict) or not isinstance(plan.get('tasks'), list) or not isinstance(plan.get('events', []), list):
@@ -68,7 +80,7 @@ def check(path, *, quiet=False):
     for name in m['living']:
         body = (p/name).read_text(encoding='utf-8-sig')
         if name.endswith('.json'):
-            value = json.loads(body)
+            value = strict_json(body)
             if name == 'task-plan.json':
                 validate_task_plan(value)
             elif not isinstance(value, dict):
@@ -77,3 +89,6 @@ def check(path, *, quiet=False):
     if not quiet:
         print(f"PASS: {len(m['contracts'])} contract files match; {len(m['living'])} living files have valid basic structure. Living content and evidence truth are not attested; application checks were not run.")
     return m
+
+if __name__ == '__main__':
+    raise SystemExit('ERROR: integrity.py is an import-only module; no check ran. Use the installed builder scripts/scaffold.py --check <factory>.')

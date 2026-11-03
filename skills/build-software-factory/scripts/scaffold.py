@@ -8,7 +8,7 @@ from pathlib import Path
 import shutil
 import sys
 from research import apply_research, validate_research
-from integrity import check, manifest_for, safe_path
+from integrity import check, digest, manifest_for, safe_path
 from operations import operations, controls, DELIVERY_POLICY
 from gates import initial_table
 from dashboard import profile
@@ -20,6 +20,21 @@ from readiness import emit
 ROOT = Path(__file__).resolve().parents[1]
 TEXT = ('project', 'outcome', 'stack', 'harness', 'deployment', 'data_policy')
 LISTS = ('users', 'scope', 'non_goals', 'providers', 'acceptance', 'test_commands', 'permissions', 'open_questions')
+
+def runtime_advisory(factory):
+    """Compare copied runtimes to this installed builder; never adopt or attest them."""
+    root=safe_path(factory);dashboard=root/'dashboard'
+    if not dashboard.is_dir():return
+    hints={'gates.py':'--gate-runtime','operations.py':'--gate-runtime or --recipe-runtime',
+           'recipes.py':'--gate-runtime or --recipe-runtime','integrity.py':'--context-runtime',
+           'dashboard.py':'--context-runtime','readiness.py':'--context-runtime','assumptions.py':'--context-runtime'}
+    for name,flag in hints.items():
+        source=ROOT/'scripts'/name;copied=dashboard/name
+        if not source.is_file():continue
+        installed=digest(source.read_bytes())
+        observed=digest(copied.read_bytes()) if copied.is_file() else None
+        if observed!=installed:
+            print('ADVISORY: dashboard/'+name+' differs or is missing (bundled '+str(observed or 'missing')+'; installed '+installed+'). Review customizations and preview '+flag+'; equality to the manifest establishes integrity, not currency or compatibility.')
 
 def validate(c):
     if not isinstance(c, dict):
@@ -156,7 +171,7 @@ def main():
     args=parser.parse_args()
     if args.check:
         if args.config or args.target or args.apply or args.research: parser.error('--check cannot be combined with scaffold options')
-        check(args.check);emit(json.loads((safe_path(args.check)/'config.json').read_text(encoding='utf-8-sig')));return
+        check(args.check);runtime_advisory(args.check);emit(json.loads((safe_path(args.check)/'config.json').read_text(encoding='utf-8-sig')));return
     if not args.config or not args.target: parser.error('--config and --target are required')
     c=json.loads(Path(args.config).read_text(encoding='utf-8'));validate(c)
     target=safe_path(args.target)

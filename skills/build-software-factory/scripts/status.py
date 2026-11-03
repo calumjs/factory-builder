@@ -7,7 +7,7 @@ from pathlib import Path
 import sys
 import tempfile
 import uuid
-from integrity import check, safe_path, validate_task_plan
+from integrity import check, safe_path, validate_task_plan, strict_json
 from readiness import emit
 
 STATUSES = ('blocked','pending','in_progress','done')
@@ -41,7 +41,7 @@ def record(factory, args):
     emit(json.loads((root/'config.json').read_text(encoding='utf-8-sig')))
     path = root/'task-plan.json'
     original = path.read_bytes()
-    plan = json.loads(original.decode('utf-8-sig'))
+    plan = strict_json(original.decode('utf-8-sig'))
     event = updated(plan, args.task, args.status, args.result, args.evidence, args.revision, args.environment, args.check)
     if not args.apply:
         print('PREVIEW: no files written. ' + json.dumps(event, ensure_ascii=False))

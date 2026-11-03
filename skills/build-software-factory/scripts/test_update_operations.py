@@ -27,6 +27,113 @@ class UpdateTests(unittest.TestCase):
         (self.factory/'manifest.json').write_text(json.dumps(manifest))
     def snapshot(self):
         return {p.relative_to(self.base).as_posix():p.read_bytes() for p in self.base.rglob('*') if p.is_file()}
+    def test_published_v19_gate_code_is_preserved_or_reviewedly_upgraded(self):
+        from update_operations import COMPATIBLE_GATE_V19
+        data=(ROOT/'scripts/fixtures/v1_9_gates.txt').read_bytes()
+        self.assertEqual(digest(data),COMPATIBLE_GATE_V19['gates.py'])
+        path=self.factory/'dashboard/gates.py';path.write_bytes(data)
+        manifest=json.loads((self.factory/'manifest.json').read_text());manifest['contracts']['dashboard/gates.py']=digest(data)
+        (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+        changes={'done_videos':{'enabled':True,'triggers':['post_g3_release']}}
+        root,old,new,plan=prepare(self.factory,changes,gate_runtime=False)
+        self.assertNotIn('dashboard/gates.py',new)
+        root,old,new,plan=prepare(self.factory,changes,gate_runtime=True)
+        backup=apply(root,old,new,plan,plan)
+        self.assertEqual((backup/'dashboard/gates.py').read_bytes(),data)
+        self.assertEqual(path.read_bytes(),(ROOT/'scripts/gates.py').read_bytes());check(root,quiet=True)
+
+
+    def test_pristine_v19_delivery_addenda_are_selectively_upgraded(self):
+        from update_operations import V19_DELIVERY_ADDENDUM
+        paths={phase:self.factory/f'.claude/skills/factory-{phase}/SKILL.md' for phase in ('intake','verify','release')}
+        originals={phase:path.read_text(encoding='utf-8') for phase,path in paths.items()}
+        for variant in ('six','seven'):
+            manifest=json.loads((self.factory/'manifest.json').read_text())
+            for phase,path in paths.items():
+                name=f'.claude/skills/factory-{phase}/SKILL.md'
+                fixture=ROOT/f'scripts/fixtures/v1_9_addendum_{phase}_{variant if phase=="intake" else "normal"}.txt'
+                addon=fixture.read_text(encoding='utf-8')
+                self.assertIn(digest(addon),V19_DELIVERY_ADDENDUM[phase])
+                path.write_text(originals[phase].rstrip()+'\n\n'+addon+'\n',encoding='utf-8')
+                manifest['contracts'][name]=digest(path.read_bytes())
+            (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+            root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+            for phase in paths:
+                name=f'.claude/skills/factory-{phase}/SKILL.md'
+                self.assertEqual(new.get(name,old[name]).decode().count('<!-- factory-delivery-update:start -->'),1)
+            intake=paths['intake'];intake.write_text(intake.read_text(encoding='utf-8').replace('Reviewed delivery-gate addendum','Customized delivery-gate addendum'),encoding='utf-8')
+            manifest['contracts']['.claude/skills/factory-intake/SKILL.md']=digest(intake.read_bytes())
+            (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+            with self.assertRaisesRegex(ValueError,'Customized or unsupported delivery addendum'):
+                prepare(self.factory,{},delivery_update=True)
+
+
+    def test_prior_verify_addendum_is_preserved_until_reviewed_update(self):
+        path=self.factory/'.claude/skills/factory-verify/SKILL.md'
+        addon=(ROOT/'scripts/fixtures/pre96_verify_addendum.txt').read_text(encoding='utf-8')
+        from update_operations import V19_DELIVERY_ADDENDUM
+        self.assertIn(digest(addon),V19_DELIVERY_ADDENDUM['verify'])
+        path.write_text(path.read_text(encoding='utf-8').rstrip()+'\n\n'+addon+'\n',encoding='utf-8')
+        manifest=json.loads((self.factory/'manifest.json').read_text())
+        manifest['contracts']['.claude/skills/factory-verify/SKILL.md']=digest(path.read_bytes())
+        (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+        before=self.snapshot();root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        self.assertEqual(before,self.snapshot())
+        self.assertIn('Reconcile mapped tests',new['.claude/skills/factory-verify/SKILL.md'].decode())
+        backup=apply(root,old,new,plan,plan)
+        self.assertIn(addon,(backup/'.claude/skills/factory-verify/SKILL.md').read_text(encoding='utf-8'))
+        check(root,quiet=True)
+
+    def test_pre100_verify_addendum_reviewed_upgrade_preserves_backup(self):
+        path=self.factory/'.claude/skills/factory-verify/SKILL.md'
+        addon=(ROOT/'scripts/fixtures/pre100_verify_addendum.txt').read_text(encoding='utf-8')
+        from update_operations import V19_DELIVERY_ADDENDUM
+        self.assertIn(digest(addon),V19_DELIVERY_ADDENDUM['verify'])
+        path.write_text(path.read_text(encoding='utf-8').rstrip()+'\n\n'+addon+'\n',encoding='utf-8')
+        manifest=json.loads((self.factory/'manifest.json').read_text())
+        manifest['contracts']['.claude/skills/factory-verify/SKILL.md']=digest(path.read_bytes())
+        (self.factory/'manifest.json').write_text(json.dumps(manifest));check(self.factory,quiet=True)
+        before=self.snapshot();root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        self.assertEqual(before,self.snapshot())
+        self.assertIn('Check data prerequisites across environments',new['.claude/skills/factory-verify/SKILL.md'].decode())
+        backup=apply(root,old,new,plan,plan)
+        self.assertIn(addon,(backup/'.claude/skills/factory-verify/SKILL.md').read_text(encoding='utf-8'))
+        check(root,quiet=True)
+
+    def test_pre101_103_addenda_upgrade_preserves_custom_instructions_and_backup(self):
+        from update_operations import V19_DELIVERY_ADDENDUM
+        manifest=json.loads((self.factory/'manifest.json').read_text())
+        prior={}
+        for phase in ('verify','release'):
+            name=f'.claude/skills/factory-{phase}/SKILL.md'
+            addon=(ROOT/f'scripts/fixtures/pre101_103_{phase}_addendum.txt').read_text(encoding='utf-8')
+            self.assertIn(digest(addon),V19_DELIVERY_ADDENDUM[phase])
+            path=self.factory/name
+            path.write_text(path.read_text(encoding='utf-8').rstrip()+'\n\nProject-specific retained instruction.\n'+addon+'\n',encoding='utf-8')
+            prior[name]=path.read_bytes()
+            manifest['contracts'][name]=digest(prior[name])
+        (self.factory/'manifest.json').write_text(json.dumps(manifest))
+        check(self.factory,quiet=True)
+        before=self.snapshot()
+        root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        self.assertEqual(before,self.snapshot())
+        for name in prior:
+            self.assertIn('Project-specific retained instruction.',new[name].decode())
+            self.assertEqual(new[name].decode().count('<!-- factory-delivery-update:start -->'),1)
+        backup=apply(root,old,new,plan,plan)
+        for name,data in prior.items():self.assertEqual((backup/name).read_bytes(),data)
+        check(root,quiet=True)
+        # A later manual change inside the generated addendum is not silently adopted.
+        path=root/'.claude/skills/factory-release/SKILL.md'
+        path.write_text(path.read_text().replace('<!-- factory-delivery-update:end -->','Custom operator choice.\n<!-- factory-delivery-update:end -->'),encoding='utf-8')
+        manifest=json.loads((root/'manifest.json').read_text())
+        manifest['contracts']['.claude/skills/factory-release/SKILL.md']=digest(path.read_bytes())
+        (root/'manifest.json').write_text(json.dumps(manifest))
+        before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'Customized or unsupported delivery addendum'):
+            prepare(root,{},delivery_update=True)
+        self.assertEqual(before,self.snapshot())
+
     def test_preview_and_wrong_approval_write_nothing(self):
         before=self.snapshot();root,old,new,plan=prepare(self.factory,{'done_videos':{'enabled':True}})
         self.assertEqual(self.snapshot(),before)
@@ -232,6 +339,52 @@ class UpdateTests(unittest.TestCase):
         approved=subprocess.run(command+['--apply','--approve-plan',token],capture_output=True,text=True)
         self.assertEqual(approved.returncode,0,approved.stderr)
         self.assertTrue(json.loads((self.factory/'config.json').read_text())['operations']['done_videos']['enabled'])
+
+    def test_runtime_only_cli_previews_exact_reviewed_change_without_rewriting_config(self):
+        import re, subprocess, sys
+        config=self.factory/'config.json';config.write_text(json.dumps(json.loads(config.read_text()),separators=(',',':')),encoding='utf-8')
+        manifest_path=self.factory/'manifest.json';manifest=json.loads(manifest_path.read_text())
+        manifest['contracts']['config.json']=digest(config.read_bytes())
+        gate=self.factory/'dashboard/gates.py';gate.write_bytes((ROOT/'scripts/fixtures/v1_9_gates.txt').read_bytes())
+        manifest['contracts']['dashboard/gates.py']=digest(gate.read_bytes())
+        manifest_path.write_text(json.dumps(manifest),encoding='utf-8');check(self.factory,quiet=True)
+        before=self.snapshot();command=[sys.executable,str(ROOT/'scripts/update_operations.py'),'--factory',str(self.factory)]
+        self.assertNotEqual(subprocess.run(command,capture_output=True,text=True).returncode,0)
+        for flag in ('--recipe-runtime','--context-runtime','--gate-runtime','--delivery-gates'):
+            result=subprocess.run(command+[flag],capture_output=True,text=True)
+            self.assertEqual(result.returncode,0,result.stderr);self.assertIn('REVIEW PLAN:',result.stdout)
+            self.assertEqual(before,self.snapshot())
+        preview=subprocess.run(command+['--gate-runtime'],capture_output=True,text=True)
+        self.assertIn('FILE dashboard/gates.py raw SHA256:',preview.stdout)
+        token=re.search(r'REVIEW PLAN: ([0-9a-f]{64})',preview.stdout).group(1)
+        self.assertNotEqual(subprocess.run(command+['--gate-runtime','--apply','--approve-plan','bad'],capture_output=True,text=True).returncode,0)
+        self.assertEqual(before,self.snapshot())
+        applied=subprocess.run(command+['--gate-runtime','--apply','--approve-plan',token],capture_output=True,text=True)
+        self.assertEqual(applied.returncode,0,applied.stderr)
+        self.assertEqual(config.read_bytes(),before['.software-factory/config.json'])
+        self.assertEqual((self.factory/'policy.md').read_bytes(),before['.software-factory/policy.md'])
+        self.assertEqual(gate.read_bytes(),(ROOT/'scripts/gates.py').read_bytes());check(self.factory,quiet=True)
+        command_tail=['--factory',str(self.factory),'--plan']
+        installed=subprocess.run([sys.executable,str(ROOT/'scripts/gates.py'),*command_tail],capture_output=True,text=True)
+        copied=subprocess.run([sys.executable,str(gate),*command_tail],capture_output=True,text=True)
+        self.assertEqual((installed.returncode,installed.stdout),(copied.returncode,copied.stdout))
+        self.assertEqual(copied.returncode,0,copied.stderr)
+        self.assertFalse((self.factory/'dashboard/__pycache__').exists())
+        output=self.base/'post-migration-overview.json'
+        dashboard=subprocess.run([sys.executable,str(self.factory/'dashboard/dashboard.py'),'--output',str(output),'--format','json'],capture_output=True,text=True)
+        self.assertEqual(dashboard.returncode,0,dashboard.stderr)
+        self.assertTrue(json.loads(output.read_text(encoding='utf-8'))['gates'])
+        check(self.factory,quiet=True)
+
+    def test_runtime_only_custom_code_is_refused_and_noop_preserves_manifest(self):
+        import subprocess, sys
+        command=[sys.executable,str(ROOT/'scripts/update_operations.py'),'--factory',str(self.factory),'--gate-runtime']
+        before=self.snapshot();result=subprocess.run(command,capture_output=True,text=True)
+        self.assertEqual(result.returncode,0,result.stderr);self.assertIn('NO CHANGES',result.stdout);self.assertEqual(before,self.snapshot())
+        gate=self.factory/'dashboard/gates.py';gate.write_bytes(gate.read_bytes()+b'\n# custom\n')
+        manifest_path=self.factory/'manifest.json';manifest=json.loads(manifest_path.read_text());manifest['contracts']['dashboard/gates.py']=digest(gate.read_bytes());manifest_path.write_text(json.dumps(manifest))
+        before=self.snapshot();result=subprocess.run(command,capture_output=True,text=True)
+        self.assertNotEqual(result.returncode,0);self.assertIn('Customized/unsupported',result.stderr);self.assertEqual(before,self.snapshot())
     def test_disabling_video_retires_reserved_gate_but_keeps_history(self):
         root,old,new,plan=prepare(self.factory,{'done_videos':{'enabled':True}})
         apply(root,old,new,plan,plan)

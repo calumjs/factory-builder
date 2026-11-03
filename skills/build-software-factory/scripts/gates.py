@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 """Fail-closed delivery-record checks; never execute application checks or release actions."""
+import sys
+if __name__ == '__main__':sys.dont_write_bytecode = True
 import argparse
 from datetime import datetime
 import json
 from pathlib import Path
 import re
-import sys
 from integrity import check, safe_path
 from operations import controls, operations, unresolved, smoke_checks, smoke_design
 from recipes import video_triggers

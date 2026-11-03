@@ -6,6 +6,10 @@ Scaffold/hash checks, a successful build, lint/types, preview status, or test-fi
 
 Reuse inspected repository scripts, CI jobs, fixtures and test setup. G1 builds/packages the production-equivalent artifact and exercises a critical success path plus an expected failure; G2 chooses the smallest additional suite covering the diff. For CLI/library/data/document projects, use the equivalent installed artifact, import/API, transformation or rendered-output check. A web server or sign-in flow is not universal.
 
+Reconcile tests required for this change against the actual runner collection and final results for the same subject, configuration, projects, filters and intended shards. Distinguish helpers/fixtures and separately run suites from runnable specs. Missing, zero, skipped, interrupted or unexecuted required tests cannot support a pass; a list of collected tests alone is not execution evidence. Record actual scope and counts. See the generated Verify skill for the concrete procedure.
+
+For checks affected by seed or fixture changes, record per-environment data prerequisites and their authorized setup/cleanup. A fresh-seeded CI pass does not establish long-lived target data; when a long-lived target is in scope verify meaningful behavior on a representative state without newly introduced seeds, or use an authorized isolated fixture. Do not reseed production to pass a test. If the required safe data is unavailable, record BLOCKED/NOT RUN rather than weakening the assertion; user-optional checks stay WAIVED.
+
 For greenfield, first design a non-secret representative fixture, production-equivalent preparation, one observable success and one expected-denial/failure assertion, cleanup and concrete invocation using the chosen stack. Add that bounded test implementation task before claiming readiness. Unconfirmed designs are not executable commands and remain NOT RUN/BLOCKED.
 
 ## Two stages

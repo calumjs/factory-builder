@@ -16,7 +16,7 @@ import threading
 import time
 sys.dont_write_bytecode=True
 from gates import assess, waivers
-from integrity import safe_path, validate_task_plan
+from integrity import safe_path, validate_task_plan, strict_json
 
 MAX_FILE=4*1024*1024
 MAX_TOTAL=32*1024*1024
@@ -143,7 +143,7 @@ def task_history(git,factory,subject,storage):
     plans=[]
     for sha in (subject,storage):
         body=git.read('show',sha+':'+factory+'/task-plan.json',limit=MAX_FILE)
-        plans.append(json.loads(body.decode('utf-8-sig')))
+        plans.append(strict_json(body.decode('utf-8-sig')))
     before,after=plans
     if task_core(before)!=task_core(after):raise ValueError('Task definition/rescope changes are not evidence-only')
     prior=before.get('events',[])
@@ -188,7 +188,7 @@ def assess_ci(repo,factory,subject,storage,stage,target=None,evidence_dir='docs/
     found=assess(root,stage,subject,target)
     text=(root/'verification.md').read_text(encoding='utf-8-sig')
     skipped=waivers(text,stage)
-    plan=json.loads((root/'task-plan.json').read_text(encoding='utf-8-sig'))
+    plan=strict_json((root/'task-plan.json').read_text(encoding='utf-8-sig'))
     tasks={row['id']:row for row in plan['tasks']}
     if len(set(required_tasks))!=len(required_tasks):raise ValueError('Duplicate CI-required task ID')
     for task in required_tasks:

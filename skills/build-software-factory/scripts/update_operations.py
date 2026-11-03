@@ -81,6 +81,14 @@ LEGACY_DELIVERY_ADDENDUM = {
     'intake':'222e1a4da39797890d2da2f7279d2f3492f678daca322823f0ceafc30c915573',
     'verify':'fea10626d5030ace9cf8a36f8d8246ea0a0d086b4abbb894fd10dfa5d875ea47',
     'release':'08f80342cb4be98daf090c833e0cc209971ec959acff24512d7dd06a9c0e5a87'}
+COMPATIBLE_CONTEXT_V17 = {'integrity.py':'b03fb25cc9d78a55618e4a58504cda9d496b3c21e7b79f12e26e66d74863e498',
+                          'readiness.py':'b93eecff7f8cca84d015626b11b308f22853995981255d0c1cced1963072fea5'}
+COMPATIBLE_CONTEXT_PRE65 = {'integrity.py':'e76455b29979257e7f94cc418a629c46248547481ff31986c996d80edcbb4de0',
+                           'readiness.py':'9ddda7edccbc0e90cb589fb871afad0bafa16213ab0e81e4ad764b89238d207d'}
+V19_DELIVERY_ADDENDUM = {
+    'intake': ('f48fc8e0956c99003f8c46bfaae76c9847cd086332cc99bf25cb74b134742b5d','c179a72f3b39cb7d181a9e04fa0cb2143747f4b7b1039bf0347d042d17900bc3'),
+    'verify': ('bfcae3e6622ec55ff2f232bb630ac7c340978c7dff9462c1ead95e7ff36592d9','2599dd944575f04c6a8a25916c7f63037d3168bbb5140f3c885b6d1b13e33a4c','4662208da23353e382335504b5035771f23d05f108833e2a3e86be13d518fcd3','393cbed734fc4011bcf52eaa1d48111fa49dcaac79c5b2e8fb3320f50194eafd'),
+    'release': ('ad1854c67d8c3ff699dcefa954f7eebfa5791adc3ac55ef16b36ced0cca72f87','8333d61b055b15996b37b8d8c4aec4740e05ec31be6daef27836214c6563bfcb',)}
 PRIOR_GATE_RUNTIME = {
     'operations.py':'0a964032c4680520b945f8103185a0cb04fa265a147c1b0bb7f547f5302b8d00',
     'recipes.py':'0290d43d98da9529dd20452c93c5d0bb037a794c3e9a8e68526a546391cd8d27',
@@ -89,6 +97,9 @@ PRIOR_GATE_RUNTIME = {
 # the operator explicitly reviews the newer duplicate-policy diagnostic.
 COMPATIBLE_GATE_RUNTIME = {'gates.py':'4e998f0f9a1a013fc06fc9c391ea255d6d7ab57e436ab0abbfd6367b9721be7a'}
 
+COMPATIBLE_GATE_PRE65 = {'gates.py':'4aba0903e6a87f9ad3e89b46d67284b2a9e9f397999bab073bbccbbbef50bf47'}
+COMPATIBLE_GATE_V19 = {'gates.py':'1114c6617a89295cc5a933852e8bd7eddb234182f2e682de2d8095b89ee93a76'}
+
 
 def gate_runtime_plan(root, original, replacement, opted_in):
     for filename in ('operations.py','recipes.py','gates.py'):
@@ -96,7 +107,7 @@ def gate_runtime_plan(root, original, replacement, opted_in):
         wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current)==COMPATIBLE_GATE_RUNTIME.get(filename)
+        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename))
         if compatible and not opted_in:continue
         known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
         if not known and not compatible and not (current is None and filename=='recipes.py'):
@@ -111,7 +122,7 @@ def context_runtime_plan(root, original, replacement, opted_in):
         path=root/name;wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current)==COMPATIBLE_CONTEXT.get(filename)
+        compatible=current is not None and digest(current) in (COMPATIBLE_CONTEXT.get(filename),COMPATIBLE_CONTEXT_V17.get(filename),COMPATIBLE_CONTEXT_PRE65.get(filename))
         if compatible and not opted_in:continue
         if current is not None and digest(current)!=LEGACY_CONTEXT.get(filename) and not compatible:
             raise ValueError('Customized/unsupported dashboard context runtime preserved; review a narrow manual migration')
@@ -141,7 +152,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             updated[section].update(value)
         else:
             updated[section]=value
-    if changes or (assumptions_update is None and not context_runtime and not gate_runtime):config['operations']=updated
+    if changes:config['operations']=updated
     if assumptions_update is not None:config['assumptions']=copy.deepcopy(assumptions_update)
     validate(config)
     policy=original['policy.md'].decode('utf-8-sig').replace('\r\n','\n')
@@ -158,6 +169,8 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
     if 'issue_intake' in changes:
         policy=refresh_proposal(policy,'intake',before_ops['issue_intake'],operations(config)['issue_intake'])
     replacement={'config.json':dumps(config).encode('utf-8'),'policy.md':policy.encode('utf-8')}
+    if not changes and assumptions_update is None:
+        replacement['config.json']=original['config.json']
     if not changes and not delivery_update:
         replacement['policy.md']=original['policy.md']
     if assumptions_update is not None:
@@ -223,7 +236,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             if current.count('<!-- factory-delivery-update:start -->')>1 or current.count('<!-- factory-delivery-update:start -->')!=current.count('<!-- factory-delivery-update:end -->'):
                 raise ValueError('Ambiguous prior delivery addendum')
             previous=re.search(pattern,current,flags=re.S)
-            if previous and digest(previous.group(0)) not in (LEGACY_DELIVERY_ADDENDUM[phase],digest(build_addon(source)),digest(build_addon(source_six))):
+            if previous and digest(previous.group(0)) not in (LEGACY_DELIVERY_ADDENDUM[phase],*V19_DELIVERY_ADDENDUM[phase],digest(build_addon(source)),digest(build_addon(source_six))):
                 raise ValueError('Customized or unsupported delivery addendum preserved; review migration manually: '+phase)
             current=re.sub(pattern,lambda _:addon,current,flags=re.S) if re.search(pattern,current,flags=re.S) else current.rstrip()+'\n\n'+addon+'\n'
             replacement[name]=current.encode('utf-8')
@@ -233,10 +246,11 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             tools[dest]=updated[source]
             replacement['tools.json']=dumps(tools).encode('utf-8')
     manifest=json.loads(original['manifest.json'].decode('utf-8-sig'))
+    prior_manifest=copy.deepcopy(manifest)
     for name,data in replacement.items():
         if name in manifest['contracts'] or name.startswith('dashboard/') or name=='boundaries.md':
             manifest['contracts'][name]=digest(data)
-    replacement['manifest.json']=dumps(manifest).encode('utf-8')
+    replacement['manifest.json']=dumps(manifest).encode('utf-8') if manifest!=prior_manifest else original['manifest.json']
     replacement={k:v for k,v in replacement.items() if v!=original[k]}
     fingerprint={name:{'before':hashlib.sha256(original[name]).hexdigest() if original[name] is not None else None,'after':hashlib.sha256(data).hexdigest()} for name,data in sorted(replacement.items())}
     plan=hashlib.sha256(dumps({'factory':str(root),'files':fingerprint}).encode('utf-8')).hexdigest()
@@ -292,17 +306,22 @@ def main():
     parser.add_argument('--gate-runtime',action='store_true',help='Opt in to reviewed known dashboard operations/recipes/gates support for structured gate metadata')
     args=parser.parse_args()
     if args.approve_plan and not args.apply:parser.error('--approve-plan requires --apply')
-    if not args.operations and not args.assumptions:parser.error('--operations or --assumptions is required')
+    if not any((args.operations,args.assumptions,args.delivery_gates,args.recipe_runtime,args.context_runtime,args.gate_runtime)):
+        parser.error('Choose operations, assumptions, or a specific reviewed migration flag')
     changes=json.loads(Path(args.operations).read_text(encoding='utf-8-sig')) if args.operations else {}
     assumption_rows=json.loads(Path(args.assumptions).read_text(encoding='utf-8-sig')) if args.assumptions else None
     if args.assumptions and assumption_rows is None:raise ValueError('Assumptions input must be an array, not null')
     root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime)
     print('REVIEW PLAN: '+plan)
     for name,data in replacement.items():
+        before=hashlib.sha256(original[name]).hexdigest() if original[name] is not None else 'missing'
+        print('FILE '+name+' raw SHA256: '+before+' -> '+hashlib.sha256(data).hexdigest())
         print(''.join(difflib.unified_diff(original[name].decode('utf-8-sig').splitlines(True) if original[name] is not None else [],data.decode('utf-8').splitlines(True),fromfile=name+' (current)',tofile=name+' (proposed)')))
+    if not replacement:print('NO CHANGES: no supported differences were proposed; this does not attest current runtime behavior.')
     if args.apply:
         backup=apply(root,original,replacement,plan,args.approve_plan)
-        print('APPLIED narrow operations update; backup: '+str(backup)+'. No command, watcher, video or integration was run or enabled.')
+        if backup is None:print('NO FILES WRITTEN; the reviewed plan contained no changes.')
+        else:print('APPLIED narrow operations update; backup: '+str(backup)+'. No command, watcher, video or integration was run or enabled.')
     else:print('PREVIEW ONLY: no files written. Review the diff and local write scope before --apply --approve-plan '+plan)
 
 if __name__=='__main__':
