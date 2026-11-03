@@ -14,6 +14,15 @@ description: Perform the Plan phase of this project's local software factory usi
 7. Fit the activity overview to the operators: read dashboard/README.md, choose evidence and freshness, reuse existing UI where useful, plan authorized adapters as owned tasks. Missing metrics stay unavailable; the overview is not a control surface.
 
 ## Trace changed shared contracts
+
+Keep one canonical row per acceptance ID and configured stage. Do not create a
+second A-row with the same ID to attach production evidence. Plan G3 references to
+the exact acceptance checks and observed artifacts, or define a distinct reviewed
+post-action criterion with its own unique ID and stage rationale. The optional
+acceptance-links record aids traceability; a reference never establishes that the
+linked check ran or passed. Preserve each observation's subject, actual target,
+result and evidence, including explicit waivers and failed history.
+
 When work changes a shared serialized shape or selection rule (for example export columns, query prefixes, event kinds or deletion filters), inspect the existing producers, consumers and tests before assigning implementation. Search both the contract symbols and representative old values, including exact headers, field counts, parsers, snapshots and fixture builders; follow references beyond the new feature's tests. Record the searched scope and any consumers whose compatibility remains unknown.
 
 In the task's plan or handoff, record the old and intended behavior, producer/consumer paths, affected existing test paths and assertions, and the compatibility decision for each: update an obsolete expectation, retain a still-valid assertion and run it, or investigate an unresolved dependency. Appending a field can break a strict consumer; it does not require editing every consumer. Preserve assertions for behavior that must remain compatible rather than weakening them to accept the new output.

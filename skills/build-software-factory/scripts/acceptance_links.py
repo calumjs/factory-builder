@@ -101,6 +101,7 @@ def validate_snapshot(files):
     if set(files)-{'manifest.json'}!=set(names):raise TraceInputError('Factory file set differs from manifest')
     for name,expected in manifest['contracts'].items():
         if digest(files[name])!=expected:raise TraceInputError('Factory contract integrity mismatch')
+        if name.endswith('.json'):strict_json(files[name])
     for name in manifest['living']:
         try:files[name].decode('utf-8-sig')
         except UnicodeError as exc:raise TraceInputError('Living factory record is not valid UTF-8') from exc

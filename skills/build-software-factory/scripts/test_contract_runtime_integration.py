@@ -87,6 +87,22 @@ class ContractRuntimeTests(unittest.TestCase):
         self.assertEqual(copied.returncode,0,copied.stderr)
         check(root,quiet=True)
 
+    def test_captured_contract_json_matches_integrity_rejection(self):
+        for raw in (b'{',b'{"duplicate":1,"duplicate":2}',b'{"value":NaN}'):
+            with self.subTest(raw=raw):
+                files={name:body.encode('utf-8') for name,body in self.files.items()}
+                name='test-map.json';files[name]=raw
+                manifest=json.loads(files['manifest.json'])
+                manifest['contracts'][name]=digest(raw)
+                files['manifest.json']=json.dumps(manifest).encode('utf-8')
+                for relative in (name,'manifest.json'):
+                    (self.factory/relative).write_bytes(files[relative])
+                with self.assertRaisesRegex(ValueError,'JSON'):
+                    check(self.factory,quiet=True)
+                with patch.object(Path,'read_bytes',side_effect=AssertionError('Snapshot reopened a path')):
+                    with self.assertRaisesRegex(ValueError,'JSON'):
+                        validate_snapshot(files)
+
     def test_custom_learn_dependency_is_preserved_and_refused(self):
         name='dashboard/learning_table.py';path=self.factory/name
         path.write_bytes(path.read_bytes()+b'\n# Operator customization\n')
