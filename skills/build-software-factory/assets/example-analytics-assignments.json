@@ -1,0 +1,74 @@
+{
+  "schema_version": 1,
+  "experiment_digest": "2c121f1f455417c9977387606ddc05f2d1351982c99544641a3a22ac6e5f0f29",
+  "units": [
+    {
+      "unit_id": "unit-0",
+      "inventory_complete": true,
+      "attempts": [
+        {
+          "attempt_id": "attempt-0",
+          "ordinal": 1,
+          "run_id": "run-0",
+          "subject": "synthetic-code-0",
+          "storage_subject": null,
+          "deployed_subject": null,
+          "started_at": "2026-11-01T08:00:00Z",
+          "state": "observed",
+          "error_reason": null
+        }
+      ]
+    },
+    {
+      "unit_id": "unit-1",
+      "inventory_complete": true,
+      "attempts": [
+        {
+          "attempt_id": "attempt-1",
+          "ordinal": 1,
+          "run_id": "run-1",
+          "subject": "synthetic-code-1",
+          "storage_subject": null,
+          "deployed_subject": null,
+          "started_at": "2026-11-01T08:00:00Z",
+          "state": "observed",
+          "error_reason": null
+        }
+      ]
+    },
+    {
+      "unit_id": "unit-2",
+      "inventory_complete": true,
+      "attempts": [
+        {
+          "attempt_id": "attempt-2",
+          "ordinal": 1,
+          "run_id": "run-2",
+          "subject": "synthetic-code-2",
+          "storage_subject": null,
+          "deployed_subject": null,
+          "started_at": "2026-11-01T08:00:00Z",
+          "state": "observed",
+          "error_reason": null
+        }
+      ]
+    },
+    {
+      "unit_id": "unit-3",
+      "inventory_complete": true,
+      "attempts": [
+        {
+          "attempt_id": "attempt-3",
+          "ordinal": 1,
+          "run_id": "run-3",
+          "subject": "synthetic-code-3",
+          "storage_subject": null,
+          "deployed_subject": null,
+          "started_at": "2026-11-01T08:00:00Z",
+          "state": "observed",
+          "error_reason": null
+        }
+      ]
+    }
+  ]
+}
