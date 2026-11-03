@@ -21,6 +21,11 @@ number of agents or providers is imposed. Spec, Standards and Correctness are
 coverage lenses; Security and Architecture are selected when applicable. The
 generated `review-guide.md` gives the procedure and is explicitly routed from the
 opted-in Verify and Release guides. Existing skill templates remain unchanged.
+The existing normalization default for omitted `independent` is **false**, including
+an adoption patch that supplies only `record_schema` and an approval count. Choose
+this field explicitly; the recommended review example above sets it to **true**.
+Inspect the normalized policy controls before approving the migration. Defaults
+are preserved for legacy compatibility, not inferred independent-review intent.
 
 For an existing factory, preview a separate review-only update:
 
@@ -111,6 +116,12 @@ identity cannot establish this. When independence is explicitly false, a builder
 closure may count if the checker differs from the original reviewer. An earlier
 closure that lacks independent qualification may receive a later qualified check
 without rewriting its claim. Confirmed/unconfirmed rechecks remain blocking.
+Only the original finding and closing-round builder identities participate in
+this check. Intermediate builders are not inferred without a lineage contract.
+An unknown original builder prevents independently qualified closure of that
+finding under this policy; a later known builder does not retroactively supply it.
+Preserve the unknown claim and resolve the policy/scope explicitly, rather than
+inventing provenance or changing identifiers to make the concern disappear.
 
 `resolutions` explicitly references prior unresolved Critical/Major findings that
 share the **exact subject, regardless of base**, or the **exact artifact SHA-256**.
@@ -153,6 +164,13 @@ BOM and line endings. Canonical JSON formatting inside the section may change in
 the reviewable diff. Malformed sections never produce an inversion waiver; their
 assessment stays blocked. Future timestamps are refused even for optional Q1;
 clock uncertainty does not turn malformed observations into a waiver.
+Initial reviewed adoption also appends its new section without changing existing
+handoff bytes, including BOM and trailing CRLF. Preview text suppresses BOM display
+noise while explicitly reporting retained/added/removed BOM state; the exact-byte
+review digest still binds the whole write. In CI with separate subject and storage
+snapshots, malformed review history returns an actionable validation error rather
+than a readiness verdict. Preserve and inspect both snapshots; never erase history
+or relabel evidence to force eligibility.
 
 Read the context helper again for `selected_round.evidence_token` and
 `artifact_target`. Separately record Q1 with the ordinary gate writer: evidence is

@@ -209,6 +209,17 @@ def initialize(body):
     return body.rstrip('\r\n')+'\n\n'+section(empty())+'\n'
 
 
+def initialize_bytes(raw):
+    """Reviewed adoption appends a section without rewriting existing bytes."""
+    need(isinstance(raw,bytes) and len(raw)<=MAX_HANDOFF,'handoff exceeds byte limit')
+    body=raw.decode('utf-8-sig')
+    need(START not in body and END not in body,'existing review section must be preserved')
+    addition=('\n\n'+section(empty())+'\n').encode('utf-8')
+    need(len(raw)+len(addition)<=MAX_HANDOFF,'handoff exceeds byte limit')
+    output=raw+addition;parse(output.decode('utf-8-sig'))
+    return output
+
+
 def append_round(body,item):
     record=parse(body);need(isinstance(item,dict),'round input must be an object')
     result={**record,'selected_round':item.get('id'),'rounds':record['rounds']+[item]}

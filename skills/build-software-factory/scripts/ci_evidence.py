@@ -193,7 +193,15 @@ def review_history(git,factory,subject,storage):
     config=strict_json(git.read('show',subject+':'+factory+'/config.json',limit=MAX_FILE).decode('utf-8-sig'))
     if 'record_schema' not in operations(config)['review']:return
     from review_records import parse
-    before,after=[parse(git.read('show',revision+':'+factory+'/release-handoff.md',limit=MAX_FILE).decode('utf-8-sig')) for revision in (subject,storage)]
+    records=[]
+    for label,revision in (('subject',subject),('storage',storage)):
+        raw=git.read('show',revision+':'+factory+'/release-handoff.md',limit=MAX_FILE)
+        try:records.append(parse(raw.decode('utf-8-sig')))
+        except (ValueError,UnicodeError,KeyError,TypeError,RecursionError) as exc:
+            raise ValueError('Typed review history in the '+label+' snapshot is malformed or unsupported; preserve both exact snapshots. '
+                             'Inspect each with the trusted review_records.py --factory <snapshot-factory> helper and review correction or recovery. '
+                             'Do not discard historical claims or rebind evidence to force eligibility; no files were modified.') from exc
+    before,after=records
     prior=before['rounds']
     if after['rounds'][:len(prior)]!=prior:raise ValueError('Evidence-only updates must preserve prior review rounds and finding claims')
 

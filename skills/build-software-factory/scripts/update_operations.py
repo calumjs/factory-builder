@@ -608,7 +608,7 @@ def review_runtime_plan(root, original, replacement, opted_in):
 
 
 def review_workflow_plan(root, original, replacement, before, config):
-    from review_records import initialize, parse
+    from review_records import initialize_bytes, parse
     research_name='research.json';original[research_name]=(root/research_name).read_bytes()
     research=strict_json(original[research_name].decode('utf-8-sig'))
     skills=phase_contracts(research)
@@ -626,10 +626,10 @@ def review_workflow_plan(root, original, replacement, before, config):
     if current is not None and digest(current)!=digest(wanted):raise ValueError('Customized review guide preserved; reconcile it separately')
     if current is None:replacement[name]=wanted
     before_review=operations(before)['review'];after_review=operations(config)['review']
-    handoff=original['release-handoff.md'].decode('utf-8-sig')
+    handoff=original['release-handoff.md']
     if 'record_schema' not in before_review:
-        handoff=initialize(handoff);replacement['release-handoff.md']=handoff.encode()
-    parse(handoff)
+        handoff=initialize_bytes(handoff);replacement['release-handoff.md']=handoff
+    parse(handoff.decode('utf-8-sig'))
     text=original['verification.md'].decode('utf-8-sig');rows=gate_rows(text)
     if 'record_schema' not in before_review and 'Q1' in rows:raise ValueError('Unconfigured Q1 is preserved for manual registration review')
     if 'Q1' in rows and rows['Q1']['stage']!='pre-merge':raise ValueError('Existing Q1 stage is misaligned; preserve and reconcile it explicitly')

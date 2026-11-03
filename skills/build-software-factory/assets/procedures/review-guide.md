@@ -10,6 +10,8 @@ review, reviewer, model family, provider, artifact inspection or permission.
    in policy. Set explicit project round, time and cost limits before work; respect
    existing stops. A review pair is one recorded round. The helper's 256-round and
    byte limits bound history, not live execution or spend.
+   Choose independence explicitly: omitted `independent` retains the legacy false
+   default; the recommended review setup selects true. Inspect actual controls.
 2. Cover Spec, Standards and Correctness. Select Security and Architecture where
    relevant, recording applicability and rationale. These are coverage lenses, not
    a fixed number of agents. Use only already authorized humans/tools; a factory
@@ -26,6 +28,8 @@ review, reviewer, model family, provider, artifact inspection or permission.
    not revision/prefix equivalence. With independent policy, the known checker
    must differ from the known original and closing-round builders, as well as the
    original reviewer. A prior unqualified closure can receive a new qualified check.
+   Unknown original-builder provenance cannot qualify independent closure; do not
+   invent it later. Intermediate-builder lineage is not inferred by this record.
    Other subject-and-artifact pairs remain historical/unresolved; fresh approval
    does not claim repair. A shared base alone never proves a relationship.
 4. Decide whether optional inversion suits this change's risk, often medium/high.

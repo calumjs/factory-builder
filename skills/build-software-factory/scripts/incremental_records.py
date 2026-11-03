@@ -209,7 +209,9 @@ def main():
     if a.apply:
         apply(root,name,before,after,token,a.approve_plan);print('RECORDED operator-supplied data; no checks were executed or attested.')
     else:
-        print(''.join(difflib.unified_diff(before[name].decode('utf-8-sig').splitlines(True),after.decode().splitlines(True),fromfile=name,tofile=name)))
+        print(''.join(difflib.unified_diff(before[name].decode('utf-8-sig').splitlines(True),after.decode('utf-8-sig').splitlines(True),fromfile=name,tofile=name)))
+        before_bom=before[name].startswith(b'\xef\xbb\xbf');after_bom=after.startswith(b'\xef\xbb\xbf')
+        if before_bom or after_bom:print('UTF-8 BOM: '+('retained' if before_bom and after_bom else 'added' if after_bom else 'removed')+'; exact bytes remain bound to the review plan.')
         print('REVIEW PLAN: '+token+' (preview only; no files written)')
 
 if __name__=='__main__':
