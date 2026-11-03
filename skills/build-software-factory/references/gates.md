@@ -2,6 +2,14 @@
 
 There is one requiredness system: `smoke_gates.required` sets the G1/G2/G3 defaults, and an explicit Required=no/false on a living row is the operator's waiver. Legacy `not_run_is_blocking` is not a second setting; in a reviewed migration keep required NOT RUN blocking or express the operator's optional choice, preserve the original and its context during review; never silently discard the field or convert it to PASSED. Configuring any of the metadata below establishes no tool permission, CI execution, env allowlist or application truth.
 
+## Data hygiene for writing checks
+
+For checks that write data, review the [run-scoped teardown example](disposable-fixture-example.md)
+before selecting the actual target and fixture strategy. Attach data-written,
+cleanup and residue observations to the existing G3/named check evidence and
+release handoff; no new table column is required. Cleanup success does not turn a
+failed assertion into PASS, and optional rows retain WAIVED with their observations.
+
 ## Select the factory directory
 
 Pass the directory containing the factory's `manifest.json`: from a repository root this is normally `--factory .software-factory`, or `scaffold.py --check .software-factory` for integrity checking. `--factory .` is valid when the current directory is the factory itself. Missing-manifest diagnostics name the supplied absolute root and expected manifest, and suggest a child `.software-factory` only when a regular manifest can be observed without traversing a symlink or junction. A hint does not validate or automatically select that child. Redirected paths remain rejected; use the intended non-redirected location rather than bypassing the check.

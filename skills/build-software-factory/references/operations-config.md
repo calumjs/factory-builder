@@ -1,5 +1,10 @@
 # Operational configuration (`operations`)
 
+For continuous intake, adapt the [proposed label vocabulary and eligibility query](intake-label-example.md),
+including dependency promotion, repository-wide pause handling and Release-owned
+`pr-open` to `merged` to `shipped` evidence mapping. This is a project-reviewed
+example, not a new config field, watcher, reservation or permission to change labels.
+
 Optional object in the intake config; missing sections default to manual, disabled or unconfirmed. Everything here is a proposal — not permission, not verified authentication. `scripts/operations.py` validates the shape and its errors name each constraint; the notes below cover what a validator cannot express. Keep credential values out.
 
 ```json
