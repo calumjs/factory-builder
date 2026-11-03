@@ -87,7 +87,37 @@ Completion requires the backup's `COMPLETED.json` plus verification against the 
 python scripts/recover_factory.py --verify-output <snapshot> --backup <backup-directory> --plan-id <reviewed-digest>
 ```
 
+Successful apply prints `VERIFY OUTPUT ARGV:` followed by a complete JSON argument
+array containing the actual interpreter, trusted helper, snapshot, backup directory
+and approved plan identity. Parse it as JSON and pass the array as literal arguments
+to an approved process API with shell execution disabled; it is not shell syntax
+and must not be joined or evaluated as a command string. Spaces, quotes and other
+path characters remain inside their own arguments. The line is a rerun instruction,
+not another execution or activation; keep its potentially private paths scoped.
+Preview and failed apply do not print a completed-output verification instruction.
+
 Failure leaves the original intact and partial output preserved; there is no force, resume, cleanup or activation. Adoption is a separate reviewed change under a stable writer boundary: confirm the live original still matches the reviewed source, retain new edits, adopt only the accepted result with the manual procedure, then re-run integrity and the applicable gate assessment.
+
+**Registering a reviewed contract edit.** This same staged flow can register a
+deliberately reviewed edit to an existing named contract while its source manifest
+still matches the independently accepted baseline. Name each changed contract and
+reason in `accept_changed`; it is not a shortcut for unreviewed acceptance changes,
+conflicted manifests or a mutable runtime map. The supplied baseline pin remains
+independently verified; a digest computed from the current damaged factory cannot
+approve itself. Manifest output uses deterministic sorted keys, so the first change
+from an older unsorted manifest can also reorder keys; review that full diff.
+
+For **manifest-only adoption**, first rerun the printed verification arguments.
+Under section 1's stable-writer boundary, confirm the original source still matches
+the reviewed backup's source inventory, including its manifest and living records.
+Compare the complete snapshot and source file/directory inventories and bytes:
+every non-manifest path must agree. If they differ or a writer cannot be excluded,
+stop and obtain a fresh review. Only after reviewing the exact manifest delta may
+the authorized operator copy `<snapshot>/manifest.json` to `<source>/manifest.json`
+using literal paths and section 1's backup/write/rollback procedure, then run
+`scaffold.py --check <source>` and the applicable subject-specific gate assessment.
+This is a separate manual adoption, not a new helper mode or permission to overwrite
+new edits, copy the whole snapshot, or accept all current hashes.
 
 ## 3. Worker health, bounded retries and fallback
 

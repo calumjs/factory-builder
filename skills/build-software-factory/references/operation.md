@@ -47,6 +47,10 @@ When intake records `operations.issue_intake.mode: continuous`, the factory is i
 
 Agree project-specific queued, ready, active, blocked, done and rejected labels and their task-status mapping. Labels are data, not authority or proof. Recheck the policy and dependencies at a separately authorized claim boundary. Adapters that claim, label or launch need scoped permissions, atomic admission and tests. Runtime records remain outside the factory.
 
+For a concrete proposed vocabulary, bounded advisory query and evidence-bound
+Release ownership transitions, adapt [intake-label-example.md](intake-label-example.md).
+Its local selection example creates no labels, claim, watcher or worker.
+
 ## Done videos
 
 Follow [done-videos.md](done-videos.md) and the generated done-video-recipe.md: a composed, script-first story around genuine target footage with branding, captions and watched output; Remotion optional. A voice preference is not narration permission — obtain approval immediately before narration unless the current prompt asked for it. Preview (V2, pre-merge) and shipped (V1, post-G3) evidence are independent; a preview never satisfies the shipped row, and optional rows stay WAIVED with recorded results. Verify prepares the scoped handoff; Release performs the authorized G3 first, then a required V1; a blocked required demo is reported, never fabricated.
@@ -60,6 +64,11 @@ Independent reviewers return revision, approve/request_changes/blocked, findings
 Record task status and revision-bound evidence together with `status.py`. In this plugin repository, stage explicit reviewed paths and keep caches, backups, secrets and downstream factory outputs out of published changes.
 
 ## Release and learn
+
+When authorized checks need disposable data, adapt the exact run-receipt teardown
+pattern in [disposable-fixture-example.md](disposable-fixture-example.md). Its
+conditional-delete adapter must be implemented and tested for the actual datastore;
+the synthetic example grants no production-write or cleanup authority.
 
 Release needs accepted scope, final-revision verification, reviewer decisions where required, a migration/rollback plan and a named authorizer; prepare the handoff even when publication is not authorized. After an authorized action, run the still-required G3 against the actual outcome or report its waiver, retain rollback evidence and stop at the requested condition. Learn records outcomes and proposes small improvements; changes to policy, prompts, permissions or integrations go through review, never self-modification.
 
