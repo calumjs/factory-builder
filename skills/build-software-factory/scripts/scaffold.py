@@ -170,6 +170,10 @@ def legacy_phase_template(phase):
     """Reconstruct the reviewed detailed template for compatibility, not adoption."""
     template=(ROOT/'assets/templates'/f'.claude/skills/factory-{phase}/SKILL.md').read_text(encoding='utf-8')
     guide=(ROOT/'assets/templates'/PHASE_GUIDES[phase]).read_text(encoding='utf-8')
+    if phase=='verify':
+        # Freeze the supported legacy identity; new guide examples must not
+        # silently redefine a previously reviewed migration source.
+        guide=(ROOT/'scripts/fixtures/pre_latency_verify_guide.txt').read_text(encoding='utf-8')
     return '---'+template.split('---',2)[1]+'---\n\n'+guide
 
 

@@ -24,6 +24,92 @@ await assertPersistedValue(page, expectedValue);
 
 When the task accepts query parameters through server rendering and client navigation, probe relevant encoded and malformed inputs across the initial server response, hydration and subsequent navigation. Compare outcomes and errors against the actual contract; local-server success does not establish hosting or edge parity. If an equivalent target cannot be exercised within authority, record the parity gap and carry the required check into the scoped release handoff for authorized actual-target confirmation. Do not convert an untested parity assumption into a passing observation.
 
+### Optional targeted mutation-delay probe
+
+For an authorized disposable local fixture, adapt this example inside one existing
+Playwright test with its normal finite test timeout. Set `baseURL` explicitly to
+that reviewed local fixture; do not inherit a long-lived or production target
+from another job. Inspect the actual mutation transport first: the exact URL and
+PATCH method below are illustrative, not a
+framework convention. For Server Actions, a verified action header and route may
+identify the mutation instead; do not assume every POST or every application uses
+Next.js. Correlate the intended record/action in `armCommittedSave`, including
+application failure and a bounded timeout. A transport response alone is not a
+commit. A bare reload after optimistic paint remains a review smell.
+
+```javascript
+// Synthetic endpoint: replace only after inspecting the project's real transport.
+const mutationUrl = new URL('/api/items/fixture-item', baseURL).href;
+let delayedRequests = 0;
+const handlers = [];
+const delayMutation = route => {
+  const handling = (async () => {
+    if (route.request().method() === 'PATCH') {
+      delayedRequests += 1;
+      await new Promise(resolve => setTimeout(resolve, 750));
+    }
+    await route.fallback();
+  })();
+  handlers.push(handling);
+  return handling;
+};
+await page.route(mutationUrl, delayMutation);
+try {
+  const committed = armCommittedSave(page, expectedMutation);
+  await Promise.all([
+    committed,
+    page.getByRole('button', { name: 'Save' }).click()
+  ]);
+  if (delayedRequests === 0) throw new Error('Mutation delay was not exercised');
+  await page.reload();
+  await assertPersistedValue(page, expectedValue);
+} finally {
+  await page.unroute(mutationUrl, delayMutation);
+  const settled = await Promise.allSettled(handlers);
+  if (settled.some(result => result.status === 'rejected')) {
+    throw new Error('Mutation route handling failed; inspect the test failure');
+  }
+}
+```
+
+The helper registers before the action; the example delays request dispatch, not
+the application's committed-save signal. Keep separate interruption-during-write
+tests. Review concurrent route handlers/mocks: `fallback()` retains their chain,
+so a downstream mocked response is not real persistence. Routing disables HTTP
+cache and misses service-worker-intercepted requests. In a disposable context,
+blocking service workers is a separate explicit test configuration choice and
+changes parity; otherwise choose a supported project-specific probe. Do not
+silently alter the application's service-worker behavior. See the official
+[routing API](https://playwright.dev/docs/api/class-page#page-route),
+[fallback semantics](https://playwright.dev/docs/api/class-route#route-fallback)
+and [handler removal](https://playwright.dev/docs/api/class-page#page-unroute).
+
+Example targeted argv after inspecting the existing local runner, configuration,
+project, fixture and spec (replace the synthetic names; do not install packages):
+
+```text
+node node_modules/@playwright/test/cli.js test tests/item-save.spec.ts --project=chromium --grep="delayed mutation persistence" --workers=1 --retries=0 --repeat-each=2 --output=test-results/g2-delay-run-123 --reporter=line
+```
+
+Use the existing installed CLI only if available and compatible; otherwise record
+the probe NOT RUN. First use the same selection with `--list`, then retain actual
+results and a separately captured log under this run's private evidence directory.
+Check existing reporter configuration for additional output locations before
+parallel runs. Verify the intended test was collected and really ran; zero,
+skipped or missing tests do not pass. Report repeats, retries and flaky outcomes
+separately from distinct tests, preserving the scope rules below. Playwright's
+[CLI reference](https://playwright.dev/docs/test-cli) documents these options.
+
+Record the observed `delayedRequests` count and an assumption such as: "G2 uses
+localhost; selected mutation dispatches were delayed by 750ms each. This is an
+illustrative stress probe, not a measurement or
+universal RTT simulation. Actual-target latency, server processing, response
+timing, cache and concurrency remain unverified." Fit the delay to the observed
+risk and test budget; passing this subset does not cover other specs or certify
+production parity. The example grants no production-write or deployment authority.
+Pending UI or `beforeunload` protection is an optional product decision, not a
+factory requirement or a replacement for persistence checks.
+
 ## Reconcile shared-contract impact
 For a changed shared serialized shape or selection rule, compare the final diff with the Plan inventory and recheck producer, consumer and assertion references for omissions. Account for affected existing tests as well as new feature tests. Confirm each changed expectation follows the intended compatibility decision; preserve still-valid assertions and investigate an unexpected break rather than merely updating snapshots or loosening assertions until green. An append-only change can require an old exact-header test to change while a consumer that selects named fields stays unchanged.
 
