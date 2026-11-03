@@ -15,9 +15,68 @@ from operations import controls, operations, DELIVERY_POLICY
 from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS
 from scaffold import validate, ROOT, phase_skill, RETURN
 from assumptions import refresh as refresh_assumptions
+from backup_advisory import inspect_backup_directory
 
 def dumps(value):
     return json.dumps(value,indent=2,ensure_ascii=False)+'\n'
+
+def verification_explanations(original, replacement):
+    """Describe captured row transitions without disclosing free-form row values."""
+    def rows(data):
+        active={};history=set();in_history=False
+        for line in data.decode('utf-8-sig').splitlines():
+            if line.startswith('## '):
+                in_history=line=='## Historical observations (not current evidence)'
+            historical=in_history and line.startswith('> | ')
+            candidate=line[2:] if historical else line
+            match=ROW.match(candidate)
+            if not match:continue
+            cells=[cell.strip() for cell in candidate.strip().strip('|').split('|')]
+            if len(cells)==8:cells+=['','','']
+            if len(cells)!=11:return None
+            flag=cells[4].casefold()
+            cells[4]='yes' if flag in ('yes','y','true') else 'no' if flag in ('no','n','false') else flag
+            row=tuple(cells)
+            if historical:history.add(row)
+            elif cells[0] in active:return None
+            else:active[cells[0]]=row
+        return active,history
+
+    before=rows(original['verification.md'])
+    after=rows(replacement.get('verification.md',original['verification.md']))
+    if before is None or after is None:
+        return ['ROW SUMMARY unavailable: ambiguous or unrecognized row shape; review the captured diff.']
+    old,old_history=before;new,new_history=after;messages=[]
+    observation_columns=(5,6,7,8,9,10)
+    for ident in dict.fromkeys((*old,*new)):
+        prior=old.get(ident);current=new.get(ident);parts=[]
+        if prior is None:
+            parts.append('ADDED: new current row in the proposed plan')
+        elif current is None:
+            parts.append('RETIRED: absent from the proposed current rows')
+        elif prior==current:
+            parts.append('RETAINED: current row fields unchanged')
+        elif tuple(current[i] for i in observation_columns)==('','NOT RUN','','','','') and any(prior[i]!=current[i] for i in observation_columns):
+            parts.append('RESET: prior observation fields cleared; current result is NOT RUN')
+        else:
+            parts.append('UPDATED: current row fields differ in the proposed plan')
+        if prior is not None:
+            if prior in new_history:
+                if prior in old_history:
+                    parts.append('HISTORY RETAINED: matching prior row already historical; no new copy')
+                else:
+                    observed=prior[6]!='NOT RUN' or any(prior[i] for i in (5,7,8,9,10))
+                    reason='prior result or observation fields' if observed else 'prior optional unexecuted plan' if prior[4]=='no' else 'prior unexecuted row plan'
+                    parts.append('ARCHIVED: '+reason+' preserved as history, not current evidence')
+            elif prior not in old_history and current is not None:
+                parts.append('NOT ARCHIVED: no historical copy of the prior row added')
+        if current is not None:
+            if prior is not None and prior[4]!=current[4]:
+                parts.append('requiredness changed in the proposed row; review the diff')
+            elif current[4] in ('yes','no'):
+                parts.append(('requiredness retained: ' if prior is not None else 'requiredness: ')+('optional' if current[4]=='no' else 'required'))
+        messages.append('ROW '+ident+': '+'; '.join(parts)+'.')
+    return messages
 
 def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None):
     expected=requirements(config,research)
@@ -131,6 +190,7 @@ COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION = {
     'gates.py':'d1411d3f0d75e112d6d463c22c307f3407b6c9de0bfc862505f2c487761882bf',
     'operations.py':'c0a11db48df30f2b29f3770eb52a784d1b9b425a91420df8e5175470cb6eca2a'}
 COMPATIBLE_GATE_V113 = {'gates.py':'bb706626fb04bf509ff4cb8805d0da353c4add1309f310441bc1dbbde7fe5da4'}
+COMPATIBLE_GATE_V115 = {'gates.py':'cba74ee0273ad98461a23af1e52c2d486e60bd066947315ea07aa049cf1bcbde'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -139,7 +199,7 @@ def gate_runtime_plan(root, original, replacement, opted_in):
         wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename),COMPATIBLE_GATE_V115.get(filename))
         if compatible and not opted_in:continue
         known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
         if not known and not compatible and not (current is None and filename=='recipes.py'):
@@ -355,6 +415,7 @@ def main():
     if args.assumptions and assumption_rows is None:raise ValueError('Assumptions input must be an array, not null')
     root,original,replacement,plan=prepare(args.factory,changes,args.delivery_gates,args.recipe_runtime,assumption_rows,args.context_runtime,args.gate_runtime)
     print('REVIEW PLAN: '+plan)
+    for explanation in verification_explanations(original,replacement):print(explanation)
     for name,data in replacement.items():
         before=hashlib.sha256(original[name]).hexdigest() if original[name] is not None else 'missing'
         print('FILE '+name+' raw SHA256: '+before+' -> '+hashlib.sha256(data).hexdigest())
@@ -363,7 +424,10 @@ def main():
     if args.apply:
         backup=apply(root,original,replacement,plan,args.approve_plan)
         if backup is None:print('NO FILES WRITTEN; the reviewed plan contained no changes.')
-        else:print('APPLIED narrow operations update; backup: '+str(backup)+'. No command, watcher, video or integration was run or enabled.')
+        else:
+            print('APPLIED narrow operations update; backup: '+str(backup)+'. No command, watcher, video or integration was run or enabled.')
+            advice=inspect_backup_directory(root.parent,backup.parent)
+            if advice['status']!='ignored':print(advice['message'])
     else:print('PREVIEW ONLY: no files written. Review the diff and local write scope before --apply --approve-plan '+plan)
 
 if __name__=='__main__':

@@ -54,7 +54,7 @@ class ControlDiagnosticsTests(unittest.TestCase):
         self.assertIn('update_operations.py refuses existing drift',result.stderr)
         self.assertIn('references/recovery.md',result.stderr)
         self.assertIn('--factory <factory> --operations <changes.json>',result.stderr)
-        self.assertIn('not controls consistency or delivery readiness',result.stderr)
+        self.assertIn('controls consistency, not application delivery readiness',result.stderr)
         with self.assertRaisesRegex(ValueError,'controls.smoke_gates.required') as raised:
             prepare(self.root,{'done_videos':{'enabled':True}})
         self.assertNotIn('PRIVATE_',str(raised.exception))

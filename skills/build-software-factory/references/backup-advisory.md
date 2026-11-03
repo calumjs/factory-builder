@@ -1,0 +1,11 @@
+# Backup ignore advisory
+
+After a helper has separately reported its write outcome, the optional `backup_advisory.py` check can warn about `.factory-update-backups` or `.factory-recovery-backups` immediately below an explicitly selected project root. It never creates, changes, removes or reads backup files, changes ignore rules or the index, or determines whether a backup succeeded.
+
+The result distinguishes `ignored`, `unignored`, `tracked` and `unknown`. It checks tracked index paths first, because ignore rules do not remove already tracked files. Ignore status covers project-local rules only: the root `.gitignore` and `.git/info/exclude`; system/global excludes and `core.excludesFile` are disabled. A directory ignored only by a user's global rules can therefore produce a conservative warning. Review applicable scoped entries manually and preserve the existing root ignore policy.
+
+Only trusted, stable projects with a normal `.git` directory are supported. Linked worktrees, nested locations without an explicitly supported root, redirected paths, missing Git, errors and resource limits yield `unknown`, never an implied ignored result. Git runs with fixed read-only argv, no optional locks, disabled hooks/fsmonitor and fetch transports, a shared five-second subprocess budget, and bounded captured output. Backup contents and descendants are not enumerated; this does not audit their sensitivity, past commits, or concurrent changes.
+
+Integration: call `inspect_backup_directory(project_root, backup.parent)` after the successful backup operation and its success message. Print a returned warning for any status other than `ignored`; keep the write's actual result and exit status. Do not use an advisory failure to retry, undo, clean up or relabel a completed write. The new module uses the installed builder's `ci_evidence.bounded_run` and `integrity.safe_path`; it does not belong in the copied dashboard runtime.
+
+Git's documented [cached index listing](https://git-scm.com/docs/git-ls-files) and [ignore check](https://git-scm.com/docs/git-check-ignore) explain the two distinct checks. A successful ignore check is not proof that no backup was previously committed or uploaded.

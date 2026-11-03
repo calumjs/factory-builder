@@ -11,11 +11,10 @@ from pathlib import Path, PurePosixPath
 import re
 import stat
 import unicodedata
-from gates import gate_rows, policy_controls, requirements
+from gates import gate_rows, requirements
 from integrity import check, digest, json_diagnostic, LIVING, safe_path
-from operations import controls
 from research import validate_research
-from scaffold import validate
+from scaffold import require_control_consistency, validate
 
 MAX_FILE=262144
 MAX_TOTAL=8*1024*1024
@@ -157,8 +156,7 @@ def semantics(snapshot):
     files=snapshot['files']
     if not CORE|LIVING|{'manifest.json'} <= set(files):raise ValueError('Core factory files missing; separate manual recovery required')
     config=strict_json(files['config.json']);validate(config)
-    if policy_controls(files['policy.md'].decode('utf-8-sig').replace('\r\n','\n').replace('\r','\n'))!=controls(config):
-        raise ValueError('Configuration and policy controls disagree; recover their reviewed design together')
+    require_control_consistency(config,files['policy.md'].decode('utf-8-sig').replace('\r\n','\n').replace('\r','\n'))
     research=strict_json(files['research.json']);validate_research(research)
     from integrity import validate_task_plan
     validate_task_plan(strict_json(files['task-plan.json']))
@@ -379,6 +377,9 @@ def main():
     if args.apply:
         backup=apply(result,args.approve_plan,args.stable_inputs)
         print('RECOVERED SNAPSHOT ONLY; original unchanged; no application checks or activation performed. Verified backup: '+display(str(backup)))
+        from backup_advisory import inspect_backup_directory
+        advice=inspect_backup_directory(result['target'].parent,backup.parent)
+        if advice['status']!='ignored':print(advice['message'])
     else:print('PREVIEW ONLY: no files written.')
 
 
