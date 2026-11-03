@@ -62,6 +62,21 @@ class CompactGenerationTests(unittest.TestCase):
                 start=prior.index('### Optional targeted mutation-delay probe\n')
                 end=prior.index('## Reconcile shared-contract impact\n',start)
                 prior=prior[:start]+prior[end:]
+                lines=prior.splitlines(keepends=True)
+                index=next(i for i,line in enumerate(lines) if line.startswith('For UI changes, follow [running-app UI verification]'))
+                self.assertEqual(lines[index+1],'\n')
+                prior=''.join(lines[:index]+lines[index+2:])
+            elif phase=='plan':
+                # Additive spec-challenge guidance must not redefine the reviewed
+                # legacy template or discard any earlier Plan procedure.
+                start=prior.index('## Challenge acceptance before decomposition\n')
+                end=prior.index('1. Read the accepted brief',start)
+                prior=prior[:start]+prior[end:]
+            elif phase=='build':
+                lines=prior.splitlines(keepends=True)
+                index=next(i for i,line in enumerate(lines) if line.startswith('For UI changes, follow [running-app UI verification]'))
+                self.assertEqual(lines[index+1],'\n')
+                prior=''.join(lines[:index]+lines[index+2:])
             self.assertEqual(digest(prior),baseline['templates'][phase])
             self.assertEqual(digest(legacy[f'.claude/skills/factory-{phase}/SKILL.md']),baseline['minimal_skills'][phase])
             source=phase_skill(legacy_phase_template(phase)).split('---',2)[2].strip()+'\n\n'+RETURN
@@ -168,6 +183,32 @@ class CompactMigrationTests(unittest.TestCase):
         manifest_path.write_bytes(json.dumps(manifest).encode());before=self.snapshot()
         with self.assertRaisesRegex(ValueError,'Referenced phase support is missing'):self.preview()
         self.assertEqual(before,self.snapshot())
+
+    def test_pre_ui_factory_cannot_gain_a_dangling_build_guide_link(self):
+        # A real older factory predates this support file, unlike a new render.
+        name='ui-verification.md';(self.root/name).unlink()
+        manifest_path=self.root/'manifest.json';manifest=json.loads(manifest_path.read_bytes())
+        del manifest['contracts'][name];manifest_path.write_bytes(json.dumps(manifest).encode())
+        check(self.root,quiet=True);before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'Referenced phase support is missing.*ui-verification.md'):
+            self.preview()
+        self.assertEqual(before,self.snapshot())
+        self.assertFalse((self.root/'phase-build-guide.md').exists())
+
+    def test_custom_ui_support_is_captured_unchanged_and_concurrent_raw_edit_refuses(self):
+        name='ui-verification.md';raw=b'# Reviewed custom UI procedure\nPrivate synthetic fixture only.\n'
+        self.contract(name,raw);prepared=self.preview()
+        self.assertEqual(prepared[1][name],raw);self.assertNotIn(name,prepared[2])
+        # LF/CRLF preserves the normalized contract hash, so raw dependency
+        # capture must catch this change rather than relying on integrity alone.
+        (self.root/name).write_bytes(raw.replace(b'\n',b'\r\n'));check(self.root,quiet=True)
+        before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'changed after preview'):
+            apply(*prepared,prepared[3])
+        self.assertEqual(before,self.snapshot())
+        (self.root/name).write_bytes(raw);apply(*prepared,prepared[3]);check(self.root,quiet=True)
+        self.assertEqual((self.root/name).read_bytes(),raw)
+        self.assertIn('(ui-verification.md)',(self.root/'phase-build-guide.md').read_text())
 
     def test_wrong_digest_concurrent_skill_research_and_guide_creation_refuse(self):
         prepared=self.preview();before=self.snapshot()

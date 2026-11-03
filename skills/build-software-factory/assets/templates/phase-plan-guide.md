@@ -1,5 +1,33 @@
 # Plan
 
+## Challenge acceptance before decomposition
+
+Fit a bounded gap check to the actual change before assigning Build work. Inspect
+the relevant repository paths and tests against the draft criteria: missing edge
+cases, undefined guardrails, unsupported code assumptions and unasked questions.
+Record the inspected repository subject separately from the exact draft/digest;
+unseen behavior stays unverified. Use the trusted installed builder's
+`references/spec-challenge.md` for the procedure and task-specific record shape.
+
+Choose critic scope and independence according to project risk, availability and
+the existing authorized budget. Trivial work need not pay for two agents; record
+not-selected or unavailable honestly. An actual independent critic returns
+ACCEPT, ACCEPT-WITH-RESERVATIONS, REVISE or REJECT with evidence and severity.
+Default to at most two revision rounds within the original budget. Revisions
+invalidate an older draft's verdict; exhaustion never turns REVISE, REJECT or a
+missing required critic into acceptance. Preserve every unresolved item in Open
+Questions with owner, impact and affected work blocked where required.
+
+For high-risk decisions, present the critic's verdict and unresolved questions to
+the authorized decision owner. Record standing authority that already covers the
+specific decision rather than inventing another approval; otherwise escalate the
+uncovered scope. A critic verdict grants no execution, publication or adoption
+authority. Keep task-specific notes outside this hashed factory. Acceptance edits
+need a separately reviewed synchronized change that preserves IDs, waivers and
+history; neither direct edits nor blanket re-hashing bypass that boundary.
+
+## Decompose the accepted scope
+
 1. Read the accepted brief, acceptance.md, tools.json, policy.md and config.assumptions. Resolve or explicitly retain each relevant uncertainty with the owner; a confirmed label is a recorded claim, not proof; it creates no automatic gate and never overrides an operator's waiver.
 2. Break the work into owned tasks in task-plan.json: dependencies, acceptance IDs, allowed paths, expected evidence, budget share. Sequence tasks whose paths overlap. Copy the hashed worker-handoff.md to an approved task-specific location outside the factory before filling its ordered worker table. One worker is valid; candidates need their own authority, boundaries, availability evidence and stop conditions, and share the task's original budget. Verify a tool before enabling it; the plan launches nothing.
 3. Map every task to the gate rows: G1 production-equivalent pre-merge smoke, G2 change-targeted tests, and G3 post-action confirmation on the actual URL or published artifact where applicable. Deliberate optional rows stay visible as WAIVED. Post-action evidence is never a pre-action dependency. If the project lacks a smoke suite, plan it first.
