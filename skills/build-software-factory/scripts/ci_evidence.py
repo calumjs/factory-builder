@@ -230,7 +230,11 @@ def evidence_changes(git,factory,evidence_dir,subject,storage):
     return changed
 
 
-def assess_ci(repo,factory,subject,storage,stage,target=None,evidence_dir='docs/factory-evidence',required_tasks=(),git_executable='git'):
+def assess_ci(repo,factory,subject,storage,stage,target=None,evidence_dir='docs/factory-evidence',required_tasks=(),git_executable='git',*,feature_policy=None,feature_policy_sha256=None,feature_request=None,feature_base=None):
+    feature_inputs=(feature_policy,feature_policy_sha256,feature_request,feature_base)
+    feature_enabled=any(value is not None for value in feature_inputs)
+    if feature_enabled and (not all(value is not None for value in feature_inputs) or stage!='pre-merge'):
+        raise ValueError('Feature contract requires all four explicit feature inputs and pre-merge stage')
     repo=safe_path(repo)
     try:factory=relative(factory)
     except ValueError as exc:raise ValueError(FACTORY_PATH_HELP+' '+str(exc)) from exc
@@ -239,6 +243,10 @@ def assess_ci(repo,factory,subject,storage,stage,target=None,evidence_dir='docs/
         raise ValueError('Evidence data location must be outside the factory and CI configuration')
     subject=full_sha(subject);storage=full_sha(storage)
     if len(subject)!=len(storage):raise ValueError('Subject/storage object formats disagree')
+    feature_check=None
+    if feature_enabled:
+        from feature_contract import FeatureCheck, guarded
+        feature_check=guarded(lambda:FeatureCheck(repo,factory,subject,feature_policy,feature_policy_sha256,feature_request,feature_base))
     git=Git(repo,git_executable)
     top=Path(git.read('rev-parse','--show-toplevel').decode().strip())
     if not repo.samefile(top):raise ValueError('--repo must be the exact checkout root')
@@ -260,13 +268,20 @@ def assess_ci(repo,factory,subject,storage,stage,target=None,evidence_dir='docs/
         events=[row for row in plan.get('events',[]) if row['task_id']==task]
         if tasks[task]['status']!='done' or not events or any(events[-1][key]!=value for key,value in (('status','done'),('result','passed'),('revision',subject))):
             found.append('Task '+task+' lacks a done/passed record for the exact tested subject required by CI policy')
+    feature_result=None
+    if feature_check is not None:
+        feature_result=guarded(lambda:feature_check.assess(root))
+        found.extend(feature_result['problems'])
     # Detect ordinary drift; an authorized CI adapter must provide stable inputs.
     clean_storage(git,storage);bind_factory(git,factory,storage)
-    return {'tested_subject':subject,'evidence_storage_revision':storage,'stage':stage,
+    if feature_check is not None:guarded(feature_check.stable)
+    result={'tested_subject':subject,'evidence_storage_revision':storage,'stage':stage,
             'assessment':'blocked' if found else 'eligible_with_waivers' if skipped else 'recorded_requirements_satisfied',
             'problems':found,'waivers':skipped,'changed_evidence_files':len(changed),
             'incomplete_tasks':[{'id':row['id'],'status':row['status']} for row in plan['tasks'] if row['status']!='done'],
             'notice':'Records were assessed; no application checks were executed or attested. No merge/deploy authority is granted.'}
+    if feature_result is not None:result['feature_check']=feature_result
+    return result
 
 
 def main():
@@ -278,8 +293,14 @@ def main():
     parser.add_argument('--stage',required=True,choices=('pre-merge','post-merge'))
     parser.add_argument('--target');parser.add_argument('--evidence-dir',default='docs/factory-evidence',help='Canonical path relative to --repo for subject-scoped data additions, outside the factory/CI configuration')
     parser.add_argument('--require-task',action='append',default=[]);parser.add_argument('--git',default='git')
+    parser.add_argument('--feature-policy',help='Opt-in external feature policy JSON; requires all feature flags and pre-merge')
+    parser.add_argument('--feature-policy-sha256',help='Independently accepted raw feature-policy SHA-256')
+    parser.add_argument('--feature-request',help='External reviewed classification, closing claims and existing issue mappings')
+    parser.add_argument('--feature-base',help='Explicit full ancestor commit SHA for the feature comparison; never inferred')
     args=parser.parse_args()
-    result=assess_ci(args.repo,args.factory,args.subject,args.storage,args.stage,args.target,args.evidence_dir,args.require_task,args.git)
+    result=assess_ci(args.repo,args.factory,args.subject,args.storage,args.stage,args.target,args.evidence_dir,args.require_task,args.git,
+                     feature_policy=args.feature_policy,feature_policy_sha256=args.feature_policy_sha256,
+                     feature_request=args.feature_request,feature_base=args.feature_base)
     print(json.dumps(result,ensure_ascii=True,sort_keys=True))
     return 1 if result['problems'] else 0
 

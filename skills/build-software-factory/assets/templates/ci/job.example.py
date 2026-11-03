@@ -27,6 +27,14 @@ def command(env):
     tasks=json.loads(env.get('FACTORY_REQUIRED_TASKS','[]'))
     if not isinstance(tasks,list) or any(not isinstance(v,str) or not v.strip() for v in tasks):raise ValueError('CI-required task IDs must be an explicit JSON string array')
     for task in tasks:argv+=['--require-task',task]
+    feature=(('FACTORY_FEATURE_POLICY','--feature-policy'),
+             ('FACTORY_FEATURE_POLICY_SHA256','--feature-policy-sha256'),
+             ('FACTORY_FEATURE_REQUEST','--feature-request'),
+             ('FACTORY_FEATURE_BASE_SHA','--feature-base'))
+    if any(key in env for key,_ in feature):
+        if any(not env.get(key) for key,_ in feature) or env.get('FACTORY_STAGE','pre-merge')!='pre-merge':
+            raise ValueError('Feature policy needs all four explicit inputs and pre-merge stage')
+        for key,flag in feature:argv+=[flag,env[key]]
     return argv
 
 

@@ -59,6 +59,15 @@ execution. It needs these non-secret variables from trusted CI configuration:
 | FACTORY_EVIDENCE_DIRECTORY | Reviewed data-only storage directory relative to FACTORY_REPO, outside factory/CI config; default docs/factory-evidence. |
 | FACTORY_REQUIRED_TASKS | Optional JSON array of project-selected task IDs required done for this job's subject; default []. |
 
+Optional feature-contract composition uses all four of `FACTORY_FEATURE_POLICY`,
+`FACTORY_FEATURE_POLICY_SHA256`, `FACTORY_FEATURE_REQUEST` and
+`FACTORY_FEATURE_BASE_SHA`, only at pre-merge. See the trusted installed builder's
+`references/feature-contract-ci.md` for the exact schemas, independent policy pin,
+append-only acceptance limits and adoption recipe. Policy/request files stay outside
+the checkout. Missing required deltas fail the composed command; supplied claims do
+not discover PR content, prove coverage or create G0/G2 evidence. Existing jobs without
+these inputs are unchanged; adopting the extension is a separate reviewed decision.
+
 For the CLI, `--repo` names the exact checkout root; `--factory` and `--evidence-dir`
 are canonical forward-slash paths relative to that root, even when invoked from a
 parent directory. For example, use `--repo factory-sample-crm --factory .software-factory`,
