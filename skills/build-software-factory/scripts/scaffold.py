@@ -16,6 +16,7 @@ from dashboard_bundle import bundle
 from recipes import proposal
 from assumptions import assumptions, section
 from readiness import emit
+from status import STATUSES
 
 ROOT = Path(__file__).resolve().parents[1]
 TEXT = ('project', 'outcome', 'stack', 'harness', 'deployment', 'data_policy')
@@ -71,6 +72,12 @@ def runtime_advisory(factory):
         if observed!=installed:
             print('ADVISORY: dashboard/'+name+' differs or is missing (bundled '+str(observed or 'missing')+'; installed '+installed+'). Review customizations and preview '+flag+'; equality to the manifest establishes integrity, not currency or compatibility.')
 
+def validate_task_status(value, index):
+    if not isinstance(value,str) or value not in STATUSES:
+        raise ValueError('tasks['+str(index)+'].status must be one of '+', '.join(STATUSES)+
+                         '; no alias or migration is applied. See references/task-status.md for reviewed legacy correction.')
+
+
 def validate(c):
     if not isinstance(c, dict):
         raise ValueError('Config must be an object')
@@ -101,10 +108,11 @@ def validate(c):
     if not isinstance(c['tasks'], list):
         raise ValueError('tasks must be a list')
     ids = set()
-    for t in c['tasks']:
+    for index,t in enumerate(c['tasks']):
         if not isinstance(t,dict) or set(t) != {'id','goal','owner','depends_on','acceptance_ids','allowed_paths','status'}:
             raise ValueError('Each task must match the example task schema')
-        for k in ('id','goal','owner','status'):
+        validate_task_status(t['status'],index)
+        for k in ('id','goal','owner'):
             if not isinstance(t[k],str) or not t[k].strip():
                 raise ValueError('Task '+k+' must be nonempty text')
         for k in ('depends_on','acceptance_ids','allowed_paths'):
@@ -160,6 +168,8 @@ def phase_skill(text):
     return '---' + front + '---\n\n' + title + '\n\n' + PREAMBLE + '\n' + rest.rstrip('\n') + '\n'
 
 def render(c, research):
+    for index,task in enumerate(c['tasks']):
+        validate_task_status(task.get('status') if isinstance(task,dict) else None,index)
     files = {str(f.relative_to(ROOT/'assets/templates')).replace('\\','/'): f.read_text(encoding='utf-8') for f in sorted((ROOT/'assets/templates').rglob('*')) if f.is_file()}
     for name in files:
         if name.startswith('.claude/skills/factory-') and name.endswith('/SKILL.md'):
