@@ -165,6 +165,7 @@ COMPACT_MARKER = '<!-- phase-compact:v1 -->'
 COMPACT_FOOTER = ('See [policy](../../../policy.md) and [boundaries](../../../boundaries.md). '
                   'Paths in the detailed guide are factory-root-relative. Record helpers do not enforce every prose requirement.')
 PHASE_GUIDES = {phase:'phase-'+phase+'-guide.md' for phase in PHASES}
+REVIEW_ROUTE='\n## Opted-in supplied review records\nRead [review-guide.md](review-guide.md) before collecting or consuming Q1. Required review claims must cover the exact final subject and artifact; optional rows remain WAIVED.\n'
 
 
 def legacy_phase_template(phase):
@@ -220,6 +221,11 @@ def render(c, research):
     files['acceptance.md'] = '# Acceptance criteria\n\n' + '\n'.join(f'- A{i+1}: {a}\n  Owner: unassigned; status: NOT VERIFIED; evidence: none.' for i,a in enumerate(c['acceptance']))+'\n'
     files['task-plan.json'] = dumps({'tasks': c['tasks'], 'events': []})
     ops = operations(c)
+    if 'record_schema' in ops['review']:
+        from review_records import initialize
+        files['release-handoff.md']=initialize(files['release-handoff.md'])
+        files['review-guide.md']=(ROOT/'assets/procedures/review-guide.md').read_text(encoding='utf-8')
+        for phase in ('verify','release'):files[PHASE_GUIDES[phase]]+=REVIEW_ROUTE
     files['release-handoff.md'] += '\n'+proposal('video',ops['done_videos'])+'\n'
     files['tools.json'] = dumps({'integrations':[{'requested':x,'enabled':False,'availability':'unverified','evidence':None,'authorization':None,'data_egress':'not authorized','cost':'unverified'} for x in c['providers']], 'test_commands':[{'command':x,'execution_authorized':False,'result':'not-run'} for x in c['test_commands']], 'identities':ops['identities'], 'headless_recipes':ops['tool_recipes']})
     files['policy.md'] = '# Approval and budget policy\n\n## Requested permission scope (verify authority before action)\n'+'\n'.join('- '+x for x in c['permissions'])+'\n\n## Data boundary\n'+c['data_policy']+'\n\n## Proposed limits (confirm before live execution)\n```json\n'+dumps(c['budget'])+'```\n\nExternal integrations are disabled. No paid agents, provisioning, credentials, permission changes, data upload, publication, PR approval/merge or deployment is authorized by this scaffold. Approval must identify the action, target and scope.\n\nStop at the agreed time/cost/retry limit, missing authority, unsafe data boundary, unresolved required evidence, or requested outcome. Retry only with a new hypothesis. Escalate with evidence and the smallest needed decision.\n'

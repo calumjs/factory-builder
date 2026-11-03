@@ -1,0 +1,57 @@
+{
+  "project": "Example project",
+  "outcome": "Describe the user-visible result",
+  "users": [
+    "Describe intended users"
+  ],
+  "scope": [
+    "Describe included work"
+  ],
+  "non_goals": [
+    "Describe excluded work"
+  ],
+  "stack": "Unconfirmed",
+  "harness": "Claude Code (local project skills)",
+  "providers": [],
+  "acceptance": [
+    "Replace with a measurable criterion"
+  ],
+  "test_commands": [],
+  "deployment": "Not configured; release blocked",
+  "data_policy": "No secrets or sensitive data in artifacts; external sharing disabled",
+  "permissions": [
+    "Approved local scaffold only"
+  ],
+  "budget": {
+    "max_cost": 0,
+    "currency": "USD",
+    "max_minutes": 60,
+    "max_workers": 1,
+    "max_repair_attempts": 2
+  },
+  "open_questions": [
+    "Confirm product scope and acceptance criteria before implementation"
+  ],
+  "assumptions": [],
+  "tasks": [
+    {
+      "id": "T1",
+      "goal": "Define a non-secret fixture, production-equivalent artifact, critical success/failure assertions and a concrete stack-verified smoke invocation before implementation",
+      "owner": "human/operator",
+      "depends_on": [],
+      "acceptance_ids": [
+        "A1"
+      ],
+      "allowed_paths": [],
+      "status": "blocked"
+    }
+  ],
+  "operations": {
+    "review": {
+      "record_schema": 1,
+      "required_approvals": 1,
+      "independent": true,
+      "distinct_providers": false
+    }
+  }
+}

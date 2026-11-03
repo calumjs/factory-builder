@@ -57,11 +57,16 @@ def assess_scope(factory, scope, stage, revision, target=None):
             raise ValueError('Selected task has invalid acceptance links: '+tid)
     if stage not in ('pre-merge','post-merge') or not isinstance(revision,str) or not revision.strip():raise ValueError('Stage and exact subject required')
     selected=set(scope['gates'])|({'G1','G2'} if stage=='pre-merge' else {'G3'})
+    if stage=='pre-merge' and 'Q1' in expected:selected.add('Q1')
     selected|={a for tid in scope['tasks'] for a in tasks[tid].get('acceptance_ids',[])}
     if selected-set(expected):raise ValueError('Selected task refers to unknown acceptance gate')
     chosen={key:expected[key] for key in sorted(selected)}
     subset='\n'.join(line for line in text.splitlines() if ROW.match(line) and ROW.match(line).group(1) in selected)
-    found=problems(subset,stage,revision,chosen,target)
+    review_text=None
+    if 'Q1' in chosen:
+        from review_records import read_handoff
+        review_text=read_handoff(root/'release-handoff.md')
+    found=problems(subset,stage,revision,chosen,target,review_text)
     smoke=operations(config)['smoke_gates']
     if stage=='post-merge' and smoke['post_merge_applicability']=='applicable' and rows.get('G3',{}).get('required')=='yes':
         recipe=smoke_checks(smoke).get('G3');kind=recipe['target']['kind'] if recipe else smoke['target_kind']
@@ -77,11 +82,16 @@ def assess_scope(factory, scope, stage, revision, target=None):
     excluded=[{'gate':g,'stage':row['stage'],'required':row['required'],'result':row['result'],'revision':row['revision']} for g,row in rows.items() if g not in selected]
     excluded += [{'gate':g,'stage':spec['stage'],'required':'unknown','result':'MISSING','revision':''} for g,spec in expected.items() if g not in selected and g not in rows]
     waivers=[g+' WAIVED (recorded '+rows[g]['result']+')' for g in sorted(selected) if g in rows and rows[g]['stage']==stage and rows[g]['required']=='no']
+    if review_text is not None:
+        from review_records import supplement_waivers
+        waivers.extend(supplement_waivers(review_text,stage))
     task_definitions=[{k:v for k,v in tasks[tid].items() if k!='status'} for tid in sorted(visited)]
     scope_bytes=json.dumps({'scope':scope,'task_definitions':task_definitions},sort_keys=True,ensure_ascii=True,separators=(',',':')).encode()
     manifest=(root/'manifest.json').read_bytes()
     scope_id=hashlib.sha256(str(root).encode()+b'\0'+manifest+b'\0'+scope_bytes).hexdigest()
     records=[{'gate':g,'planned_stage':expected[g]['stage'],'planned_design':expected[g]['design'],'recorded':rows.get(g)} for g in sorted(selected)]
+    if review_text is not None and read_handoff(root/'release-handoff.md')!=review_text:
+        raise ValueError('Review handoff changed during scoped assessment; retry a stable snapshot')
     return {'scope_id':scope_id,'scope':scope,'stage':stage,'subject':revision,'assessment':'SCOPED BLOCKED' if found else 'SCOPED ELIGIBLE WITH WAIVERS' if waivers else 'SCOPED ELIGIBLE','problems':found,'waivers':waivers,'selected_records':records,'out_of_scope':excluded,'notice':'Only selected recorded claims were assessed; this is not project-wide readiness, execution, attestation or release authority.'}
 
 

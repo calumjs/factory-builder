@@ -27,7 +27,7 @@ Present a fitted design: outcome, seven-skill flow, capabilities reused, workers
 
 ## 5. Scaffold
 
-Confirm the local target and write scope unless the request already authorizes exactly that. Then follow [scaffolding.md](references/scaffolding.md): adapt `assets/example-config.json` into a non-secret config in approved scratch, run the helper write-free, review, and apply:
+Confirm the local target and write scope unless the request already authorizes exactly that. Then follow [scaffolding.md](references/scaffolding.md): for a new interviewed factory, adapt `assets/example-review-config.json` into a non-secret config in approved scratch. It recommends one required review and starts Q1 NOT RUN. Reuse an explicit optional/zero-review preference by retaining `record_schema: 1` with `required_approvals: 0`, so Q1 remains visibly WAIVED rather than absent; record the choice and rationale through [intake](references/intake.md). This selects a review workflow, not provider execution or spending authority. Run the helper write-free, review, and apply:
 
 ```sh
 python <skill-dir>/scripts/scaffold.py --config <config.json> --research <research.json> --target <repo-or-folder>

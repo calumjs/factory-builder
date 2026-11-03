@@ -6,6 +6,7 @@ from urllib.parse import urlsplit
 from recipes import INTAKE_FIELDS, VIDEO_FIELDS, intake_design, video_design
 
 SMOKE_FIELDS = frozenset(('checks',))
+REVIEW_FIELDS = frozenset(('record_schema',))
 
 
 def smoke_checks(smoke):
@@ -149,7 +150,7 @@ def operations(config):
     for key,value in supplied.items():
         if key=='admission':continue
         if isinstance(defaults[key],dict):
-            optional = INTAKE_FIELDS if key=='issue_intake' else VIDEO_FIELDS if key=='done_videos' else SMOKE_FIELDS if key=='smoke_gates' else frozenset()
+            optional = INTAKE_FIELDS if key=='issue_intake' else VIDEO_FIELDS if key=='done_videos' else SMOKE_FIELDS if key=='smoke_gates' else REVIEW_FIELDS if key=='review' else frozenset()
             allowed=set(defaults[key]) | optional
             if not isinstance(value,dict):
                 raise ValueError('Invalid operations section: '+key+'; operations.'+key+' must be an object; allowed keys: '+json.dumps(sorted(allowed))+guide)
@@ -185,6 +186,8 @@ def operations(config):
     r = result['review']
     if type(r['required_approvals']) is not int or r['required_approvals'] < 0 or any(type(r[k]) is not bool for k in ('independent','distinct_providers')):
         raise ValueError('Invalid review policy')
+    if 'record_schema' in r and (type(r['record_schema']) is not int or r['record_schema']!=1 or r['required_approvals']>16):
+        raise ValueError('Review record_schema must be integer 1 with at most 16 required supplied reviewers')
     v = result['visual_checks']
     if type(v['required']) is not bool or any(not isinstance(v[k],str) or not v[k].strip() for k in ('reference','method')):
         raise ValueError('Invalid visual-check policy')
