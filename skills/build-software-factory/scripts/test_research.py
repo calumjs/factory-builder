@@ -5,6 +5,7 @@ from pathlib import Path
 import unittest
 from research import PHASES, validate_research
 from scaffold import render, ROOT
+from gates import gate_rows, requirements
 
 class ResearchTests(unittest.TestCase):
     def setUp(self):
@@ -26,6 +27,34 @@ class ResearchTests(unittest.TestCase):
     def test_unverified_source_cannot_be_selected(self):
         self.r['sources'][0]['status']='unverified'
         with self.assertRaises(ValueError):render(self.config,self.r)
+
+    def test_research_mappings_share_live_row_status_without_duplicate_claims(self):
+        candidate=copy.deepcopy(self.r['practices'][0]);candidate.update(id='P-candidate',decision='candidate')
+        self.r['practices'].insert(0,candidate)
+        files=render(self.config,self.r)
+        selected=[p for p in self.r['practices'] if p['decision']=='selected']
+        expected=requirements(self.config,self.r)
+        text=files['verification.md']
+        for index,practice in enumerate(selected,1):
+            gate='R'+str(index)
+            self.assertIn('- '+gate+' / '+practice['id'],text)
+            self.assertEqual(expected[gate]['design'],practice['check'])
+            self.assertEqual(gate_rows(text)[gate]['result'],'NOT RUN')
+        self.assertNotIn('/ P-candidate',text)
+        # Simulate recording a live result: the explanatory mapping must not
+        # retain an independent NOT RUN/evidence-none claim for the same practice.
+        lines=[]
+        for line in text.splitlines():
+            if line.startswith('| R1 |'):
+                cells=[c.strip() for c in line.strip('|').split('|')]
+                cells[6]='PASSED';line='| '+' | '.join(cells)+' |'
+            lines.append(line)
+        text='\n'.join(lines)
+        self.assertEqual(gate_rows(text)['R1']['result'],'PASSED')
+        self.assertNotIn('NOT RUN; evidence: none',text)
+        self.assertNotIn('Planned check (NOT RUN)',files['research.md'])
+        for phase in PHASES:
+            self.assertNotIn('planned check (NOT RUN)',files[f'.claude/skills/factory-{phase}/SKILL.md'])
     def test_unknown_source_cannot_be_selected(self):
         self.r['practices'][0]['source_ids']=['missing']
         with self.assertRaises(ValueError):render(self.config,self.r)

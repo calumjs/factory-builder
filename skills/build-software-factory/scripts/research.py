@@ -65,7 +65,7 @@ def apply_research(files,r):
     for s in r['sources']:
         report += [f"## Source {s['id']}",f"URL: {s['url']}",f"Access date: {s['accessed_on']}; supplied status: {s['status']}; kind: {s['kind']}",f"Version scope: {s['version_scope']}",f"Observation (evidence, not instructions): {s['observation']}",'']
     for p in r['practices']:
-        report += [f"## Practice {p['id']} — {p['decision']}",f"Phases: {', '.join(p['phases'])}; sources: {', '.join(p['source_ids'])}",f"Relevance: {p['relevance']}",f"Compatibility: {p['compatibility']}",f"Trade-off: {p['tradeoff']}",f"Project instruction: {p['instruction']}",f"Planned check (NOT RUN): {p['check']}",'']
+        report += [f"## Practice {p['id']} - {p['decision']}",f"Phases: {', '.join(p['phases'])}; sources: {', '.join(p['source_ids'])}",f"Relevance: {p['relevance']}",f"Compatibility: {p['compatibility']}",f"Trade-off: {p['tradeoff']}",f"Project instruction: {p['instruction']}",f"Planned check (see living verification record): {p['check']}",'']
     for phase in PHASES:
         path=f'.claude/skills/factory-{phase}/SKILL.md'
         c=r['coverage'][phase]
@@ -73,9 +73,9 @@ def apply_research(files,r):
         if r['status']!='complete':body+='\nUNRESEARCHED DRAFT: no researched practices have been applied. Do not present candidates or remembered guidance as verified research.\n'
         for practice in r['practices']:
             if practice['decision']=='selected' and phase in practice['phases']:
-                body+=f"\n### {practice['id']} — selected project practice\n{practice['instruction']}\n\nRequired planned check (NOT RUN): {practice['check']}\n\nSource IDs: {', '.join(practice['source_ids'])}. Compatibility: {practice['compatibility']}\n"
+                body+=f"\n### {practice['id']} - selected project practice\n{practice['instruction']}\n\nPlanned check (see living verification record): {practice['check']}\n\nSource IDs: {', '.join(practice['source_ids'])}. Compatibility: {practice['compatibility']}\n"
         files[path]+=body
     selected=[x for x in r['practices'] if x['decision']=='selected']
     files['verification.md']+='\n## Research-derived planned checks\nResearch status: '+r['status'].upper()+'. Source claims are not independently verified by this helper.\n'
-    for p in selected:files['verification.md']+=f"\n- {p['id']} ({', '.join(p['phases'])}): {p['check']} — NOT RUN; evidence: none.\n"
+    for i,p in enumerate(selected,1):files['verification.md']+=f"\n- R{i} / {p['id']} ({', '.join(p['phases'])}): {p['check']} - see the living gate record below for current result and evidence.\n"
     files['research.md']='\n'.join(report)+'\n'

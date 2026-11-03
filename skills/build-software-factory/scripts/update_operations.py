@@ -9,7 +9,7 @@ from pathlib import Path
 import re
 import sys
 import tempfile
-from gates import policy_controls, initial_table, requirements, gate_rows, ROW
+from gates import policy_controls, initial_table, requirements, gate_rows, ROW, HEADER, control_differences
 from integrity import check, digest, safe_path
 from operations import controls, operations, DELIVERY_POLICY
 from recipes import refresh_proposal, INTAKE_FIELDS, VIDEO_FIELDS
@@ -19,27 +19,28 @@ from assumptions import refresh as refresh_assumptions
 def dumps(value):
     return json.dumps(value,indent=2,ensure_ascii=False)+'\n'
 
-def control_differences(left, right, path='controls'):
-    if type(left) is not type(right):return [path]
-    if isinstance(left,dict):
-        result=[]
-        for key in sorted(left.keys() | right.keys()):
-            child=path+'.'+str(key)
-            if key not in left or key not in right:result.append(child)
-            else:result.extend(control_differences(left[key],right[key],child))
-        return result
-    if isinstance(left,list):
-        if len(left)!=len(right):return [path]
-        return [item for index,(a,b) in enumerate(zip(left,right)) for item in control_differences(a,b,path+'['+str(index)+']')]
-    return [] if left==right else [path]
-
 def refreshed_verification(text, config, research, reset_smoke_defaults=False, prior_config=None):
     expected=requirements(config,research)
     previous=requirements(prior_config,research) if prior_config is not None else {}
-    preserved=[];history=[];extra=[];flags={}
+    baseline=gate_rows(initial_table(prior_config,research)) if prior_config is not None else {}
+    preserved=[];history=[];observations=[];extra=[];flags={}
+    in_history=False;table_header=False;skip_blank=False
     for line in text.splitlines():
+        if line in ('## Historical observations (not current evidence)', '## Current delivery gate records', '## Delivery gate records (required checks start NOT RUN)'):
+            while preserved and not preserved[-1].strip():preserved.pop()
+            in_history=line.startswith('## Historical');table_header=False;skip_blank=True;continue
+        if line.startswith('## '):in_history=False
+        if in_history and line.startswith('> | '):
+            history.append(line);skip_blank=True;continue
+        if line == HEADER.splitlines()[0]:
+            table_header=True;skip_blank=True;continue
+        if table_header and re.fullmatch(r'\|(?:\s*:?-+:?\s*\|)+',line):
+            table_header=False;skip_blank=True;continue
+        table_header=False
+        if skip_blank and not line.strip():continue
         if not ROW.match(line):
-            preserved.append(line);continue
+            preserved.append(line);skip_blank=False;continue
+        skip_blank=True
         cells=[v.strip() for v in line.strip().strip('|').split('|')]
         if len(cells) not in (8,11):
             raise ValueError('Cannot migrate malformed gate row; review it manually')
@@ -49,7 +50,12 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False, p
         if flag not in ('yes','y','true','no','n','false'):
             raise ValueError('Malformed source requiredness requires review')
         flags[cells[0]]='yes' if flag in ('yes','y','true') else 'no'
-        history.append('> '+line)
+        # Blank default plans have no observation. Preserve customized plans and
+        # optional choices, including retired video rows, without carrying a PASS.
+        prior=baseline.get(cells[0])
+        customized=prior is None or cells[1:4]!=[prior['stage'],prior['design'],prior['environment']] or flags[cells[0]]!=prior['required']
+        if cells[6]!='NOT RUN' or any(cells[i] for i in (5,7)) or (len(cells)==11 and any(cells[8:11])) or customized or cells[0] in ('V1','V2') and cells[0] not in expected:
+            observations.append('> '+line)
         if cells[0] not in expected and (cells[0]=='V1' or cells[0]=='V2' and cells[0] in previous):
             continue  # Reserved video gate is retired by the reviewed disabled preference.
         if cells[0] not in expected:
@@ -64,6 +70,20 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False, p
                 cells[4]=flags[cells[0]]
                 line='| '+' | '.join(cells)+' |'
         current.append(line)
+    # Retain existing history verbatim; refreshing the same active plan twice
+    # must not append the same observation again merely because table spacing,
+    # a requiredness alias or empty legacy columns were normalized.
+    def history_key(line):
+        cells=[cell.strip() for cell in line[2:].strip().strip('|').split('|')]
+        if len(cells)==8:cells+=['','','']
+        if len(cells)==11:
+            flag=cells[4].casefold()
+            cells[4]='yes' if flag in ('yes','y','true') else 'no' if flag in ('no','n','false') else flag
+        return tuple(cells)
+    seen={history_key(line) for line in history}
+    for observation in observations:
+        key=history_key(observation)
+        if key not in seen:history.append(observation);seen.add(key)
     result='\n'.join(preserved).rstrip()+'\n\n## Historical observations (not current evidence)\n'+'\n'.join(history)+'\n\n## Current delivery gate records\n'+'\n'.join(current)+'\n'+'\n'.join(extra)+'\n'
     gate_rows(result)  # Reject ambiguity or malformed legacy extra checks before writing.
     return result
@@ -161,7 +181,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
     existing_controls=policy_controls(policy)
     drift=control_differences(existing_controls,controls(before_config))
     if drift:
-        raise ValueError('Policy/config controls disagree at '+', '.join(drift)+'; preserve and reconcile with a reviewed synchronized recovery before updating')
+        raise ValueError('Policy/config controls disagree at '+json.dumps(drift,ensure_ascii=True)+'; preserve and reconcile with a reviewed synchronized recovery before updating')
     header='## Proposed autonomy and review controls (not execution authority)'
     pattern=re.escape(header)+r'(\s*```json\n)(.*?)(\n```)'
     policy=re.sub(pattern,lambda m:header+m[1]+dumps(controls(config)).rstrip('\n')+m[3],policy,count=1,flags=re.S)
