@@ -43,6 +43,54 @@ class UpdateTests(unittest.TestCase):
         self.assertEqual(path.read_bytes(),(ROOT/'scripts/gates.py').read_bytes());check(root,quiet=True)
 
 
+    def test_pre_diagnostics_runtimes_preserved_or_reviewedly_upgraded(self):
+        from update_operations import COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS,COMPATIBLE_GATE_PRE_DIAGNOSTICS
+        prior={}
+        manifest_path=self.factory/'manifest.json';manifest=json.loads(manifest_path.read_text())
+        for script,known in (('integrity',COMPATIBLE_CONTEXT_PRE_DIAGNOSTICS),('gates',COMPATIBLE_GATE_PRE_DIAGNOSTICS)):
+            data=(ROOT/f'scripts/fixtures/pre_diagnostics_{script}.txt').read_bytes()
+            self.assertEqual(digest(data),known[script+'.py'])
+            name=f'dashboard/{script}.py';prior[name]=data
+            (self.factory/name).write_bytes(data);manifest['contracts'][name]=digest(data)
+        manifest_path.write_text(json.dumps(manifest));check(self.factory,quiet=True)
+        before=self.snapshot()
+        root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        for name in prior:self.assertNotIn(name,new)
+        root,old,new,plan=prepare(self.factory,{},context_runtime=True,gate_runtime=True)
+        self.assertEqual(before,self.snapshot())
+        self.assertNotIn('config.json',new);self.assertNotIn('policy.md',new)
+        backup=apply(root,old,new,plan,plan)
+        for name,data in prior.items():
+            self.assertEqual((backup/name).read_bytes(),data)
+            self.assertEqual((root/name).read_bytes(),(ROOT/'scripts'/Path(name).name).read_bytes())
+        check(root,quiet=True)
+        path=root/'dashboard/integrity.py';path.write_text(path.read_text(encoding='utf-8')+'\n# Operator customization\n',encoding='utf-8')
+        manifest=json.loads(manifest_path.read_text());manifest['contracts']['dashboard/integrity.py']=digest(path.read_bytes())
+        manifest_path.write_text(json.dumps(manifest));before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'Customized/unsupported'):
+            prepare(root,{},context_runtime=True)
+        self.assertEqual(before,self.snapshot())
+
+    def test_pre_feature_confirmation_addenda_upgrade_without_handoff_rewrite(self):
+        from update_operations import V19_DELIVERY_ADDENDUM
+        manifest_path=self.factory/'manifest.json';manifest=json.loads(manifest_path.read_text())
+        prior={}
+        for phase in ('verify','release'):
+            name=f'.claude/skills/factory-{phase}/SKILL.md';path=self.factory/name
+            addon=(ROOT/f'scripts/fixtures/pre_feature_confirmation_{phase}_addendum.txt').read_text(encoding='utf-8')
+            self.assertIn(digest(addon),V19_DELIVERY_ADDENDUM[phase])
+            path.write_text(path.read_text(encoding='utf-8').rstrip()+'\n\n'+addon+'\n',encoding='utf-8')
+            prior[name]=path.read_bytes();manifest['contracts'][name]=digest(prior[name])
+        manifest_path.write_text(json.dumps(manifest))
+        handoff=self.factory/'release-handoff.md';handoff.write_text(handoff.read_text(encoding='utf-8')+'\nRetain existing project handoff.\n',encoding='utf-8')
+        before=self.snapshot();original_handoff=handoff.read_bytes()
+        root,old,new,plan=prepare(self.factory,{},delivery_update=True)
+        self.assertEqual(before,self.snapshot());self.assertNotIn('release-handoff.md',new)
+        backup=apply(root,old,new,plan,plan)
+        for name,data in prior.items():self.assertEqual((backup/name).read_bytes(),data)
+        self.assertEqual(handoff.read_bytes(),original_handoff);check(root,quiet=True)
+        self.assertIn('feature-specific post-action confirmation',(root/'.claude/skills/factory-verify/SKILL.md').read_text(encoding='utf-8'))
+
     def test_pristine_v19_delivery_addenda_are_selectively_upgraded(self):
         from update_operations import V19_DELIVERY_ADDENDUM
         paths={phase:self.factory/f'.claude/skills/factory-{phase}/SKILL.md' for phase in ('intake','verify','release')}
