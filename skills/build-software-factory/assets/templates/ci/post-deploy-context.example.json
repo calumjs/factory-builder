@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "mode": "deployment_status",
+  "repository": "example/project",
+  "subject": "1111111111111111111111111111111111111111",
+  "environment": "Production",
+  "target": "https://example.invalid",
+  "deployment": {
+    "repository": "example/project",
+    "subject": "1111111111111111111111111111111111111111",
+    "environment": "Production",
+    "target": "https://example.invalid",
+    "state": "READY",
+    "provider_deployment_id": "replace-with-independently-checked-provider-deployment-id",
+    "github_deployment_id": 42,
+    "verification_reference": "replace-with-nonsecret-independent-identity-evidence-reference"
+  },
+  "recipe": {
+    "command": ["npm", "run", "test:smoke"],
+    "environment": "Production",
+    "env_names": ["BASE_URL"],
+    "target": {"kind": "web", "value": "https://example.invalid", "base_url_env": "BASE_URL"}
+  },
+  "source_checkout": "/workspace/source-S",
+  "evidence_checkout": "/workspace/evidence-E",
+  "python": "/opt/approved/python",
+  "helper": "/opt/pinned-factory/scripts/ci_evidence.py",
+  "factory": ".software-factory",
+  "storage": "2222222222222222222222222222222222222222",
+  "evidence_directory": "docs/factory-evidence",
+  "required_tasks": [],
+  "manual_reason": null
+}
