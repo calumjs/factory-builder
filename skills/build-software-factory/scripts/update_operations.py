@@ -171,6 +171,9 @@ COMPATIBLE_CONTEXT_PRE_RUNTIME_INTEGRATION = {
     'integrity.py':'0a830ff249d538daf1783e58a0318bafaf6c022ec768c648d06d72df7e33894d',
     'dashboard.py':'cdc39b7c105c6270b0d491676dd05c4a081a149e5c17704fcfa256808e95ead7'}
 COMPATIBLE_CONTEXT_V113 = {'integrity.py':'87c8fdc0f300917a08af9afddf5275e5b744ac529b6e8d405e7919ddc26912f7'}
+COMPATIBLE_DELIVERY_V117 = {
+    'verify':'fdc035dd604139cf904b8d62025fc67403cd1d89c721535d2e1727f0d9190019',
+    'release':'626347ff37fe9d49faa787ea571b5804f154ef49ba3bb40887e8d137eb2b20a9'}
 V19_DELIVERY_ADDENDUM = {
     'intake': ('f48fc8e0956c99003f8c46bfaae76c9847cd086332cc99bf25cb74b134742b5d','c179a72f3b39cb7d181a9e04fa0cb2143747f4b7b1039bf0347d042d17900bc3'),
     'verify': ('8d861d2de61e8a4c14d7fcc1109a91395943bea8c38b30407a9962352b2e3e76','bfcae3e6622ec55ff2f232bb630ac7c340978c7dff9462c1ead95e7ff36592d9','2599dd944575f04c6a8a25916c7f63037d3168bbb5140f3c885b6d1b13e33a4c','4662208da23353e382335504b5035771f23d05f108833e2a3e86be13d518fcd3','393cbed734fc4011bcf52eaa1d48111fa49dcaac79c5b2e8fb3320f50194eafd'),
@@ -191,6 +194,7 @@ COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION = {
     'operations.py':'c0a11db48df30f2b29f3770eb52a784d1b9b425a91420df8e5175470cb6eca2a'}
 COMPATIBLE_GATE_V113 = {'gates.py':'bb706626fb04bf509ff4cb8805d0da353c4add1309f310441bc1dbbde7fe5da4'}
 COMPATIBLE_GATE_V115 = {'gates.py':'cba74ee0273ad98461a23af1e52c2d486e60bd066947315ea07aa049cf1bcbde'}
+COMPATIBLE_GATE_V117 = {'gates.py':'11b5ca9fce5e6eec5ec06c60d0417546e74aea05968d0346f7fe4f6076b4c697'}
 
 
 def gate_runtime_plan(root, original, replacement, opted_in):
@@ -199,7 +203,7 @@ def gate_runtime_plan(root, original, replacement, opted_in):
         wanted=(ROOT/'scripts'/filename).read_bytes()
         current=path.read_bytes() if path.exists() else None
         if current is not None and digest(current)==digest(wanted):continue
-        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename),COMPATIBLE_GATE_V115.get(filename))
+        compatible=current is not None and digest(current) in (COMPATIBLE_GATE_RUNTIME.get(filename),COMPATIBLE_GATE_PRE65.get(filename),COMPATIBLE_GATE_V19.get(filename),COMPATIBLE_GATE_PRE_DIAGNOSTICS.get(filename),COMPATIBLE_GATE_PRE_RUNTIME_INTEGRATION.get(filename),COMPATIBLE_GATE_V113.get(filename),COMPATIBLE_GATE_V115.get(filename),COMPATIBLE_GATE_V117.get(filename))
         if compatible and not opted_in:continue
         known=current is not None and digest(current) in (PRIOR_GATE_RUNTIME[filename],LEGACY_DASHBOARD_OPERATIONS if filename=='operations.py' else None)
         if not known and not compatible and not (current is None and filename=='recipes.py'):
@@ -338,7 +342,7 @@ def prepare(factory, changes, delivery_update=False, recipe_runtime=False, assum
             if current.count('<!-- factory-delivery-update:start -->')>1 or current.count('<!-- factory-delivery-update:start -->')!=current.count('<!-- factory-delivery-update:end -->'):
                 raise ValueError('Ambiguous prior delivery addendum')
             previous=re.search(pattern,current,flags=re.S)
-            if previous and digest(previous.group(0)) not in (LEGACY_DELIVERY_ADDENDUM[phase],*V19_DELIVERY_ADDENDUM[phase],digest(build_addon(source)),digest(build_addon(source_six))):
+            if previous and digest(previous.group(0)) not in (LEGACY_DELIVERY_ADDENDUM[phase],*V19_DELIVERY_ADDENDUM[phase],COMPATIBLE_DELIVERY_V117.get(phase),digest(build_addon(source)),digest(build_addon(source_six))):
                 raise ValueError('Customized or unsupported delivery addendum preserved; review migration manually: '+phase)
             current=re.sub(pattern,lambda _:addon,current,flags=re.S) if re.search(pattern,current,flags=re.S) else current.rstrip()+'\n\n'+addon+'\n'
             replacement[name]=current.encode('utf-8')

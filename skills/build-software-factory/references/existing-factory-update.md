@@ -217,3 +217,12 @@ Malformed learning rows must be repaired explicitly before integrity-dependent
 migration; structural validation never supplies missing evidence or passing results.
 The optional acceptance-links helper reads the same Learn structure from captured
 bytes and leaves factory contracts, records and gate readiness untouched.
+
+Known v1.17 Verify/Release delivery addenda can receive the persistence, parity
+and failed-G3 retry guidance through an explicit `--delivery-gates` preview.
+Review the evidence resets/history as well as instruction changes; failed prior
+observations and optional choices are preserved, not carried forward as passes.
+The known v1.17 copied gate helper can separately receive the abbreviation
+diagnostics with `--gate-runtime`. Unrelated updates preserve both older forms.
+Custom addenda/helper bytes are refused, and backups retain the originals. A
+diagnostic update does not resolve a short SHA or establish new subject evidence.
