@@ -15,7 +15,7 @@ import stat
 import struct
 from pathlib import Path
 import tempfile
-from gates import gate_rows, requirements
+from gates import gate_rows, requirements, assess as assess_gates
 from integrity import check, safe_path, ManifestFileSetMismatch
 from readiness import report
 
@@ -23,6 +23,23 @@ INPUTS = ('config.json', 'task-plan.json', 'verification.md', 'research.json')
 MAX_BYTES = 2_000_000
 MAX_RUN_BYTES = 65536
 MAX_RUN_ENTRIES = 200
+
+
+def assessment_context(value):
+    """Explicit approved export fields; never derive an identity or target."""
+    if value is None:
+        return None
+    if not isinstance(value, dict) or set(value) != {'subject', 'stage', 'actual_target', 'reason'}:
+        raise ValueError('Assessment requires subject, stage, actual_target and reason')
+    if value['stage'] not in ('pre-merge', 'post-merge'):
+        raise ValueError('Assessment needs an explicit known stage')
+    for key, limit in (('subject', 200), ('reason', 500), ('actual_target', 2048)):
+        item = value[key]
+        if key == 'actual_target' and item is None:
+            continue
+        if not isinstance(item, str) or not 1 <= len(item) <= limit or item != item.strip() or not item.isprintable():
+            raise ValueError('Assessment fields must be bounded nonempty single-line text')
+    return dict(value)
 
 
 def profile(config):
@@ -366,7 +383,8 @@ def run_records(path, now, minutes):
     return records[:20], sorted(set(errors))
 
 
-def read(factory, extra=None, now=None):
+def read(factory, extra=None, now=None, assessment=None):
+    selection = assessment_context(assessment)
     root = safe_path(factory)
     # Integrity errors are explicit and fail closed; no untrusted partial data is promoted.
     check(root, quiet=True)
@@ -374,7 +392,7 @@ def read(factory, extra=None, now=None):
     now = now or datetime.now(timezone.utc)
     config = json.loads((root/'config.json').read_text(encoding='utf-8-sig'))
     minutes = profile(config)['stale_after_minutes']
-    for name in INPUTS:
+    for name in INPUTS + (('policy.md',) if selection is not None else ()):
         path = root/name
         stat = path.stat()
         if stat.st_size > MAX_BYTES:
@@ -389,6 +407,15 @@ def read(factory, extra=None, now=None):
                        integrity='Contract hashes/basic structure checked; evidence truth not attested', extra=extra)
     result['runs'],run_errors=run_records(root.parent/'.factory-runs',now,minutes)
     result['errors'].extend(run_errors)
+    if selection is not None:
+        issues = assess_gates(root, selection['stage'], selection['subject'], selection['actual_target'])
+        result['assessment'] = {**selection, 'scope': 'full stage; global expected-row and stage consistency checks retained',
+                                'state': 'blocked' if issues else 'satisfied',
+                                'problems': [item if len(item) <= 600 else item[:600]+' [diagnostic truncated]' for item in issues[:100]],
+                                'omitted_problem_count': max(0, len(issues)-100),
+                                'waived': [{'id': row['id'], 'recorded_result': row['recorded_result']}
+                                           for row in result['gates'] if row['stage'] == selection['stage'] and not row['required']],
+                                'notice': 'Record rules only. Supplied context is not source validation or independently verified evidence; no application checks or actions ran.'}
     # Detect ordinary concurrent changes instead of silently mixing generations.
     if any(hashlib.sha256((root/s['artifact']).read_bytes()).hexdigest()!=s['sha256'] for s in sources):
         raise ValueError('Factory changed while reading; retry the snapshot')
@@ -482,6 +509,21 @@ def page(data):
     body += '<div class="meta"><span class="chip">captured <b>'+when(captured)+'</b></span><span class="chip">stale after <b>'+when(expires)+'</b></span><span class="chip">integrity <b>'+text(data['integrity'])+'</b></span></div></header>'
     if data['errors']:
         body += '<div class="alert"><strong>Data errors; readiness unavailable.</strong> '+' · '.join(text(e) for e in data['errors'])+'</div>'
+
+    selected = data.get('assessment')
+    if selected is not None:
+        state = 'BLOCKED' if selected['state'] == 'blocked' else 'SATISFIES RECORD RULES'
+        details = '<p>Subject: <mark>'+text(selected['subject'])+'</mark> · Stage: '+text(selected['stage'])+'</p>'
+        details += '<p>Why this subject: '+text(selected['reason'])+'</p>'
+        details += '<p>Supplied actual target: '+text(selected['actual_target'] if selected['actual_target'] is not None else 'not supplied')+'</p>'
+        details += '<p>'+pill(state, 'warn' if selected['state'] == 'blocked' else 'ok')+' · '+text(selected['scope'])+'</p>'
+        if selected['problems']:
+            details += '<ul>'+''.join('<li>'+text(item)+'</li>' for item in selected['problems'])+'</ul>'
+        if selected['omitted_problem_count']:
+            details += '<p>'+text(selected['omitted_problem_count'])+' additional problems omitted; assessment remains blocked.</p>'
+        if selected['waived']:
+            details += '<p>Waived: '+', '.join(text(item['id'])+' (recorded '+text(item['recorded_result'])+')' for item in selected['waived'])+'</p>'
+        body += panel('Selected record assessment', selected['notice'], details)
 
     # Flow
     phase_counts = [('Intake', str(len(context['assumptions']))+' assumption'+('' if len(context['assumptions'])==1 else 's'), False),
@@ -595,6 +637,10 @@ def main():
     parser.add_argument('--format', choices=('html', 'json'), default='html')
     parser.add_argument('--replace', action='store_true')
     parser.add_argument('--observations', help='Explicit approved local non-secret metric JSON; no URL fetching')
+    parser.add_argument('--assessment-subject', help='Explicit exact evidence subject; exported, never inferred from Git/HEAD')
+    parser.add_argument('--assessment-stage', choices=('pre-merge', 'post-merge'))
+    parser.add_argument('--assessment-target', help='Separately observed actual target; approved non-secret export text, never a planned-target fallback')
+    parser.add_argument('--assessment-reason', help='Why this subject was chosen; approved non-secret export text, not validated provenance')
     args = parser.parse_args()
     extra = None
     if args.observations:
@@ -602,7 +648,10 @@ def main():
         if path.stat().st_size > MAX_BYTES:
             raise ValueError('Observations file too large')
         extra = json.loads(path.read_text(encoding='utf-8-sig'))
-    data = read(args.factory, extra)
+    selected = (args.assessment_subject, args.assessment_stage, args.assessment_target, args.assessment_reason)
+    assessment = {'subject': args.assessment_subject, 'stage': args.assessment_stage,
+                  'actual_target': args.assessment_target, 'reason': args.assessment_reason} if any(value is not None for value in selected) else None
+    data = read(args.factory, extra, assessment=assessment)
     content = page(data) if args.format == 'html' else json.dumps(data, indent=2, ensure_ascii=False)+'\n'
     write_output(args.factory, args.output, content, args.replace)
     print('Snapshot written; no live activity attested: '+str(safe_path(args.output)))

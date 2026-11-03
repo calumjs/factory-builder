@@ -398,16 +398,23 @@ class UpdateTests(unittest.TestCase):
         manifest_path.write_text(json.dumps(manifest),encoding='utf-8');check(self.factory,quiet=True)
         before=self.snapshot();command=[sys.executable,str(ROOT/'scripts/update_operations.py'),'--factory',str(self.factory)]
         self.assertNotEqual(subprocess.run(command,capture_output=True,text=True).returncode,0)
-        for flag in ('--recipe-runtime','--context-runtime','--gate-runtime','--delivery-gates'):
-            result=subprocess.run(command+[flag],capture_output=True,text=True)
+        refused=subprocess.run(command+['--context-runtime'],capture_output=True,text=True)
+        self.assertNotEqual(refused.returncode,0)
+        self.assertIn('--context-runtime --gate-runtime',refused.stderr)
+        self.assertNotIn('REVIEW PLAN:',refused.stdout);self.assertEqual(before,self.snapshot())
+        for flags in (['--recipe-runtime'],['--gate-runtime'],['--delivery-gates'],['--context-runtime','--gate-runtime']):
+            result=subprocess.run(command+flags,capture_output=True,text=True)
             self.assertEqual(result.returncode,0,result.stderr);self.assertIn('REVIEW PLAN:',result.stdout)
             self.assertEqual(before,self.snapshot())
-        preview=subprocess.run(command+['--gate-runtime'],capture_output=True,text=True)
+        flags=['--context-runtime','--gate-runtime']
+        preview=subprocess.run(command+flags,capture_output=True,text=True)
         self.assertIn('FILE dashboard/gates.py raw SHA256:',preview.stdout)
         token=re.search(r'REVIEW PLAN: ([0-9a-f]{64})',preview.stdout).group(1)
-        self.assertNotEqual(subprocess.run(command+['--gate-runtime','--apply','--approve-plan','bad'],capture_output=True,text=True).returncode,0)
+        self.assertNotEqual(subprocess.run(command+flags+['--apply'],capture_output=True,text=True).returncode,0)
         self.assertEqual(before,self.snapshot())
-        applied=subprocess.run(command+['--gate-runtime','--apply','--approve-plan',token],capture_output=True,text=True)
+        self.assertNotEqual(subprocess.run(command+flags+['--apply','--approve-plan','bad'],capture_output=True,text=True).returncode,0)
+        self.assertEqual(before,self.snapshot())
+        applied=subprocess.run(command+flags+['--apply','--approve-plan',token],capture_output=True,text=True)
         self.assertEqual(applied.returncode,0,applied.stderr)
         self.assertEqual(config.read_bytes(),before['.software-factory/config.json'])
         self.assertEqual((self.factory/'policy.md').read_bytes(),before['.software-factory/policy.md'])
@@ -422,6 +429,19 @@ class UpdateTests(unittest.TestCase):
         dashboard=subprocess.run([sys.executable,str(self.factory/'dashboard/dashboard.py'),'--output',str(output),'--format','json'],capture_output=True,text=True)
         self.assertEqual(dashboard.returncode,0,dashboard.stderr)
         self.assertTrue(json.loads(output.read_text(encoding='utf-8'))['gates'])
+        selection=['--assessment-subject','SYNTHETIC-EXACT-SUBJECT','--assessment-stage','pre-merge',
+                   '--assessment-reason','Synthetic runtime parity; no application checks were run.']
+        assessments=[]
+        for name,script in (('installed',ROOT/'scripts/dashboard.py'),('copied',self.factory/'dashboard/dashboard.py')):
+            selected_output=self.base/(name+'-assessment.json')
+            selected=subprocess.run([sys.executable,str(script),'--factory',str(self.factory),'--output',str(selected_output),
+                                     '--format','json',*selection],capture_output=True,text=True)
+            self.assertEqual(selected.returncode,0,selected.stderr)
+            assessments.append(json.loads(selected_output.read_text(encoding='utf-8'))['assessment'])
+        self.assertEqual(assessments[0],assessments[1]);self.assertEqual(assessments[0]['state'],'blocked')
+        self.assertEqual(config.read_bytes(),before['.software-factory/config.json'])
+        self.assertEqual((self.factory/'policy.md').read_bytes(),before['.software-factory/policy.md'])
+        self.assertFalse((self.factory/'dashboard/__pycache__').exists())
         check(self.factory,quiet=True)
 
     def test_runtime_only_custom_code_is_refused_and_noop_preserves_manifest(self):
