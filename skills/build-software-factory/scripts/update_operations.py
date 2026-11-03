@@ -244,18 +244,35 @@ def selective_explanations(original, replacement, changes, *, delivery=False, as
             for gate,row in decision['rows'].items()]
 
 
+VIDEO_HISTORY_HEADINGS=frozenset(('## Prior gate observation (not current evidence)',
+                                 '## Historical observations (not current evidence)'))
+
+
 def video_reactivation_choices(text, expected, choices):
     """History identifies prior occurrence only; it never supplies a preference."""
     choices={} if choices is None else choices
     if not isinstance(choices,dict) or any(g not in ('V1','V2') or type(v) is not bool for g,v in choices.items()):
         raise ValueError('Video requiredness must map V1/V2 to explicit booleans')
-    active=set();retired=set();in_history=False;sections=0
+    active=set();in_history=False
     for line in text.splitlines():
-        if line.strip()=='## Historical observations (not current evidence)':
-            if line!='## Historical observations (not current evidence)':
+        if line.strip() in VIDEO_HISTORY_HEADINGS:in_history=True
+        elif line.startswith('## '):in_history=False
+        match=ROW.match(line)
+        if match and not in_history:active.add(match[1])
+    added={g for g in ('V1','V2') if g in expected and g not in active}
+    if set(choices)-added:
+        raise ValueError('Video requiredness choices apply only to newly activated V1/V2 rows; unused choices refused')
+    # Ordinary refreshes preserve history without interpreting it. Only missing
+    # video rows need a presence check; history never chooses their requiredness.
+    if not added:return choices
+    active=set();retired=set();in_history=False
+    for line in text.splitlines():
+        if line.strip() in VIDEO_HISTORY_HEADINGS:
+            if line not in VIDEO_HISTORY_HEADINGS:
                 raise ValueError('Malformed historical observations heading; preserve and review manually')
-            sections+=1;in_history=True
-            if sections>1:raise ValueError('Ambiguous historical observations sections; preserve and review manually')
+            # The incremental writer emits a section per observation. Multiple
+            # recognized sections establish presence, never a latest preference.
+            in_history=True
             continue
         if line.startswith('## '):in_history=False
         historical=re.match(r'^\s*>\s*\|',line) is not None
@@ -278,13 +295,12 @@ def video_reactivation_choices(text, expected, choices):
         else:
             if gate in active:raise ValueError('Duplicate source gate row requires review: '+gate)
             active.add(gate)
-    added={g for g in ('V1','V2') if g in expected and g not in active}
-    if set(choices)-added:
-        raise ValueError('Video requiredness choices apply only to newly activated V1/V2 rows; unused choices refused')
     missing=sorted((added & retired)-set(choices))
     if missing:
         raise ValueError('Reactivated video gates need explicit current requiredness: '+', '.join(missing)+
-                         '; supply --video-requiredness V1=yes or V1=no (V2 likewise). Historical choices/results are not replayed')
+                         '; use --operations <reviewed-patch.json> with the intended done_videos activation '
+                         '(or {"done_videos": {}} to restore rows already expected by config), plus '
+                         '--video-requiredness V1=yes or V1=no (V2 likewise). Historical choices/results are not replayed')
     return choices
 
 
@@ -309,9 +325,9 @@ def refreshed_verification(text, config, research, reset_smoke_defaults=False, p
     preserved=[];history=[];observations=[];extra=[];flags={}
     in_history=False;table_header=False;skip_blank=False
     for line in text.splitlines():
-        if line in ('## Historical observations (not current evidence)', '## Current delivery gate records', '## Delivery gate records (required checks start NOT RUN)'):
+        if line in VIDEO_HISTORY_HEADINGS or line in ('## Current delivery gate records', '## Delivery gate records (required checks start NOT RUN)'):
             while preserved and not preserved[-1].strip():preserved.pop()
-            in_history=line.startswith('## Historical');table_header=False;skip_blank=True;continue
+            in_history=line in VIDEO_HISTORY_HEADINGS;table_header=False;skip_blank=True;continue
         if line.startswith('## '):in_history=False
         if in_history and line.startswith('> | '):
             history.append(line);skip_blank=True;continue

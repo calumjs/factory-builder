@@ -110,8 +110,7 @@ class VideoReactivationTests(unittest.TestCase):
 
     def test_malformed_ambiguous_or_relocated_history_does_not_become_fresh(self):
         self.edit();self.update({'done_videos':{'enabled':False}});original=self.path.read_text()
-        for text in (original+'\n## Historical observations (not current evidence)\n',
-                     original.replace('## Historical observations (not current evidence)',' ## Historical observations (not current evidence)',1),
+        for text in (original.replace('## Historical observations (not current evidence)',' ## Historical observations (not current evidence)',1),
                      original.replace('> | V1 |','| V1 |',1),
                      original.replace('> | V1 |','> | V1 malformed |',1),
                      original.replace('> | V1 |','>  | V1 |',1),

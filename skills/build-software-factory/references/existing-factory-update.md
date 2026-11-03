@@ -215,6 +215,16 @@ occurrence also requires an explicit restoration choice. History only
 identifies prior occurrence: it never supplies instructions, preferences or
 current evidence. Malformed/ambiguous history requires manual review.
 
+Both generated history headings (`Prior gate observation` and `Historical
+observations`, each marked `not current evidence`) are supported, including
+repeated sections from incremental recording. A refresh retains their quoted
+rows and notes; repeated sections do not establish a latest preference. Strict
+history inspection for reactivation is needed only when adding a missing video
+row. To restore a row already expected by config, review an operations patch
+`{"done_videos": {}}` through `--operations <patch.json>` together with the
+applicable `--video-requiredness` choices. An unrelated runtime/delivery flag
+alone is not a video restoration choice.
+
 Only newly activated video rows accept this option; existing active rows retain
 their choices, and unused or duplicate options are refused. First activation
 without history keeps the established required default, or can explicitly choose
