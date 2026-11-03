@@ -6,6 +6,7 @@ never proof of deployment identity, readiness, authority or successful testing.
 import argparse
 import hashlib
 import json
+import math
 from pathlib import Path
 import re
 import sys
@@ -63,7 +64,7 @@ def absolute(value):
 
 
 def digest(value):
-    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True).encode()).hexdigest()
+    return hashlib.sha256(json.dumps(value, sort_keys=True, separators=(',', ':'), ensure_ascii=True, allow_nan=False).encode()).hexdigest()
 
 
 def plan(context, event=None):
@@ -160,6 +161,12 @@ def plan(context, event=None):
 
 
 def read_json(path):
+    def finite_float(raw):
+        value = float(raw)
+        if not math.isfinite(value):
+            fail('Nonfinite JSON numbers are unsupported')
+        return value
+
     def pairs(items):
         out = {}
         for key, value in items:
@@ -172,7 +179,7 @@ def read_json(path):
         raw = stream.read(LIMIT + 1)
     if len(raw) > LIMIT:
         fail('Input exceeds the adapter size limit')
-    return json.loads(raw.decode('utf-8-sig'), object_pairs_hook=pairs,
+    return json.loads(raw.decode('utf-8-sig'), object_pairs_hook=pairs, parse_float=finite_float,
                       parse_constant=lambda _: fail('Nonfinite JSON numbers are unsupported'))
 
 

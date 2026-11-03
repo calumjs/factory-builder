@@ -172,6 +172,26 @@ class PostDeployTemplateTests(unittest.TestCase):
         self.context['deployment']['verification_reference'] = 'new independent check'
         self.assertNotEqual(second['context_sha256'], self.result()['context_sha256'])
 
+    def test_float_overflow_in_unused_native_event_fields_is_refused(self):
+        context, event = self.root / 'context.json', self.root / 'event.json'
+        context.write_text(json.dumps(self.context))
+        for number in ('1e10000', '-1e10000'):
+            with self.subTest(number=number):
+                event.write_text(json.dumps(self.event)[:-1] + ', "unused":' + number + '}')
+                with self.assertRaises(ValueError): adapter.read_json(event)
+                result = subprocess.run([sys.executable, '-B', str(ADAPTER), '--context', str(context),
+                                         '--event', str(event)], capture_output=True, text=True)
+                self.assertEqual(result.returncode, 2)
+                self.assertEqual(result.stdout, '')
+                self.assertNotIn(number, result.stderr)
+                self.assertNotIn(str(self.root), result.stderr)
+        for number in (1.25, -1.25, 1e100):
+            self.event['unused'] = number
+            event.write_text(json.dumps(self.event))
+            self.assertEqual(adapter.plan(self.context, adapter.read_json(event))['result'], 'plan_only')
+        self.event['unused'] = float('inf')
+        with self.assertRaises(ValueError): self.result()  # pure API digest defense too
+
     def test_actual_cli_plan_and_sanitized_failures(self):
         context, event = self.root / 'context.json', self.root / 'event.json'
         context.write_text(json.dumps(self.context)); event.write_text(json.dumps(self.event))
