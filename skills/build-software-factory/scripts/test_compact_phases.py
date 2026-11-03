@@ -180,6 +180,32 @@ class CompactMigrationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError,'Referenced phase support is missing'):self.preview()
         self.assertEqual(before,self.snapshot())
 
+    def test_pre_ui_factory_cannot_gain_a_dangling_build_guide_link(self):
+        # A real older factory predates this support file, unlike a new render.
+        name='ui-verification.md';(self.root/name).unlink()
+        manifest_path=self.root/'manifest.json';manifest=json.loads(manifest_path.read_bytes())
+        del manifest['contracts'][name];manifest_path.write_bytes(json.dumps(manifest).encode())
+        check(self.root,quiet=True);before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'Referenced phase support is missing.*ui-verification.md'):
+            self.preview()
+        self.assertEqual(before,self.snapshot())
+        self.assertFalse((self.root/'phase-build-guide.md').exists())
+
+    def test_custom_ui_support_is_captured_unchanged_and_concurrent_raw_edit_refuses(self):
+        name='ui-verification.md';raw=b'# Reviewed custom UI procedure\nPrivate synthetic fixture only.\n'
+        self.contract(name,raw);prepared=self.preview()
+        self.assertEqual(prepared[1][name],raw);self.assertNotIn(name,prepared[2])
+        # LF/CRLF preserves the normalized contract hash, so raw dependency
+        # capture must catch this change rather than relying on integrity alone.
+        (self.root/name).write_bytes(raw.replace(b'\n',b'\r\n'));check(self.root,quiet=True)
+        before=self.snapshot()
+        with self.assertRaisesRegex(ValueError,'changed after preview'):
+            apply(*prepared,prepared[3])
+        self.assertEqual(before,self.snapshot())
+        (self.root/name).write_bytes(raw);apply(*prepared,prepared[3]);check(self.root,quiet=True)
+        self.assertEqual((self.root/name).read_bytes(),raw)
+        self.assertIn('(ui-verification.md)',(self.root/'phase-build-guide.md').read_text())
+
     def test_wrong_digest_concurrent_skill_research_and_guide_creation_refuse(self):
         prepared=self.preview();before=self.snapshot()
         with self.assertRaisesRegex(ValueError,'digest'):apply(*prepared,'0'*64)

@@ -543,7 +543,7 @@ def unchanged(root, name, expected):
 def compact_phase_plan(root, original, replacement):
     """Opt-in adoption of exact generated phase contracts; custom text is never extracted."""
     for name in ('boundaries.md','launch-guide.md','worker-handoff.md','connection-string-review.md',
-                 'done-video-recipe.md','ci/README.md','ci/job.example.py','dashboard/README.md','research.md'):
+                 'done-video-recipe.md','ui-verification.md','ci/README.md','ci/job.example.py','dashboard/README.md','research.md'):
         if not (root/name).is_file():
             raise ValueError('Referenced phase support is missing; preserve and review adoption before compact migration: '+name)
         original[name]=(root/name).read_bytes()

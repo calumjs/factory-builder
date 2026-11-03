@@ -195,3 +195,9 @@ collection and final results; distinguish repeats/retries from distinct tests.
 The builder only records supplied claims and does not attest that this procedure
 ran. Existing factories need reviewed guide adoption; a plugin update rewrites
 neither their contracts nor their evidence.
+
+Before compact-phase migration, an older factory must separately adopt and
+register a reviewed `ui-verification.md` support contract. The migration refuses
+if it is absent, captures its existing raw bytes for concurrent-change checks,
+and does not create or overwrite it. A custom reviewed guide remains unchanged;
+its content is not automatically certified by the migration.
