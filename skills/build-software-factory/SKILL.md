@@ -47,7 +47,7 @@ does not authorize changing their GitHub account.
 
 ## Other situations
 
-- Existing factory or changed preferences: [existing-factory-update.md](references/existing-factory-update.md) — preview-first synchronized update, never a direct edit of hashed files.
+- Existing factory or changed preferences: [existing-factory-update.md](references/existing-factory-update.md) - preview-first synchronized update, never a direct edit of hashed files. For narrow smoke/video plan changes, [selective gate updates](references/selective-gate-updates.md) can retain unchanged observations without rebinding or recertifying them.
 - Incremental work against existing configured acceptance: [incremental-workflow.md](references/incremental-workflow.md). Scoped assessment is separate from whole-project readiness; use living-record previews within existing write authority.
 - Preparing or recording observations: [observation-drafts.md](references/observation-drafts.md) keeps planned recipes separate from actual evidence; [batch-observations.md](references/batch-observations.md) previews explicit observations for one subject through the existing atomic writer.
 - Optional acceptance-to-G3 traceability: [acceptance-links.md](references/acceptance-links.md). Versioned external links are read-only claims; they never execute checks or mark acceptance complete.
