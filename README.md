@@ -18,7 +18,7 @@ One generated directory, `<project>/.software-factory/`, containing the seven `f
 ## Quick start
 
 ```text
-/plugin marketplace add calumjs/software-factory-plugin
+/plugin marketplace add calumjs/factory-builder
 /plugin install software-factory@software-factory-plugins
 /software-factory:build-software-factory Add CSV export to the reports page
 ```
@@ -30,7 +30,7 @@ claude --add-dir .software-factory      # keep --setting-sources project for hea
 /factory-run                            # review an advisory pass plan
 ```
 
-Installation follows the repository's current access requirements; use Git authentication when required. For a session-only preview without installing: `claude --plugin-dir /path/to/software-factory-plugin`. Helpers need Python 3.9+ and only the standard library; see the [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for Windows interpreter selection.
+Installation follows the repository's current access requirements; use Git authentication when required. For a session-only preview without installing: `claude --plugin-dir /path/to/factory-builder`. Helpers need Python 3.9+ and only the standard library; see the [scaffolding guide](skills/build-software-factory/references/scaffolding.md) for Windows interpreter selection.
 
 To run this plugin's offline tests from its checkout, use `python3 run_tests.py`
 (or `py -3 run_tests.py` on Windows). The runner locates the suite relative to
